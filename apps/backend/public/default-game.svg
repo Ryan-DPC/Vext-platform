@@ -1,0 +1,42 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1928;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f0c14;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff7eb3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7afcff;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Card -->
+  <rect width="400" height="600" fill="url(#cardBg)" />
+  
+  <!-- Decorative Elements -->
+  <circle cx="200" cy="300" r="150" fill="none" stroke="url(#neonGrad)" stroke-width="2" opacity="0.1" />
+  <circle cx="200" cy="300" r="120" fill="none" stroke="url(#neonGrad)" stroke-width="1" opacity="0.05" />
+  
+  <!-- Gamepad Icon -->
+  <g transform="translate(100, 250) scale(2)" filter="url(#glow)">
+    <path d="M10 30 C 10 10, 30 10, 30 10 L 70 10 C 70 10, 90 10, 90 30 L 90 50 C 90 70, 70 70, 60 70 L 40 70 C 30 70, 10 70, 10 50 Z" fill="none" stroke="url(#neonGrad)" stroke-width="3" />
+    <!-- D-Pad -->
+    <path d="M25 40 L 35 40 M 30 35 L 30 45" stroke="url(#neonGrad)" stroke-width="3" stroke-linecap="round" />
+    <!-- Buttons -->
+    <circle cx="65" cy="40" r="2" fill="#7afcff" />
+    <circle cx="75" cy="40" r="2" fill="#ff7eb3" />
+    <circle cx="70" cy="35" r="2" fill="#7afcff" />
+    <circle cx="70" cy="45" r="2" fill="#ff7eb3" />
+  </g>
+  
+  <!-- Text Placeholder -->
+  <text x="200" y="450" font-family="Arial, sans-serif" font-size="24" fill="#b0b9c3" text-anchor="middle" letter-spacing="2">NO IMAGE</text>
+  <text x="200" y="480" font-family="Arial, sans-serif" font-size="14" fill="#555" text-anchor="middle">ETHER GAMES</text>
+</svg>

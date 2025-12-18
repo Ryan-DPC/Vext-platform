@@ -1,0 +1,23 @@
+const { createClient } = require('redis');
+
+const redisClient = createClient({
+    url: process.env.REDIS_URL || 'redis://:J3SuisEmanais2Reglets762@@containers-us-west-123.railway.app:6379',
+    socket: {
+        reconnectStrategy: false // Fail fast for testing if not available
+    }
+});
+
+redisClient.on('error', (err) => console.error('Redis Client Error', err));
+
+const connectRedis = async () => {
+    if (!redisClient.isOpen) {
+        await redisClient.connect();
+        console.log('✅ Redis client connected');
+    }
+    return redisClient;
+};
+
+module.exports = {
+    redisClient,
+    connectRedis
+};

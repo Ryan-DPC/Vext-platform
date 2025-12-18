@@ -1,0 +1,210 @@
+/* Popup des amis */
+.friends-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10000;
+    pointer-events: none; /* Permet les clics à travers le conteneur */
+}
+
+.friends-popup-content {
+    background: #24292f;
+    border: 1px solid #3a3a3a;
+    border-radius: 12px;
+    width: 320px;
+    height: 600px;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    pointer-events: auto; /* Permet les clics sur le contenu */
+    cursor: move; /* Curseur pour indiquer qu'on peut déplacer */
+    user-select: none; /* Empêche la sélection de texte lors du drag */
+}
+
+.friends-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #3a3a3a;
+    background: linear-gradient(135deg, #1b1f23 0%, #24292f 100%);
+    cursor: move; /* Curseur pour indiquer qu'on peut déplacer depuis le header */
+}
+
+.friends-popup-header strong {
+    color: #fff;
+    font-size: 18px;
+}
+
+.friends-popup-header .muted {
+    color: #b0b9c3;
+    font-size: 14px;
+}
+
+.close-friends-btn {
+    background: none;
+    border: none;
+    color: #b0b9c3;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    line-height: 1;
+    flex-shrink: 0;
+    z-index: 1; /* Au-dessus du header pour pouvoir cliquer */
+}
+
+.close-friends-btn:hover {
+    color: #fff;
+}
+
+.friends-popup-list {
+    list-style: none;
+    padding: 12px;
+    margin: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.friends-popup-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.friends-popup-list::-webkit-scrollbar-track {
+    background: #1b1f23;
+}
+
+.friends-popup-list::-webkit-scrollbar-thumb {
+    background: #3a3a3a;
+    border-radius: 3px;
+}
+
+.friends-popup-list::-webkit-scrollbar-thumb:hover {
+    background: #4a4a4a;
+}
+
+.friends-popup-list li {
+    padding: 14px 16px;
+    color: #b0b9c3;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin-bottom: 4px;
+}
+
+.friends-popup-list li .friend-action {
+    background: #2a2f36;
+    border: 1px solid #3a3f46;
+    color: #e0e6ed;
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.friends-popup-list li .friend-action:hover {
+    background: #343a42;
+}
+
+.friends-popup-list li .friend-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.friends-popup-list li:hover {
+    background: #1b1f23;
+    color: #fff;
+    transform: translateX(4px);
+}
+
+.friends-popup-list li.muted {
+    color: #b0b9c3;
+    font-style: italic;
+    justify-content: center;
+    padding: 30px;
+}
+
+.friends-popup-list .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    border: 2px solid #24292f;
+}
+
+.friends-popup-list .dot.online {
+    background: #4CAF50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.friends-popup-actions {
+    padding: 20px;
+    border-top: 1px solid #3a3a3a;
+    background: linear-gradient(135deg, #1b1f23 0%, #24292f 100%);
+}
+
+.add-friend-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #4a9eff 0%, #3a8eef 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+}
+
+.add-friend-btn:hover {
+    background: linear-gradient(135deg, #3a8eef 0%, #2a7edf 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(74, 158, 255, 0.4);
+}
+
+.add-friend-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+}
+
+.add-friend-btn i {
+    font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .friends-popup-content {
+        width: 90%;
+        height: 70vh;
+        max-height: 90vh;
+    }
+}
+

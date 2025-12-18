@@ -1,0 +1,594 @@
+/* Profile Page Styles - Disposition exacte basée sur l'image */
+
+/* IMPORTANT: Le header standard de l'app est géré par header.css */
+/* Ce CSS ne concerne que le contenu de la page profile, pas le header global */
+/* Toutes les classes commencent par "profile-content-" pour éviter les conflits */
+
+/* En-tête du contenu profile (pas le header global nav) */
+.profile-content-header {
+    background: #1b1f23;
+    padding: 0;
+    border-bottom: 2px solid #2a2a3e;
+    margin-bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Section principale du header de contenu */
+.profile-content-header-section {
+    width: 100%;
+    margin: 0;
+    padding: 30px var(--page-gutter, 16px);
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+/* Avatar à gauche */
+.profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 0;
+    overflow: hidden;
+    border: 2px solid #444;
+    background: #1b1f23;
+    flex-shrink: 0;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Informations au centre */
+.profile-info {
+    flex: 1;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profile-info h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: #fff;
+}
+
+.profile-info .profile-title {
+    font-size: 14px;
+    color: #b0b9c3;
+    margin: 0;
+}
+
+.profile-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.stat-item {
+    font-size: 14px;
+    color: #b0b9c3;
+    padding: 6px 12px;
+    background: #1b1f23;
+    border: 1px solid #444;
+    border-radius: 0;
+}
+
+.stat-item strong {
+    color: #4a9eff;
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* Actions à droite */
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.profile-actions .btn-action {
+    padding: 8px 16px;
+    background: #444;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 0;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.2s;
+    white-space: nowrap;
+    min-width: 160px;
+    text-align: center;
+}
+
+.profile-actions .btn-action:hover {
+    background: #555;
+    color: #fff;
+}
+
+.profile-actions .btn-action.primary {
+    background: #4a9eff;
+    border-color: #3a8eef;
+}
+
+.profile-actions .btn-action.primary:hover {
+    background: #3a8eef;
+}
+
+/* Navigation tabs */
+.profile-content-nav {
+    background: #1b1f23;
+    border-bottom: 1px solid #2a2a3e;
+    width: 100%;
+    margin: 0;
+}
+
+.profile-content-nav ul {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: 0;
+}
+
+.profile-content-nav li {
+    margin: 0;
+}
+
+.profile-content-nav a {
+    display: block;
+    padding: 16px 24px;
+    color: #b0b9c3;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.profile-content-nav a:hover {
+    color: #fff;
+}
+
+.profile-content-nav a.active {
+    color: #4a9eff;
+    border-bottom-color: #4a9eff;
+}
+
+/* Main Content - Layout en deux colonnes */
+.profile-main {
+    width: 100%;
+    margin: 0;
+    padding: 30px var(--page-gutter, 16px);
+    display: grid;
+    grid-template-columns: 1fr 350px; /* Colonne gauche plus grande, droite plus petite */
+    gap: 20px;
+    align-items: start;
+    box-sizing: border-box;
+}
+
+/* Colonne gauche */
+.profile-left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Colonne droite */
+.profile-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Sections génériques du contenu profile (pas le header global) */
+.profile-content-section {
+    background: #1b1f23;
+    border: 1px solid #333;
+    padding: 24px;
+    border-radius: 0;
+}
+
+.profile-content-section h2,
+.profile-content-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
+}
+
+/* Activité récente */
+.recent-activity.profile-content-section {
+    background: #1b1f23;
+    border: 1px solid #333;
+    padding: 24px;
+    border-radius: 0;
+}
+
+.recent-activity h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
+}
+
+.recent-game {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: #1b1f23;
+    border: 1px solid #333;
+    margin-bottom: 12px;
+    border-radius: 0;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.recent-game:hover {
+    background: #1b1f23;
+    border-color: #555;
+}
+
+.recent-game:last-child {
+    margin-bottom: 0;
+}
+
+.recent-game img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 0;
+    border: 1px solid #333;
+    flex-shrink: 0;
+}
+
+.recent-game .game-info {
+    flex: 1;
+}
+
+.recent-game .game-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 6px 0;
+}
+
+.recent-game .game-info p {
+    font-size: 13px;
+    color: #b0b9c3;
+    margin: 4px 0;
+}
+
+.recent-activity > p {
+    color: #888;
+    font-style: italic;
+    text-align: left;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Liste de compétences */
+.skills-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.skills-list li {
+    font-size: 14px;
+    color: #b0b9c3;
+    padding: 12px 0;
+    border-bottom: 1px solid #333;
+    margin: 0;
+}
+
+.skills-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Informations détaillées */
+.info-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #333;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.info-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.info-value {
+    font-size: 14px;
+    color: #fff;
+    margin: 0;
+}
+
+.info-value a {
+    color: #4a9eff;
+    text-decoration: none;
+}
+
+.info-value a:hover {
+    text-decoration: underline;
+}
+
+/* Liste d'amis */
+.friends-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.friends-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.friend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #333;
+    transition: background 0.2s;
+}
+
+.friend-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.friend-item:hover {
+    background: rgba(255, 255, 255, 0.02);
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-left: -8px;
+    margin-right: -8px;
+}
+
+.friend-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 0;
+    border: 1px solid #333;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.friend-name {
+    flex: 1;
+    font-size: 14px;
+    color: #fff;
+    font-weight: 500;
+}
+
+.friend-elo {
+    font-size: 12px;
+    color: #b0b9c3;
+    margin-left: auto;
+}
+
+.no-friends,
+.friends-more {
+    color: #888;
+    font-style: italic;
+    text-align: left;
+    margin: 0;
+    font-size: 14px;
+    padding-top: 8px;
+}
+
+.friends-more {
+    padding-top: 12px;
+    border-top: 1px solid #333;
+    margin-top: 8px;
+}
+
+/* Badges */
+.badges.profile-content-section {
+    background: #1b1f23;
+    border: 1px solid #333;
+    padding: 24px;
+    border-radius: 0;
+}
+
+.badges h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
+}
+
+.badges ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.badges li {
+    width: 60px;
+    height: 60px;
+    border-radius: 0;
+    overflow: hidden;
+    border: 1px solid #333;
+    background: #1b1f23;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.badges li:hover {
+    border-color: #555;
+    transform: scale(1.05);
+}
+
+.badges li img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.badges p {
+    color: #888;
+    font-style: italic;
+    text-align: left;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Edit Profile */
+.edit-profile {
+    width: 100%;
+    margin: 30px 0;
+    padding: 0 var(--page-gutter, 16px);
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.edit-profile a {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #444;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 0;
+    transition: background 0.2s;
+    border: 1px solid #555;
+    font-size: 14px;
+}
+
+.edit-profile a:hover {
+    background: #555;
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+    .profile-main {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .profile-left-column {
+        order: -1;
+    }
+
+    .profile-content-header-section {
+        flex-wrap: wrap;
+    }
+
+    .profile-actions {
+        flex-direction: row;
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 16px;
+    }
+
+    .profile-actions .btn-action {
+        min-width: auto;
+        flex: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-content-header-section {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 20px 16px;
+    }
+
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+    }
+
+    .profile-info {
+        align-items: center;
+    }
+
+    .profile-info h1 {
+        font-size: 20px;
+    }
+
+    .profile-stats {
+        justify-content: center;
+    }
+    
+    .stat-item {
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+
+    .profile-content-nav ul {
+        flex-wrap: wrap;
+    }
+
+    .profile-content-nav a {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .profile-main {
+        padding: 20px 16px;
+        gap: 20px;
+    }
+
+    .recent-game {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .recent-game img {
+        width: 100px;
+        height: 100px;
+    }
+}

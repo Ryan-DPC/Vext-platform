@@ -1,0 +1,42 @@
+/* Mise en pleine largeur/hauteur pour la page de chat */
+#chat-page .main-content-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 22px !important;
+    margin: 0 !important;
+}
+
+#chat-page .chat-page {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 24px 0 32px !important;
+    background: transparent !important;
+}
+
+#chat-page .chat-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 24px !important;
+}
+
+#chat-page .chat-header {
+    border: 0 !important;
+    padding: 0 0 12px !important;
+    margin-bottom: 12px !important;
+}
+
+#chat-page .chat-thread {
+    height: calc(100vh - 220px) !important;
+    width: 100% !important;
+}
+
+#chat-page .chat-form {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: #1b1f23 !important;
+    padding-top: 8px !important;
+}
+
+

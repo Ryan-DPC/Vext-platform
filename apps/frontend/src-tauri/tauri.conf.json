@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "ether",
+  "version": "0.1.0",
+  "identifier": "com.ether.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "ether",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://backend-ether.onrender.com https://server-1-z9ok.onrender.com ws://localhost:3002 wss://server-1-z9ok.onrender.com data: asset: https://asset.cloudinary.com https://res.cloudinary.com; img-src 'self' https: data: blob: asset:; connect-src 'self' https://backend-ether.onrender.com https://server-1-z9ok.onrender.com wss://server-1-z9ok.onrender.com http://localhost:3001 ws://localhost:3002 https://api.ipify.org;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

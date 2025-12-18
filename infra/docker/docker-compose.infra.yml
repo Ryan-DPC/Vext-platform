@@ -1,0 +1,94 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: ether_mongo
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27017" ]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ether-net
+
+  redis:
+    image: redis:alpine
+    container_name: ether_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ether-net
+
+  postgres:
+    image: postgres:16
+    container_name: ether_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ether_finance}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ether-net
+
+  server:
+    build: ./server
+    container_name: ether_server
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/ether
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-ether_finance}
+      - WS_PORT=3002
+      - SERVER_ROLE=launcher # Role identifier
+    depends_on:
+      - mongo
+      - redis
+      - postgres
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - ether-net
+
+  games-server:
+    build: ./server
+    container_name: ether_games_server
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/ether
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-ether_finance}
+      - WS_PORT=3003
+      - SERVER_ROLE=games # Role identifier
+    depends_on:
+      - mongo
+      - redis
+      - postgres
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - ether-net
+
+networks:
+  ether-net:
+    name: ether-net
+    driver: bridge
+
+volumes:
+  mongo_data:
+  postgres_data:
