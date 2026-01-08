@@ -5,6 +5,12 @@ import { useUserStore } from '../stores/userStore'
 import { useAlertStore } from '../stores/alertStore'
 // import defaultGameImg from '@/assets/images/default-game.svg'
 import { getApiUrl } from '../utils/url';
+import BackgroundGlow from '../components/ui/BackgroundGlow.vue';
+import GlassCard from '../components/ui/GlassCard.vue';
+import GlassButton from '../components/ui/GlassButton.vue';
+import PageHeader from '../components/ui/PageHeader.vue';
+import SkeletonCard from '../components/ui/SkeletonCard.vue';
+
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
 
 const itemStore = useItemStore()
@@ -71,9 +77,7 @@ const equipItem = async (itemId: string) => {
 
 <template>
   <div class="store-container">
-    <!-- Background Glows -->
-    <div class="bg-glow pink-glow"></div>
-    <div class="bg-glow cyan-glow"></div>
+    <BackgroundGlow />
 
     <div class="store-layout">
       
@@ -113,19 +117,18 @@ const equipItem = async (itemId: string) => {
 
       <!-- Main Content -->
       <div class="main-content">
-        <div class="content-header">
-          <h1>Featured Items</h1>
+        <PageHeader title="Featured Items">
           <div class="balance-display">
             <i class="fas fa-coins"></i> {{ userStore.user?.tokens?.toLocaleString() || 0 }} VTX
           </div>
-        </div>
+        </PageHeader>
 
-        <div v-if="itemStore.isLoading" class="loading-state">
-          <i class="fas fa-circle-notch fa-spin"></i> Loading...
+        <div v-if="itemStore.isLoading" class="items-grid">
+           <SkeletonCard v-for="n in 8" :key="n" />
         </div>
 
         <div v-else class="items-grid">
-          <div v-for="item in itemStore.storeItems" :key="item.id" class="item-card">
+          <GlassCard v-for="item in itemStore.storeItems" :key="item.id" :hover-effect="true">
             <div class="card-preview">
               <img :src="item.image_url || defaultGameImg" loading="lazy" decoding="async">
               <div class="rarity-tag" :class="item.rarity">{{ item.rarity }}</div>
@@ -141,18 +144,32 @@ const equipItem = async (itemId: string) => {
                   <i class="fas fa-coins"></i> {{ item.price }}
                 </div>
                 
-                <button v-if="item.owned && !item.equipped" @click="equipItem(item.id)" class="btn-action equip">
+                <GlassButton 
+                    v-if="item.owned && !item.equipped" 
+                    variant="success" 
+                    @click="equipItem(item.id)"
+                >
                   EQUIP
-                </button>
-                <button v-else-if="item.equipped" class="btn-action equipped" disabled>
+                </GlassButton>
+                
+                <GlassButton 
+                    v-else-if="item.equipped" 
+                    variant="glass" 
+                    disabled
+                >
                   EQUIPPED
-                </button>
-                <button v-else @click="buyItem(item.id, item.price)" class="btn-action buy">
+                </GlassButton>
+                
+                <GlassButton 
+                    v-else 
+                    variant="primary" 
+                    @click="buyItem(item.id, item.price)"
+                >
                   BUY
-                </button>
+                </GlassButton>
               </div>
             </div>
-          </div>
+          </GlassCard>
         </div>
         
         <div v-if="!itemStore.isLoading && itemStore.storeItems.length === 0" class="empty-grid">
@@ -165,32 +182,16 @@ const equipItem = async (itemId: string) => {
 </template>
 
 <style scoped>
-/* Variables */
-:root {
-  --neon-pink: #ff7eb3;
-  --neon-cyan: #7afcff;
-  --glass-bg: rgba(30, 25, 40, 0.6);
-}
-
 .store-container {
   min-height: 100%; width: 100%;
   position: relative;
   background-color: transparent; color: white;
   padding: 20px;
-  /* Removed height: 100% and overflow: hidden to allow full page scroll */
 }
-
-.bg-glow {
-  position: absolute; width: 600px; height: 600px;
-  border-radius: 50%; filter: blur(120px); opacity: 0.1; pointer-events: none;
-}
-.pink-glow { top: -200px; left: -200px; background: #ff7eb3; }
-.cyan-glow { bottom: -200px; right: -200px; background: #7afcff; }
 
 .store-layout {
   display: grid; grid-template-columns: 280px 1fr; gap: 24px;
   position: relative; z-index: 1;
-  /* Removed height: 100% */
 }
 
 /* Sidebar */
@@ -201,7 +202,7 @@ const equipItem = async (itemId: string) => {
   border-radius: 24px;
   padding: 24px;
   display: flex; flex-direction: column; gap: 24px;
-  height: fit-content; /* Only take needed height */
+  height: fit-content;
 }
 
 .sidebar-header h2 { margin: 0; font-size: 1.4rem; color: #ff7eb3; }
@@ -228,14 +229,8 @@ const equipItem = async (itemId: string) => {
 /* Main Content */
 .main-content {
   display: flex; flex-direction: column;
-  min-width: 0; /* Important for grid responsiveness */
+  min-width: 0;
 }
-
-.content-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 24px;
-}
-.content-header h1 { margin: 0; font-size: 2rem; }
 
 .balance-display {
   background: rgba(255, 215, 0, 0.1); color: #ffd700;
@@ -247,20 +242,6 @@ const equipItem = async (itemId: string) => {
 .items-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 20px; padding-bottom: 20px;
-  /* Removed overflow-y: auto so it grows with content */
-}
-
-/* ... rest of item card styles ... */
-.item-card {
-  background: rgba(30, 25, 40, 0.6);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px; overflow: hidden;
-  transition: all 0.3s;
-}
-.item-card:hover {
-  transform: translateY(-5px);
-  border-color: #7afcff;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
 .card-preview {
@@ -294,16 +275,6 @@ const equipItem = async (itemId: string) => {
 }
 .price { color: #ffd700; font-weight: 700; }
 
-.btn-action {
-  padding: 6px 16px; border-radius: 6px; border: none;
-  font-weight: 700; cursor: pointer; font-size: 0.8rem;
-  transition: all 0.2s;
-}
-.btn-action.buy { background: #7afcff; color: #120c18; }
-.btn-action.buy:hover { background: #fff; }
-.btn-action.equip { background: #00ff00; color: #120c18; }
-.btn-action.equipped { background: rgba(255,255,255,0.1); color: #888; cursor: default; }
-
 .loading-state, .empty-grid {
   text-align: center; padding: 40px; color: #777; font-size: 1.2rem;
 }
@@ -328,7 +299,7 @@ const equipItem = async (itemId: string) => {
   }
 
   .sidebar {
-    width: 100%; /* Full width sidebar on mobile */
+    width: 100%;
     height: auto;
     flex-direction: row;
     flex-wrap: wrap;
@@ -348,11 +319,8 @@ const equipItem = async (itemId: string) => {
     display: none;
   }
 
-  /* .main-content no changes needed, it's just block flow now */
-
   .items-grid {
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      /* Let it flow */
   }
   
   .card-preview {

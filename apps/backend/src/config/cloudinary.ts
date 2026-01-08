@@ -1,20 +1,22 @@
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
-require('dotenv').config();
+import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
+// @ts-ignore
+import streamifier from 'streamifier';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // cloudinary.config() will automatically read CLOUDINARY_URL from process.env
-// No explicit config needed if the env var follows the standard format.
 if (!process.env.CLOUDINARY_URL) {
     console.warn("⚠️ CLOUDINARY_URL is missing in .env. Image uploads may fail.");
 }
 
-const uploadFromBuffer = (buffer) => {
+const uploadFromBuffer = (buffer: Buffer): Promise<UploadApiResponse | undefined> => {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
             {
                 folder: 'ether/avatars',
             },
-            (error, result) => {
+            (error?: UploadApiErrorResponse, result?: UploadApiResponse) => {
                 if (result) {
                     resolve(result);
                 } else {
@@ -26,4 +28,4 @@ const uploadFromBuffer = (buffer) => {
     });
 };
 
-module.exports = { cloudinary, uploadFromBuffer };
+export { cloudinary, uploadFromBuffer };

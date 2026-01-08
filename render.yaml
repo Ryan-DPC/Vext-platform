@@ -1,0 +1,63 @@
+services:
+  # --------------------------------------------------------------------------------
+  # BACKEND API (REST)
+  # --------------------------------------------------------------------------------
+  - type: web
+    name: ether-backend
+    env: node
+    plan: free # Change to starter/standard for production
+    root: apps/backend
+    # Build: Install dependencies (including dev for tsc) and compile TypeScript
+    buildCommand: npm install && npm run build
+    # Start: Run the compiled JS code
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false # You will enter this in Render Dashboard
+      - key: JWT_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # --------------------------------------------------------------------------------
+  # WEBSOCKET SERVER (Socket.io)
+  # --------------------------------------------------------------------------------
+  - type: web
+    name: ether-ws-server
+    env: node
+    plan: free
+    root: apps/server
+    # Build: Just install dependencies (no compile needed for JS)
+    buildCommand: npm install
+    # Start: Run the server
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+# Optional: Add a Static Site for Frontend if you want to deploy it on Render too
+# - type: static
+#   name: ether-frontend
+#   root: apps/frontend
+#   buildCommand: npm install && npm run build
+#   staticPublishPath: dist
+#   routes:
+#     - type: rewrite
+#       source: /**
+#       destination: /index.html

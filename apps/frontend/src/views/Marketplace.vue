@@ -4,6 +4,12 @@ import { useMarketplaceStore } from '../stores/marketplaceStore'
 import { useAlertStore } from '../stores/alertStore'
 // import defaultGameImg from '@/assets/images/default-game.svg'
 import { getApiUrl } from '../utils/url';
+import BackgroundGlow from '../components/ui/BackgroundGlow.vue';
+import GlassCard from '../components/ui/GlassCard.vue';
+import GlassButton from '../components/ui/GlassButton.vue';
+import PageHeader from '../components/ui/PageHeader.vue';
+import SkeletonCard from '../components/ui/SkeletonCard.vue';
+
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
 
 const marketplaceStore = useMarketplaceStore()
@@ -203,22 +209,19 @@ watch(selectedGameForSale, () => {
 
 <template>
   <div class="marketplace-container">
-    <!-- Background Glows -->
-    <div class="bg-glow pink-glow"></div>
-    <div class="bg-glow cyan-glow"></div>
+    <BackgroundGlow />
 
     <div class="marketplace-layout">
         
         <!-- Header -->
-        <div class="header-section">
-            <h1>Community Market</h1>
-            <div class="tabs">
+        <PageHeader title="Community Market">
+             <div class="tabs">
                 <button :class="{ active: activeTab === 'marketplace' }" @click="switchTab('marketplace')">Buy Games</button>
                 <button :class="{ active: activeTab === 'selling' }" @click="switchTab('selling')">My Listings</button>
                 <button :class="{ active: activeTab === 'transactions' }" @click="switchTab('transactions')">History</button>
             </div>
-            <button @click="openSellModal" class="btn-neon"><i class="fas fa-plus"></i> Sell Game</button>
-        </div>
+            <GlassButton variant="neon" @click="openSellModal"><i class="fas fa-plus"></i> Sell Game</GlassButton>
+        </PageHeader>
 
         <!-- Buy Tab -->
         <div v-if="activeTab === 'marketplace'" class="tab-content">
@@ -241,10 +244,12 @@ watch(selectedGameForSale, () => {
                 </div>
             </div>
 
-            <div v-if="marketplaceStore.isLoading" class="loading"><i class="fas fa-circle-notch fa-spin"></i></div>
+            <div v-if="marketplaceStore.isLoading" class="listings-grid">
+                 <SkeletonCard v-for="n in 8" :key="n" />
+            </div>
             
             <div v-else class="listings-grid">
-                <div v-for="game in marketplaceStore.usedGames" :key="game.ownership_token" class="listing-card">
+                <GlassCard v-for="game in marketplaceStore.usedGames" :key="game.ownership_token" class="listing-card" :hover-effect="true">
                     <div class="card-img">
                         <img :src="game.image_url || defaultGameImg" loading="lazy" decoding="async">
                         <div class="price-tag">{{ game.asking_price }} CHF</div>
@@ -254,16 +259,16 @@ watch(selectedGameForSale, () => {
                         <div class="seller-info">
                             <span>Seller: {{ game.seller_name }}</span>
                         </div>
-                        <button @click="buyUsedGame(game)" class="btn-buy">BUY NOW</button>
+                        <GlassButton full-width variant="primary" @click="buyUsedGame(game)">BUY NOW</GlassButton>
                     </div>
-                </div>
+                </GlassCard>
             </div>
         </div>
 
         <!-- Selling Tab -->
         <div v-if="activeTab === 'selling'" class="tab-content">
             <div class="listings-grid">
-                <div v-for="sale in marketplaceStore.activeSales" :key="sale.ownership_token" class="listing-card my-listing">
+                <GlassCard v-for="sale in marketplaceStore.activeSales" :key="sale.ownership_token" class="listing-card my-listing" :hover-effect="true">
                     <div class="card-img">
                         <img :src="sale.image_url || defaultGameImg" loading="lazy" decoding="async">
                         <div class="price-tag">{{ sale.asking_price }} CHF</div>
@@ -271,9 +276,9 @@ watch(selectedGameForSale, () => {
                     <div class="card-body">
                         <h3>{{ sale.game_name }}</h3>
                         <div class="status-badge">Active</div>
-                        <button @click="cancelSale(sale.ownership_token)" class="btn-cancel">CANCEL SALE</button>
+                        <GlassButton full-width variant="danger" @click="cancelSale(sale.ownership_token)">CANCEL SALE</GlassButton>
                     </div>
-                </div>
+                </GlassCard>
             </div>
              <div v-if="marketplaceStore.activeSales.length === 0" class="empty-state">
                 You have no active listings.
@@ -325,7 +330,7 @@ watch(selectedGameForSale, () => {
                 <p>Active Listings: {{ gameStats.active_listings }}</p>
             </div>
 
-            <button @click="handleSellGame" class="btn-neon full-width">List for Sale</button>
+            <GlassButton full-width variant="neon" @click="handleSellGame">List for Sale</GlassButton>
         </div>
     </div>
 
@@ -337,24 +342,15 @@ watch(selectedGameForSale, () => {
 :root {
   --neon-pink: #ff7eb3;
   --neon-cyan: #7afcff;
-  --neon-pink: #ff7eb3;
-  --neon-cyan: #7afcff;
-  --glass-bg: var(--glass-bg);
+  --glass-bg: rgba(30, 25, 40, 0.6);
 }
 
 .marketplace-container {
   height: 100%; width: 100%;
   position: relative; overflow: hidden;
-  background-color: var(--bg-primary); color: var(--text-primary);
+  background-color: transparent; color: white;
   padding: 20px;
 }
-
-.bg-glow {
-  position: absolute; width: 600px; height: 600px;
-  border-radius: 50%; filter: blur(120px); opacity: 0.1; pointer-events: none;
-}
-.pink-glow { top: -200px; left: -200px; background: #ff7eb3; }
-.cyan-glow { bottom: -200px; right: -200px; background: #7afcff; }
 
 .marketplace-layout {
     position: relative; z-index: 1;
@@ -365,11 +361,10 @@ watch(selectedGameForSale, () => {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 30px;
 }
-.header-section h1 { margin: 0; font-size: 2rem; }
 
 .tabs { display: flex; gap: 10px; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 12px; }
 .tabs button {
-    background: transparent; border: none; color: var(--text-secondary);
+    background: transparent; border: none; color: #b0b9c3;
     padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;
     transition: all 0.2s;
 }
@@ -381,7 +376,7 @@ watch(selectedGameForSale, () => {
 .filters-container {
     display: flex; gap: 30px; align-items: center; margin-bottom: 30px;
     background: var(--glass-bg); padding: 20px 30px; border-radius: 16px;
-    border: 1px solid var(--glass-border);
+    border: 1px solid rgba(255,255,255,0.08); /* Fixed var */
     backdrop-filter: blur(10px);
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
@@ -396,12 +391,12 @@ watch(selectedGameForSale, () => {
 }
 
 .search-input {
-    padding: 12px 12px 12px 45px;
+    padding: 12px 12px 12px 45px !important;
     width: 300px;
     background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    border: 1px solid rgba(255,255,255,0.08); /* Fixed var */
     border-radius: 12px;
-    color: var(--text-primary); font-size: 0.95rem;
+    color: white; font-size: 0.95rem;
     transition: all 0.3s;
 }
 .search-input:focus {
@@ -436,13 +431,6 @@ watch(selectedGameForSale, () => {
 .listings-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px;
 }
-.listing-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px; overflow: hidden;
-    transition: all 0.3s;
-}
-.listing-card:hover { transform: translateY(-5px); border-color: #7afcff; }
 
 .card-img { height: 140px; position: relative; }
 .card-img img { width: 100%; height: 100%; object-fit: cover; }
@@ -454,16 +442,8 @@ watch(selectedGameForSale, () => {
 
 .card-body { padding: 16px; }
 .card-body h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
-.seller-info { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px; }
+.seller-info { font-size: 0.85rem; color: #aaa; margin-bottom: 15px; }
 
-.btn-buy {
-    width: 100%; background: #7afcff; color: #120c18; border: none;
-    padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer;
-}
-.btn-cancel {
-    width: 100%; background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d;
-    padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer;
-}
 
 /* Transactions */
 .transactions-list { display: flex; flex-direction: column; gap: 10px; }
@@ -481,12 +461,19 @@ watch(selectedGameForSale, () => {
   display: flex; align-items: center; justify-content: center;
 }
 .modal-glass {
-  background: var(--bg-secondary); padding: 30px; border-radius: 16px; width: 450px;
-  border: 1px solid var(--glass-border);
+  background: #2b213a; padding: 30px; border-radius: 16px; width: 450px;
+  border: 1px solid rgba(255,255,255,0.08); /* Fixed var */
 }
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 8px; color: #b0b9c3; }
+/* .glass-select rules */
 .glass-select { width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 6px; }
+
+/* .glass-input is used in the modal, but .search-input needs its own padding. 
+   We keep .glass-input for general inputs but ensure .search-input wins or we don't apply .glass-input to search.
+   The simplest fix for the search input being 'glass-input search-input' is to remove the conflict.
+*/
+.glass-input { width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 6px; }
 
 .commission-info {
     background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px;
@@ -494,13 +481,5 @@ watch(selectedGameForSale, () => {
 .row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #b0b9c3; }
 .row.total { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-top: 10px; color: #7afcff; font-weight: 700; }
 
-.btn-neon {
-  background: #ff7eb3; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer;
-}
-.btn-glass {
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;
-    padding: 8px 16px; border-radius: 6px; cursor: pointer;
-}
-.full-width { width: 100%; }
 .loading, .empty-state { text-align: center; padding: 40px; color: #777; }
 </style>
