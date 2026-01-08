@@ -3,12 +3,11 @@ import app from './app';
 import { Server } from 'socket.io';
 import http from 'http';
 import dotenv from 'dotenv';
-// @ts-ignore
 import { attachWebSocketBridge } from './features/ws-bridge/ws-bridge.socket';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app);
 
