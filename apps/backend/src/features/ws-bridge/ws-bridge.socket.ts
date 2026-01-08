@@ -6,7 +6,7 @@ import WsBridgeController from './ws-bridge.controller';
 import ChatService from '../chat/chat.service';
 // @ts-ignore
 import FriendsService from '../friends/friends.service';
-import { UserModel } from '../users/user.model';
+import Users from '../users/user.model';
 
 interface AuthSocket extends Socket {
     userId?: string;
@@ -39,7 +39,7 @@ export const attachWebSocketBridge = (io: Server) => {
 
         // 1. Update Socket ID in DB
         try {
-            await UserModel.saveSocketId(socket.userId, socket.id);
+            await Users.saveSocketId(socket.userId, socket.id);
         } catch (error) {
             console.error('Error saving socket ID:', error);
         }
@@ -122,18 +122,6 @@ export const attachWebSocketBridge = (io: Server) => {
             }
         });
 
-        // Pass-through to Controller for Lobby Logic if needed, 
-        // but looking at controller it's mostly HTTP based. 
-        // Real-time lobby updates (joined/left) should be handled via room emissions.
-
-        // Example: Join Lobby Room (Client should emit this after HTTP join success?)
-        // OR Controller emits it. 
-        // For now, let's assume Controller handles business logic and we might need to emit events from there using io instance.
-        // But since Controller doesn't import io, maybe we need to expose io globally or pass it?
-        // server.ts passes io to attachWebSocketBridge.
-        // The existing code doesn't seem to have a mechanism for Controller to emit.
-        // For now, I'll stick to what the frontend expects.
-
         // User Status
         socket.on('user:status-update', async (data: { status: 'online' | 'offline' | 'in-game', lobbyId?: string }) => {
             // Broadcast to friends
@@ -157,8 +145,7 @@ export const attachWebSocketBridge = (io: Server) => {
 
             // Clear Socket ID
             if (socket.userId) {
-                await UserModel.removeSocketId(socket.id); // Only remove if it matches current socket? 
-                // Better: removeSocketId removes by socket_id value, so it's safe.
+                await Users.removeSocketId(socket.id);
 
                 // Notify offline
                 try {
