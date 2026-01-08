@@ -1,7 +1,7 @@
 const { createClient } = require('redis');
 
 const redisClient = createClient({
-    url: process.env.REDIS_URL || 'redis://:J3SuisEmanais2Reglets762@@containers-us-west-123.railway.app:6379',
+    url: process.env.REDIS_URL,
     socket: {
         reconnectStrategy: false // Fail fast for testing if not available
     }

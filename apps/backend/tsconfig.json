@@ -10,7 +10,8 @@
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
         "removeComments": true,
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "allowJs": true
     },
     "include": [
         "src/**/*"
