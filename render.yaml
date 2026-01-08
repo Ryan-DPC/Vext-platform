@@ -26,6 +26,8 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: PostgreSQL_URL
+        sync: false
 
   # --------------------------------------------------------------------------------
   # WEBSOCKET SERVER (Socket.io)
