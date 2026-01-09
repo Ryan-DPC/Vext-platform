@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
     process.exit(1);
 }
 
-const PORT = process.env.WS_PORT || 3002;
+const PORT = process.env.PORT || 3002;
 
 // Connect to Database
 connectDB();
@@ -23,10 +23,8 @@ const io = new Server(PORT, {
     cors: {
         origin: [
             "http://localhost:5173",
-            "http://localhost:3000",
-            "https://ether-platform.onrender.com",
             "https://vext-frontend.onrender.com",
-            "https://backend-ether.onrender.com",
+            "https://vext-backend.onrender.com",
             /\.onrender\.com$/
         ],
         methods: ["GET", "POST"],

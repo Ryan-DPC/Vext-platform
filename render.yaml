@@ -17,7 +17,7 @@ services:
       - key: MONGODB_URI
         sync: false # You will enter this in Render Dashboard
       - key: JWT_SECRET
-        sync: false
+        value: 66dabdb170c5a3f5433b0e7cc1180d90
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -49,7 +49,7 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
-        sync: false
+        value: 66dabdb170c5a3f5433b0e7cc1180d90
       - key: REDIS_URL
         sync: false
       - key: ALLOWED_ORIGINS
