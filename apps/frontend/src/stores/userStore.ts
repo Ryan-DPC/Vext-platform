@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 import { socketService } from '../services/socket'
+import { getApiUrl } from '../utils/url'
+
+function sanitizeUser(user: any) {
+    if (user && user.profile_pic) {
+        // Replace localhost:3001 with the correct API URL
+        user.profile_pic = user.profile_pic.replace('http://localhost:3001', getApiUrl());
+    }
+    return user;
+}
 
 export const useUserStore = defineStore('user', {
     state: () => ({
@@ -16,7 +25,7 @@ export const useUserStore = defineStore('user', {
             try {
                 const response = await axios.get('/users/me')
                 if (response.data && response.data.user) {
-                    this.user = response.data.user
+                    this.user = sanitizeUser(response.data.user)
                     this.isAuthenticated = true
                 } else {
                     this.isAuthenticated = false
@@ -36,7 +45,7 @@ export const useUserStore = defineStore('user', {
             try {
                 const response = await axios.put('/users/me', data)
                 if (response.data && response.data.user) {
-                    this.user = response.data.user
+                    this.user = sanitizeUser(response.data.user)
                     return response.data
                 }
             } catch (error) {
