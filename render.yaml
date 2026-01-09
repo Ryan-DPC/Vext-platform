@@ -32,6 +32,8 @@ services:
         sync: false
       - key: PORT
         sync: false
+      - key: BACKEND_URL
+        sync: false
 
   # --------------------------------------------------------------------------------
   # WEBSOCKET SERVER (Socket.io)

@@ -21,7 +21,7 @@ const hoveredIndex = ref<number | null>(null)
 <template>
   <aside class="sidebar" @mouseleave="hoveredIndex = null">
     <div class="logo-area">
-      <img src="@/assets/images/Logo.svg" alt="Ether" class="logo" />
+      <img src="@/assets/images/logo.png" alt="VEXT" class="logo" />
     </div>
 
     <div class="nav-columns">

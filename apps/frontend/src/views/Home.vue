@@ -38,7 +38,7 @@ const currentSlide = ref(0)
 const slides = [
   {
     id: 1,
-    title: 'ETHER CHESS:\nSTRATEGY EVOLVED',
+    title: 'VEXT CHESS:\nSTRATEGY EVOLVED',
     desc: 'Master the board in this futuristic take on the classic game. Ranked matches available now.',
     image: heroBg,
     badge: 'FEATURED'

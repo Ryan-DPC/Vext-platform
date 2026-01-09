@@ -37,9 +37,9 @@ const handleLogin = async () => {
 
         <div class="login-card">
             <div class="logo-header">
-                <img src="@/assets/images/Logo.svg" alt="Ether" class="login-logo" />
+                <img src="@/assets/images/logo.png" alt="VEXT" class="login-logo" />
                 <h1>Welcome Back</h1>
-                <p class="subtitle">Enter the Ether</p>
+                <p class="subtitle">Enter VEXT</p>
             </div>
 
             <form @submit.prevent="handleLogin">
@@ -89,10 +89,8 @@ const handleLogin = async () => {
                     {{ userStore.isLoading ? 'AUTHENTICATING...' : 'LOGIN' }}
                 </button>
                 
-
-                
                 <div class="register-link">
-                    New to Ether? 
+                    New to VEXT? 
                     <router-link to="/register">Create Account</router-link>
                 </div>
             </form>
