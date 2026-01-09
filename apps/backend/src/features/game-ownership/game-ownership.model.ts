@@ -124,7 +124,8 @@ gameOwnershipSchema.index({ for_sale: 1, listed_at: -1 }); // Optimized for "New
 gameOwnershipSchema.index({ user_id: 1, status: 1 }); // Optimized for fetching "My Games" vs "My Sales"
 
 // Generate unique ownership token before save
-gameOwnershipSchema.pre('save', function (next) {
+// Generate unique ownership token before save
+gameOwnershipSchema.pre('save', function (this: IGameOwnership, next) {
     if (!this.ownership_token) {
         this.ownership_token = crypto.randomBytes(16).toString('hex');
     }

@@ -1,4 +1,5 @@
-const GameOwnership = require('./game-ownership.model');
+const GameOwnershipModel = require('./game-ownership.model');
+const GameOwnership = GameOwnershipModel.default || GameOwnershipModel;
 const Models = require('../users/user.model');
 const Users = Models.default || Models;
 const Games = require('../games/games.model');

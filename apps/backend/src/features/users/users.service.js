@@ -1,7 +1,8 @@
 const Models = require('./user.model');
 const Users = Models.default || Models;
 
-const GameOwnership = require('../game-ownership/game-ownership.model');
+const GameOwnershipModel = require('../game-ownership/game-ownership.model');
+const GameOwnership = GameOwnershipModel.default || GameOwnershipModel;
 
 class UsersService {
     static async getUserProfile(userId) {
