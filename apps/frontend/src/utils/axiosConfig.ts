@@ -1,22 +1,21 @@
 import axios from 'axios'
 
 const isTauri = !!(window as any).__TAURI__;
-const isElectron = !!(window as any).electronAPI;
 
 const getBaseURL = () => {
     // If VITE_API_URL is explicitly set, use it
     if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL
+        return `${import.meta.env.VITE_API_URL}/api`
     }
 
     // Hardcoded production fallback for Desktop App
-    if (import.meta.env.PROD && (isTauri || isElectron)) {
+    if (import.meta.env.PROD && isTauri) {
         return 'https://ether-backend-n24i.onrender.com/api'
     }
 
-    // In Desktop App (Tauri/Electron) DEV mode, use localhost
-    if (isTauri || isElectron) {
-        return 'http://localhost:3001/api'
+    // In Desktop App (Tauri) DEV mode, use production
+    if (isTauri) {
+        return 'https://ether-backend-n24i.onrender.com/api'
     }
 
     // In dev mode (with Vite proxy), use relative path

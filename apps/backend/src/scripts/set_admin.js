@@ -2,7 +2,8 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../../../.env') });
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
-const Users = require('../features/users/user.model');
+const Models = require('../features/users/user.model');
+const Users = Models.default || Models;
 
 const USERNAME_BASE = 'ChinOLaoy';
 

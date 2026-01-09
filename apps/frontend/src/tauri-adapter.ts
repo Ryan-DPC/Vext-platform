@@ -1,12 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-
-
 // Define the interface match existing usage if possible, or just strict typing
-interface ElectronAPI {
+interface TauriAPI {
     selectFolder: () => Promise<string | null>;
-    isElectron: () => Promise<boolean>;
     installGame: (downloadUrl: string, installPath: string, folderName: string, gameId: string, gameName: string, version: string, manifest: any) => Promise<any>;
     checkGameInstalled: (installPath: string, folderName: string) => Promise<boolean>;
     uninstallGame: (installPath: string, folderName: string) => Promise<boolean>;
@@ -18,7 +15,7 @@ interface ElectronAPI {
     onGameExited: (callback: (data: any) => void) => void;
 }
 
-const electronAPI: ElectronAPI = {
+const tauriAPI: TauriAPI = {
     // ... existing methods ...
     selectFolder: async () => {
         if (!(window as any).__TAURI_INTERNALS__) return null;
@@ -30,7 +27,6 @@ const electronAPI: ElectronAPI = {
             return null;
         }
     },
-    isElectron: () => Promise.resolve(true), // Maintain compatibility with existing logic
 
     installGame: async (downloadUrl, installPath, folderName, gameId, gameName, _version, _manifest) => {
         if (!(window as any).__TAURI_INTERNALS__) throw new Error('Not running in Tauri');
@@ -94,8 +90,5 @@ const electronAPI: ElectronAPI = {
     }
 };
 
-// Polyfill window.electronAPI
-// @ts-ignore
-window.electronAPI = electronAPI;
+export default tauriAPI;
 
-export default electronAPI;

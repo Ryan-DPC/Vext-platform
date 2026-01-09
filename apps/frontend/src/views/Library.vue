@@ -9,9 +9,9 @@ import { statsService } from '../services/stats.service'
 import axios from 'axios'
 import InstallPathSelector from '../components/InstallPathSelector.vue'
 import UserAutocomplete from '../components/UserAutocomplete.vue'
-// import defaultGameImg from '@/assets/images/default-game.svg'
 import { getApiUrl } from '../utils/url';
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
+import tauriAPI from '../tauri-adapter';
 
 const gameStore = useGameStore()
 const categoryStore = useCategoryStore()
@@ -51,9 +51,9 @@ onMounted(async () => {
   await categoryStore.fetchCategories()
   await friendsStore.fetchFriends()
 
-  // Setup Electron listeners
-  if (window.electronAPI) {
-    window.electronAPI.onInstallProgress((data: any) => {
+  // Setup Tauri listeners
+  // Safe to call, internal check handles it
+  tauriAPI.onInstallProgress((data: any) => {
       if (installingGameId.value) {
         installProgress.value = {
           progress: data.progress,
@@ -64,9 +64,9 @@ onMounted(async () => {
           type: data.type || 'download'
         }
       }
-    })
+  })
 
-    window.electronAPI.onInstallComplete(async (data: any) => {
+  tauriAPI.onInstallComplete(async (data: any) => {
       try {
         await axios.post('/installation/status', {
           gameId: data.gameId,
@@ -86,16 +86,15 @@ onMounted(async () => {
       } catch (error) {
         console.error('Failed to sync installation status:', error)
       }
-    })
+  })
 
-    window.electronAPI.onGameStatus((data: any) => {
-        if (data.status === 'running') {
-            runningGameId.value = data.folderName
-        } else if (data.status === 'stopped') {
-            runningGameId.value = null
-        }
-    })
-  }
+  tauriAPI.onGameStatus((data: any) => {
+      if (data.status === 'running') {
+          runningGameId.value = data.folderName
+      } else if (data.status === 'stopped') {
+          runningGameId.value = null
+      }
+  })
 })
 
 // Computed Properties
@@ -180,10 +179,10 @@ const installGame = async (game: any) => {
   })) return
 
   try {
-    if (!window.electronAPI) {
+    if (!(window as any).__TAURI__) {
       alertStore.showAlert({
         title: 'Error',
-        message: 'Installation requires Electron app',
+        message: 'Installation requires App',
         type: 'error'
       })
       return
@@ -198,13 +197,14 @@ const installGame = async (game: any) => {
     }
 
     const gameId = game._id || game.folder_name
-    const result = await window.electronAPI.installGame(
+    const result = await tauriAPI.installGame(
       game.zipUrl,
       installPath,
       game.folder_name || gameId,
       gameId,
       game.game_name,
-      game.version || '1.0.0'
+      game.version || '1.0.0',
+      {}
     )
 
     if (result.success) {
@@ -228,7 +228,7 @@ const installGame = async (game: any) => {
 }
 
 const launchGame = async (folderName: string) => {
-  if (!window.electronAPI) return
+  if (!(window as any).__TAURI__) return
 
   try {
     const installPath = localStorage.getItem('etherInstallPath')
@@ -247,7 +247,7 @@ const launchGame = async (folderName: string) => {
     
     const userData = { user: plainUser, token: token }
     await statsService.startSession(folderName);
-    await window.electronAPI.launchGame(installPath, folderName, userData)
+    await tauriAPI.launchGame(installPath, folderName, userData)
   } catch (error: any) {
     alertStore.showAlert({
       title: 'Launch Error',

@@ -1,6 +1,7 @@
 const Items = require('./items.model');
 const UserItems = require('./userItems.model');
-const Users = require('../users/user.model');
+const Models = require('../users/user.model');
+const Users = Models.default || Models;
 const CloudinaryService = require('../../services/cloudinary.service');
 const mongoose = require('mongoose');
 const logger = require('../../utils/logger'); // LOGS STRUCTURES (Point 4)

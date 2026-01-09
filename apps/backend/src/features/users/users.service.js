@@ -1,4 +1,5 @@
-const Users = require('./user.model');
+const Models = require('./user.model');
+const Users = Models.default || Models;
 
 const GameOwnership = require('../game-ownership/game-ownership.model');
 

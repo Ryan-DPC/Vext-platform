@@ -1,7 +1,8 @@
 const { sequelize } = require('../../config/database');
 const Transaction = require('./transaction.model');
 const Invoice = require('./invoice.model');
-const Users = require('../users/user.model'); // MongoDB User Model to sync balance
+const Models = require('../users/user.model');
+const Users = Models.default || Models; // MongoDB User Model to sync balance
 const { v4: uuidv4 } = require('uuid');
 
 class FinanceService {

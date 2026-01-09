@@ -21,7 +21,7 @@
               @keyup.enter="confirm"
             >
             <button 
-              v-if="isElectron" 
+              v-if="isDesktop" 
               @click="browseFolder" 
               type="button"
               class="btn-browse"
@@ -49,16 +49,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import tauriAPI from '../tauri-adapter';
 
 const isVisible = ref(false)
 const installPath = ref('')
 const resolveCallback = ref<((value: string | null) => void) | null>(null)
-const isElectron = ref(false)
+const isDesktop = ref(false)
 
 onMounted(async () => {
-  // Check if running in Electron
-  if (window.electronAPI) {
-    isElectron.value = await window.electronAPI.isElectron()
+  // Check if running in Tauri
+  if ((window as any).__TAURI__) {
+    isDesktop.value = true
   }
 })
 
@@ -90,9 +91,9 @@ const confirm = () => {
 }
 
 const browseFolder = async () => {
-  if (!window.electronAPI) return
+  if (!(window as any).__TAURI__) return
   
-  const selectedPath = await window.electronAPI.selectFolder()
+  const selectedPath = await tauriAPI.selectFolder()
   if (selectedPath) {
     installPath.value = selectedPath
   }

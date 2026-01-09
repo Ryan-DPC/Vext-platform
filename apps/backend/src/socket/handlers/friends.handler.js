@@ -1,4 +1,5 @@
-const Users = require('../../features/users/user.model');
+const Models = require('../../features/users/user.model');
+const Users = Models.default || Models;
 
 module.exports = (socket) => {
     // User joins (set status) 

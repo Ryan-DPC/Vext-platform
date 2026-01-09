@@ -11,6 +11,7 @@ import PageHeader from '../components/ui/PageHeader.vue';
 import SkeletonCard from '../components/ui/SkeletonCard.vue';
 
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
+import tauriAPI from '../tauri-adapter';
 
 const marketplaceStore = useMarketplaceStore()
 const alertStore = useAlertStore()
@@ -91,13 +92,13 @@ const handleSellGame = async () => {
   try {
     await marketplaceStore.sellGame(selectedGameForSale.value, sellPrice.value)
     
-    if (window.electronAPI) {
+    if ((window as any).__TAURI__) {
       const installPath = localStorage.getItem('etherInstallPath')
       const game = marketplaceStore.ownedGames.find((g: any) => g.game_key === selectedGameForSale.value)
       
       if (installPath && game) {
         try {
-          await window.electronAPI.uninstallGame(installPath, game.game_key)
+          await tauriAPI.uninstallGame(installPath, game.game_key)
           new Notification('Ether Desktop', { body: `🗑️ ${game.game_name} uninstalled (listed for sale).` })
         } catch (err) {
           console.error('Failed to uninstall game:', err)

@@ -14,21 +14,21 @@ const getSocketUrl = () => {
     // Auto-correct 'ether_server' (Docker) to 'localhost' if we are on the desktop app
     // This handles the case where user didn't update .env
     const isTauri = !!(window as any).__TAURI__;
-    const isElectron = !!(window as any).electronAPI;
 
-    if (url && (isTauri || isElectron) && url.includes('ether_server')) {
-        console.warn('⚠️ Auto-correcting Docker hostname to localhost for Desktop App');
-        return url.replace('ether_server', 'localhost');
+    // Removed Docker auto-correct to enforce Production URL
+    if (url && isTauri && url.includes('ether_server')) {
+        // Return null to let fallback handle it
+        return null;
     }
 
     if (url) return url;
 
     // Hardcoded production fallback
-    if (import.meta.env.PROD && (isTauri || isElectron)) {
+    if (import.meta.env.PROD && isTauri) {
         return 'https://server-1-z9ok.onrender.com';
     }
 
-    // Use localhost default
+    // Default to production
     return 'https://server-1-z9ok.onrender.com'
 }
 

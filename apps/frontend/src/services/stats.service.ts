@@ -1,5 +1,5 @@
 import axios from '../utils/axiosConfig';
-import electronAPI from '../tauri-adapter';
+import tauriAPI from '../tauri-adapter';
 
 class StatsService {
     private currentSessionId: string | null = null;
@@ -10,7 +10,7 @@ class StatsService {
     }
 
     private initListeners() {
-        electronAPI.onGameExited(async (data: any) => {
+        tauriAPI.onGameExited(async (data: any) => {
             console.log('Game exited:', data);
             if (this.currentSessionId && this.currentGameId === data.gameId) {
                 await this.endSession(this.currentSessionId);

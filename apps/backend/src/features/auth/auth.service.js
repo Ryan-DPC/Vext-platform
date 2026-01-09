@@ -1,4 +1,5 @@
-const Users = require('../users/user.model');
+const Models = require('../users/user.model');
+const Users = Models.default || Models;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const CloudinaryService = require('../../services/cloudinary.service');

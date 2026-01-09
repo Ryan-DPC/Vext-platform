@@ -5,7 +5,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const cloudinary = require('cloudinary').v2;
 const Items = require('../features/items/items.model');
 const UserItems = require('../features/items/userItems.model');
-const Users = require('../features/users/user.model');
+const Models = require('../features/users/user.model');
+const Users = Models.default || Models;
 const connectDB = require('../config/db');
 
 // New image path (assumed to be moved to images folder or read directly)

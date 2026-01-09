@@ -11,6 +11,7 @@ import { useAlertStore } from '@/stores/alertStore';
 
 const userStore = useUserStore();
 const alertStore = useAlertStore();
+import tauriAPI from '../tauri-adapter';
 const route = useRoute()
 const gameId = route.params.id as string
 const game = ref<any>(null)
@@ -103,7 +104,7 @@ onMounted(async () => {
             }
 
             // Check installation status
-            if (window.electronAPI) {
+            if ((window as any).__TAURI__) {
                 await checkInstallationStatus()
                 setupInstallListeners()
             }
@@ -125,7 +126,7 @@ const checkInstallationStatus = async () => {
     if (!installPath || !game.value) return
 
     // Check if folder exists
-    const isFolderExists = await window.electronAPI?.checkGameInstalled(installPath, game.value.slug)
+    const isFolderExists = await tauriAPI.checkGameInstalled(installPath, game.value.slug)
     
     if (isFolderExists) {
         // TODO: Read installed.json to check version
@@ -138,7 +139,7 @@ const checkInstallationStatus = async () => {
 }
 
 const setupInstallListeners = () => {
-    window.electronAPI?.onInstallProgress((data: any) => {
+    tauriAPI.onInstallProgress((data: any) => {
         if (data.gameId === game.value.slug) {
             installingGameId.value = data.gameId
             isInstalling.value = true
@@ -153,7 +154,7 @@ const setupInstallListeners = () => {
         }
     })
 
-    window.electronAPI?.onInstallComplete((data: any) => {
+    tauriAPI.onInstallComplete((data: any) => {
         if (data.gameId === game.value.slug) {
             isInstalling.value = false
             installingGameId.value = null
@@ -167,7 +168,7 @@ const setupInstallListeners = () => {
         }
     })
 
-    window.electronAPI?.onInstallError((data: any) => {
+    tauriAPI.onInstallError((data: any) => {
         if (data.gameId === game.value.slug) {
             isInstalling.value = false
             installingGameId.value = null
@@ -182,10 +183,10 @@ const setupInstallListeners = () => {
 }
 
 const installGame = async () => {
-    if (!window.electronAPI) {
+    if (!(window as any).__TAURI__) {
         alertStore.showAlert({
             title: 'Application requise',
-            message: 'L\'installation nécessite l\'application desktop Electron',
+            message: 'L\'installation nécessite l\'application desktop',
             type: 'warning'
         })
         return
@@ -220,14 +221,15 @@ const installGame = async () => {
             throw new Error('Download URL not found in manifest')
         }
 
-        // 4. Start Installation via Electron
-        await window.electronAPI?.installGame(
+        // 4. Start Installation via Tauri
+        await tauriAPI.installGame(
             downloadUrl,
             installPath,
             game.value.slug, // folder name
             game.value.slug, // game id
             game.value.gameName,
-            version
+            version,
+            manifest // Pass manifest as required by new signature
         )
 
     } catch (err: any) {
@@ -242,14 +244,14 @@ const installGame = async () => {
 }
 
 const launchGame = async () => {
-    if (!window.electronAPI) return
+    if (!(window as any).__TAURI__) return
     
     const installPath = localStorage.getItem('etherInstallPath')
     if (!installPath) return
 
     try {
         await statsService.startSession(game.value.slug);
-        await window.electronAPI?.launchGame(installPath, game.value.slug)
+        await tauriAPI.launchGame(installPath, game.value.slug, {})
     } catch (err: any) {
         alertStore.showAlert({
             title: 'Erreur de lancement',
@@ -291,7 +293,7 @@ const purchaseGame = async () => {
 }
 
 const uninstallGame = async () => {
-    if (!window.electronAPI || !game.value) return
+    if (!(window as any).__TAURI__ || !game.value) return
     const installPath = localStorage.getItem('etherInstallPath')
     if (!installPath) return
 
@@ -303,7 +305,7 @@ const uninstallGame = async () => {
         cancelText: 'Annuler'
     })) {
         try {
-            await window.electronAPI.uninstallGame(installPath, game.value.slug)
+            await tauriAPI.uninstallGame(installPath, game.value.slug)
             isInstalled.value = false
             alertStore.showAlert({
                 title: 'Succès',

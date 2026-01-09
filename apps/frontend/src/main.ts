@@ -10,7 +10,7 @@ import './utils/axiosConfig'
 import './assets/css/global.css'
 
 // Initialize Tauri Adapter (polyfills window.electronAPI)
-import './tauri-adapter'
+// import './tauri-adapter'
 
 
 const app = createApp(App)

@@ -3,15 +3,15 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
 // https://vite.dev/config/
+// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Load env from parent directory (project root)
-  const env = loadEnv(mode, path.resolve(__dirname, '..'), '')
+  // Load env from current directory
+  const env = loadEnv(mode, process.cwd(), '')
 
   return {
     // Use relative paths for Electron (not absolute /assets/)
     base: './',
-    // Tell Vite to look for .env files in the parent directory
-    envDir: path.resolve(__dirname, '..'),
+    // Tell Vite to look for .env files in the current directory (default)
     plugins: [vue()],
     resolve: {
       alias: {
@@ -22,12 +22,12 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: env.VITE_API_URL,
+          target: env.VITE_API_URL || 'https://ether-backend-n24i.onrender.com',
           changeOrigin: true,
           secure: false
         },
         '/socket.io': {
-          target: env.VITE_WEBSOCKET_URL,
+          target: env.VITE_WEBSOCKET_URL || 'https://server-1-z9ok.onrender.com',
           ws: true,
           changeOrigin: true,
           secure: false
