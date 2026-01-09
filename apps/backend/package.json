@@ -1,5 +1,5 @@
 {
-    "name": "ether-backend",
+    "name": "vext-backend",
     "version": "1.0.0",
     "description": "Ether Backend API",
     "main": "src/server.js",

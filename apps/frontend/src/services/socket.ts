@@ -54,8 +54,7 @@ class SocketService {
             },
             extraHeaders: {
                 Authorization: `Bearer ${token}`
-            },
-            transports: ['websocket', 'polling']
+            }
         });
 
         // Connection established

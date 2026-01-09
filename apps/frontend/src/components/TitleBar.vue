@@ -20,7 +20,7 @@ const close = () => appWindow?.close();
 <template>
   <div class="titlebar">
     <div class="titlebar-logo">
-        <span class="app-title">Ether</span>
+        <span class="text-xs font-bold tracking-widest text-gray-500 uppercase select-none">VEXT</span>
     </div>
     <div class="titlebar-controls">
       <div class="titlebar-button" @click="minimize">
