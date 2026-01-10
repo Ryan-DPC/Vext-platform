@@ -1,18 +1,11 @@
-const cron = require('node-cron');
+import cron from 'node-cron';
+import mongoose from 'mongoose';
+import { WebSocketService } from '../services/websocket.service';
 
-class VersionCheckerJob {
-    constructor(io) {
-        this.io = io;
-        this.job = null;
-    }
+export class VersionCheckerJob {
+    private job: any = null;
 
-    /**
-     * Start the version checker job (runs every 3 hours)
-     */
     start() {
-        // Import models here to avoid circular dependencies
-        const mongoose = require('mongoose');
-
         // Schedule: At minute 0 past every 3rd hour (0 */3 * * *)
         this.job = cron.schedule('0 */3 * * *', async () => {
             console.log('[VersionChecker] Starting version check...');
@@ -22,9 +15,6 @@ class VersionCheckerJob {
         console.log('[VersionChecker] Job scheduled to run every 3 hours');
     }
 
-    /**
-     * Stop the version checker job
-     */
     stop() {
         if (this.job) {
             this.job.stop();
@@ -32,16 +22,12 @@ class VersionCheckerJob {
         }
     }
 
-    /**
-     * Check all installed games for updates
-     */
     async checkAllGamesForUpdates() {
         try {
-            const mongoose = require('mongoose');
-
-            // Define schemas inline to avoid import issues
+            // Define schemas inline to avoid import issues or import them if available
+            // Assuming these models are available or will be replaced with proper imports
             const GameInstallation = mongoose.models.GameInstallation || mongoose.model('GameInstallation', new mongoose.Schema({}, { strict: false }));
-            const Game = mongoose.models.Game || mongoose.model('Game', new mongoose.Schema({}, { strict: false }));
+            // const Game = mongoose.models.Game || mongoose.model('Game', new mongoose.Schema({}, { strict: false }));
 
             // Get all installed games
             const installations = await GameInstallation.find({ status: 'installed' })
@@ -58,12 +44,12 @@ class VersionCheckerJob {
                     continue;
                 }
 
-                const gameId = installation.game_id._id || installation.game_id;
-                const userId = installation.user_id._id || installation.user_id;
+                const gameId = (installation.game_id as any)._id || installation.game_id;
+                const userId = (installation.user_id as any)._id || installation.user_id;
 
                 try {
                     // Get latest manifest from Cloudinary
-                    const game = installation.game_id;
+                    const game = installation.game_id as any;
                     if (!game.manifestUrl) {
                         continue;
                     }
@@ -73,7 +59,7 @@ class VersionCheckerJob {
                         continue;
                     }
 
-                    const manifest = await response.json();
+                    const manifest: any = await response.json();
                     if (!manifest || !manifest.version) {
                         continue;
                     }
@@ -93,7 +79,10 @@ class VersionCheckerJob {
 
                         // Emit WebSocket notification to user
                         const userIdStr = userId.toString();
-                        this.io.to(userIdStr).emit('update:available', {
+
+                        // io.to(userIdStr).emit('update:available', ...)
+                        // becomes:
+                        WebSocketService.publish(`user:${userIdStr}`, 'update:available', {
                             gameId: gameId.toString(),
                             gameName: game.game_name,
                             currentVersion: installation.version,
@@ -107,8 +96,8 @@ class VersionCheckerJob {
                             last_checked: new Date()
                         });
                     }
-                } catch (error) {
-                    console.error(`[VersionChecker] Error checking game ${installation.game_id?.game_name}:`, error.message);
+                } catch (error: any) {
+                    console.error(`[VersionChecker] Error checking game ${(installation.game_id as any)?.game_name}:`, error.message);
                 }
             }
 
@@ -118,10 +107,7 @@ class VersionCheckerJob {
         }
     }
 
-    /**
-     * Compare two semantic versions
-     */
-    compareVersions(version1, version2) {
+    compareVersions(version1: string, version2: string) {
         const v1 = version1.split('.').map(Number);
         const v2 = version2.split('.').map(Number);
 
@@ -136,13 +122,8 @@ class VersionCheckerJob {
         return 0;
     }
 
-    /**
-     * Manually trigger a version check (for testing)
-     */
     async runNow() {
         console.log('[VersionChecker] Manual trigger');
         await this.checkAllGamesForUpdates();
     }
 }
-
-module.exports = VersionCheckerJob;

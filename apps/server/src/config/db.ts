@@ -1,7 +1,12 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-async function connectDB() {
+export async function connectDB() {
     const uri = process.env.MONGODB_URI;
+
+    if (!uri) {
+        console.error('❌ MONGODB_URI is not defined');
+        return;
+    }
 
     try {
         mongoose.set('strictQuery', true);
@@ -10,12 +15,9 @@ async function connectDB() {
             serverSelectionTimeoutMS: 10000,
             maxPoolSize: 10,
         });
-        console.log('MongoDB Connected (WebSocket Server)');
+        console.log('✅ MongoDB Connected (Elysia Server)');
     } catch (err) {
-        console.error('MongoDB Connection Error:', err);
-        // process.exit(1); // Don't crash the server for WS tests if DB fails
+        console.error('❌ MongoDB Connection Error:', err);
         console.warn('⚠️ Proceeding without MongoDB connection');
     }
 }
-
-module.exports = connectDB;

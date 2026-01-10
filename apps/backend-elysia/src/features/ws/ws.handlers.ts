@@ -4,6 +4,7 @@ import { ChatService } from '../chat/chat.service';
 import Users from '../users/user.model';
 import { WebSocketService } from '../../services/websocket.service';
 import { handleStickArenaMessage, handleStickArenaDisconnect } from '../stick-arena/stick-arena.socket';
+import { financeService as FinanceService } from '../finance/finance.service';
 
 // Define a minimal interface for the WS object we use
 // This avoids dragging in the entire intense Elysia type inference chain
@@ -175,6 +176,36 @@ export const handleWsMessage = async (ws: AppWebSocket, message: any) => {
         default:
             if (event.startsWith('stick-arena:')) {
                 handleStickArenaMessage(ws, event, payload);
+            }
+            break;
+
+        case 'transaction:purchase':
+            try {
+                const { ownershipToken, sellerId } = payload;
+                // FinanceService.purchaseUsedGame(buyerId, ownershipToken, sellerId)
+                // We need to import FinanceService first
+                const result = await FinanceService.purchaseUsedGame(userId, ownershipToken, sellerId);
+
+                // Notify Buyer
+                ws.send(JSON.stringify({
+                    type: 'transaction:success',
+                    data: {
+                        message: 'Purchase successful',
+                        game: result.game,
+                        newBalance: (await Users.getUserById(userId))?.balances.chf // Refresh balance from DB or calculate
+                        // Actually, result doesn't return new balance, but we can fetch it or just return success
+                    }
+                }));
+
+                // Notify Seller
+                WebSocketService.publish(sellerId, 'transaction:seller_notification', {
+                    message: `Your copy of ${result.game.game_name} was sold!`,
+                    amount: result.sellerReceives,
+                    gameName: result.game.game_name
+                });
+
+            } catch (error: any) {
+                ws.send(JSON.stringify({ type: 'transaction:error', message: error.message }));
             }
             break;
     }
