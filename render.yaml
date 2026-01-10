@@ -4,6 +4,7 @@ services:
   # --------------------------------------------------------------------------------
   - type: web
     name: vext-backend
+    region: frankfurt
     env: bun
     plan: free # Change to starter/standard for production
     rootDir: apps/backend-elysia
@@ -40,13 +41,14 @@ services:
   # --------------------------------------------------------------------------------
   - type: web
     name: vext-ws-server
-    env: node
+    region: frankfurt
+    env: bun
     plan: free
     rootDir: apps/server
-    # Build: Just install dependencies (no compile needed for JS)
-    buildCommand: npm install
+    # Build: Install dependencies (just bun install since Bun runs TS directly)
+    buildCommand: bun install
     # Start: Run the server
-    startCommand: npm start
+    startCommand: bun run start
     envVars:
       - key: NODE_ENV
         value: production
