@@ -328,6 +328,7 @@ export class ItemsService {
                 to_address: 'system_store',
                 amount: item.price,
                 transaction_type: 'item_purchase',
+                currency: 'VTX',
                 item_id: itemId,
                 timestamp: new Date()
             });

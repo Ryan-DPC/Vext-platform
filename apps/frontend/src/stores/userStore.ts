@@ -124,6 +124,11 @@ export const useUserStore = defineStore('user', {
                     this.user.balances[key] = newAmount;
                 }
             }
+        },
+        setTokens(amount: number) {
+            if (this.user) {
+                this.user.tokens = amount;
+            }
         }
     }
 })

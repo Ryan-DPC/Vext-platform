@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { useUserStore } from './userStore'
 
 export const useItemStore = defineStore('item', {
     state: () => ({
@@ -17,7 +18,12 @@ export const useItemStore = defineStore('item', {
                 if (filters.rarity) params.set('rarity', filters.rarity)
 
                 const response = await axios.get(`/items/store?${params}`)
-                this.storeItems = response.data.items || []
+                // Handle both array response and { items: [] } response structure
+                if (Array.isArray(response.data)) {
+                    this.storeItems = response.data;
+                } else {
+                    this.storeItems = response.data.items || [];
+                }
             } catch (error) {
                 console.error('Failed to fetch store items:', error)
                 this.storeItems = []
@@ -38,6 +44,13 @@ export const useItemStore = defineStore('item', {
             try {
                 const response = await axios.post('/items/purchase', { itemId })
                 await this.fetchMyItems()
+
+                // Update user tokens immediately
+                const userStore = useUserStore()
+                if (response.data.remainingTokens !== undefined) {
+                    userStore.setTokens(response.data.remainingTokens)
+                }
+
                 return response.data
             } catch (error) {
                 throw error
