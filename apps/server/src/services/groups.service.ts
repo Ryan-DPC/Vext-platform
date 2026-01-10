@@ -48,6 +48,7 @@ export class GroupsService {
         const groups = await GroupModel.find({
             members: userId
         })
+            .populate('members', 'username profile_pic socket_id')
             .sort({ updated_at: -1 })
             .lean();
 
@@ -56,7 +57,12 @@ export class GroupsService {
             name: group.name,
             description: group.description,
             owner_id: group.owner_id.toString(),
-            members: group.members.map((m: any) => m.toString()),
+            members: (group.members as any[]).map(m => ({
+                id: m._id.toString(),
+                username: m.username,
+                profile_pic: m.profile_pic,
+                is_online: !!m.socket_id
+            })),
             icon_url: group.icon_url,
             created_at: group.created_at,
             updated_at: group.updated_at
@@ -67,14 +73,16 @@ export class GroupsService {
      * Get group details
      */
     static async getGroup(groupId: string, userId: string): Promise<any> {
-        const group = await GroupModel.findById(groupId).lean();
+        const group = await GroupModel.findById(groupId)
+            .populate('members', 'username profile_pic socket_id')
+            .lean();
 
         if (!group) {
             throw new Error('Group not found');
         }
 
         // Verify user is a member
-        const isMember = group.members.some((m: any) => m.toString() === userId);
+        const isMember = (group.members as any[]).some(m => m._id.toString() === userId);
         if (!isMember) {
             throw new Error('You are not a member of this group');
         }
@@ -84,7 +92,12 @@ export class GroupsService {
             name: group.name,
             description: group.description,
             owner_id: group.owner_id.toString(),
-            members: group.members.map((m: any) => m.toString()),
+            members: (group.members as any[]).map(m => ({
+                id: m._id.toString(),
+                username: m.username,
+                profile_pic: m.profile_pic,
+                is_online: !!m.socket_id // approximate online status via socket_id presence
+            })),
             icon_url: group.icon_url,
             created_at: group.created_at,
             updated_at: group.updated_at

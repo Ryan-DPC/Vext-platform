@@ -254,75 +254,77 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
 
       <!-- Right Panel: Chat / Activity -->
       <div class="glass-panel main-panel">
-        <!-- Group Chat -->
-        <div v-if="activeTab === 'groups' && groupStore.activeGroup" class="group-chat-panel">
-          <div class="chat-header">
-            <div class="chat-header-info">
-              <h3>{{ groupStore.activeGroup.name }}</h3>
-              <p>{{ groupStore.activeGroup.members.length }} members</p>
+        <div class="main-content-wrapper">
+          <!-- Group Chat -->
+          <div v-if="activeTab === 'groups' && groupStore.activeGroup" class="group-chat-panel">
+            <div class="chat-header">
+              <div class="chat-header-info">
+                <h3>{{ groupStore.activeGroup.name }}</h3>
+                <p>{{ groupStore.activeGroup.members.length }} members</p>
+              </div>
+              <button class="btn-icon" @click="showGroupSidebar = !showGroupSidebar">
+                <i class="fas fa-users"></i>
+              </button>
             </div>
-            <button class="btn-icon" @click="showGroupSidebar = !showGroupSidebar">
-              <i class="fas fa-users"></i>
-            </button>
-          </div>
-          <div class="chat-messages">
-            <div v-for="msg in groupStore.activeMessages" :key="msg.id" class="message-item">
-              <img :src="msg.user.profile_pic || '/default-avatar.svg'" class="msg-avatar">
-              <div class="msg-content">
-                <div class="msg-header">
-                  <span class="msg-username">{{ msg.user.username }}</span>
-                  <span class="msg-time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+            <div class="chat-messages">
+              <div v-for="msg in groupStore.activeMessages" :key="msg.id" class="message-item">
+                <img :src="msg.user.profile_pic || '/default-avatar.svg'" class="msg-avatar">
+                <div class="msg-content">
+                  <div class="msg-header">
+                    <span class="msg-username">{{ msg.user.username }}</span>
+                    <span class="msg-time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+                  </div>
+                  <div class="msg-text">{{ msg.content }}</div>
                 </div>
-                <div class="msg-text">{{ msg.content }}</div>
               </div>
             </div>
-          </div>
-          <div class="chat-input-box">
-            <input 
-              v-model="groupMessage" 
-              @keyup.enter="sendGroupMessage" 
-              placeholder="Type a message..."
-            >
-            <button @click="sendGroupMessage" class="btn-send">
-              <i class="fas fa-paper-plane"></i>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Empty State -->
-        <div v-else class="empty-chat-state">
-          <div class="icon-circle">
-            <i class="fas fa-comments"></i>
-          </div>
-          <h2>{{ activeTab === 'groups' ? 'Select a group' : 'Select a conversation' }}</h2>
-          <p>{{ activeTab === 'groups' ? 'Choose a group to start chatting' : 'Choose a friend from the list to start chatting or invite them to a game.' }}</p>
-        </div>
-      </div>
-
-      <!-- Group Sidebar Panel -->
-      <transition name="slide-left">
-        <div v-if="showGroupSidebar && groupStore.activeGroup" class="group-sidebar-panel glass-panel">
-          <div class="sidebar-header">
-            <h3>Members</h3>
-            <button @click="showGroupSidebar = false" class="btn-icon-sm">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <div class="sidebar-content">
-            <div v-for="memberId in groupStore.activeGroup.members" :key="memberId" class="member-item">
-              <div class="member-avatar">
-                <div class="status-dot online"></div>
-              </div>
-              <div class="member-info">
-                <div class="member-name">Member {{ memberId.slice(0, 6) }}</div>
-              </div>
-              <button @click="handleAddFriendFromGroup(memberId, 'User')" class="btn-add-friend-mini">
-                <i class="fas fa-user-plus"></i>
+            <div class="chat-input-box">
+              <input 
+                v-model="groupMessage" 
+                @keyup.enter="sendGroupMessage" 
+                placeholder="Type a message..."
+              >
+              <button @click="sendGroupMessage" class="btn-send">
+                <i class="fas fa-paper-plane"></i>
               </button>
             </div>
           </div>
+          
+          <!-- Empty State -->
+          <div v-else class="empty-chat-state">
+            <div class="icon-circle">
+              <i class="fas fa-comments"></i>
+            </div>
+            <h2>{{ activeTab === 'groups' ? 'Select a group' : 'Select a conversation' }}</h2>
+            <p>{{ activeTab === 'groups' ? 'Choose a group to start chatting' : 'Choose a friend from the list to start chatting or invite them to a game.' }}</p>
+          </div>
         </div>
-      </transition>
+
+        <!-- Group Sidebar Panel -->
+        <transition name="slide-left">
+          <div v-if="showGroupSidebar && groupStore.activeGroup" class="group-sidebar-panel">
+            <div class="sidebar-header">
+              <h3>Members</h3>
+              <button @click="showGroupSidebar = false" class="btn-icon-sm">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="sidebar-content">
+              <div v-for="member in groupStore.activeGroup.members" :key="member.id" class="member-item">
+                <div class="member-avatar">
+                  <div class="status-dot" :class="{ online: member.is_online }"></div>
+                </div>
+                <div class="member-info">
+                  <div class="member-name">{{ member.username }}</div>
+                </div>
+                <button @click="handleAddFriendFromGroup(member.id, member.username)" class="btn-add-friend-mini">
+                  <i class="fas fa-user-plus"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
 
     </div>
   </div>
@@ -383,13 +385,17 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
 /* Local glows removed in favor of global MainLayout glows */
 
 .social-layout {
-  display: grid; 
-  grid-template-columns: 400px 1fr; 
+  display: flex; /* Changed to flex to support dynamic sidebar */
   gap: 24px;
   flex: 1;
   min-height: 0; /* Important for nested flex scrolling */
   position: relative; 
   z-index: 1;
+}
+
+.sidebar {
+  width: 400px;
+  flex-shrink: 0;
 }
 
 .glass-panel {
@@ -514,9 +520,32 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
 
 /* Main Panel */
 .main-panel {
-  align-items: center; justify-content: center; text-align: center;
+  flex: 1; /* Take remaining space */
+  min-width: 0; /* Prevent flex overflow */
+  display: flex; 
+  flex-direction: row; /* Horizontal layout for Chat + Sidebar */
+  overflow: hidden; /* Clip nested borders */
+  align-items: stretch; /* Full height */
 }
-.empty-chat-state { max-width: 400px; color: var(--text-secondary); }
+
+.main-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%; /* Ensure it takes full width when sidebar is hidden */
+  align-items: stretch;
+  justify-content: center; /* For empty state */
+}
+
+/* Ensure empty state centers properly */
+.empty-chat-state { 
+  margin: auto; 
+  max-width: 400px; 
+  color: var(--text-secondary); 
+  text-align: center;
+}
+
 .icon-circle {
   width: 80px; height: 80px; border-radius: 50%;
   background: rgba(255,255,255,0.05);
@@ -595,6 +624,8 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
 .msg-text {
   background: var(--glass-bg); border: 1px solid var(--glass-border);
   padding: 10px 14px; border-radius: 12px; font-size: 0.9rem;
+  width: fit-content;
+  max-width: 100%;
 }
 .chat-input-box {
   padding: 20px; border-top: 1px solid var(--glass-border);
@@ -614,9 +645,14 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
 
 /* Group Sidebar Panel */
 .group-sidebar-panel {
-  position: fixed; right: 20px; top: 20px; bottom: 20px;
-  width: 300px; z-index: 1000;
+  position: relative; 
+  width: 300px;
+  flex-shrink: 0;
   display: flex; flex-direction: column;
+  border-left: 1px solid var(--glass-border);
+  /* border-radius removed as it triggers on right side of main panel */
+  background: rgba(0,0,0,0.2); /* Slightly darker to distinguish */
+  height: 100%; 
 }
 .sidebar-header {
   padding: 20px; border-bottom: 1px solid var(--glass-border);

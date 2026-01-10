@@ -7,7 +7,12 @@ interface Group {
     name: string;
     description?: string;
     owner_id: string;
-    members: string[];
+    members: {
+        id: string;
+        username: string;
+        profile_pic?: string;
+        is_online?: boolean;
+    }[];
     icon_url?: string;
     created_at: string;
     updated_at: string;
