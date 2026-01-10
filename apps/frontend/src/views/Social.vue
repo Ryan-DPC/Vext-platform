@@ -1,19 +1,35 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useFriendsStore } from '../stores/friendsStore'
 import { useToastStore } from '../stores/toastStore'
+import { useGroupStore } from '../stores/groupStore'
 import UserAutocomplete from '../components/UserAutocomplete.vue'
 
 const friendsStore = useFriendsStore()
 const toastStore = useToastStore()
+const groupStore = useGroupStore()
 const activeTab = ref('friends') // 'friends', 'requests', 'groups', 'add_friend'
 const searchQuery = ref('')
 const addFriendQuery = ref('')
 const isSearching = ref(false)
+const showCreateGroupModal = ref(false)
+const newGroupName = ref('')
+const newGroupDescription = ref('')
+const groupMessage = ref('')
+const showGroupSidebar = ref(false)
+
+const filteredGroups = computed(() => {
+  if (!searchQuery.value) return groupStore.myGroups
+  return groupStore.myGroups.filter(g => 
+    g.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
 
 onMounted(async () => {
   await friendsStore.fetchFriends()
   await friendsStore.fetchFriendRequests()
+  await groupStore.fetchMyGroups()
+  groupStore.setupWebSocketListeners()
 })
 
 const handleAccept = async (requestId: string) => {
@@ -46,6 +62,41 @@ const handleAddFriend = async () => {
     toastStore.error(e.message || 'Failed to send friend request')
   } finally {
     isSearching.value = false
+  }
+}
+
+const handleCreateGroup = async () => {
+  if (!newGroupName.value.trim()) {
+    toastStore.error('Group name is required')
+    return
+  }
+  try {
+    await groupStore.createGroup(newGroupName.value, newGroupDescription.value)
+    toastStore.success('Group created successfully')
+    newGroupName.value = ''
+    newGroupDescription.value = ''
+    showCreateGroupModal.value = false
+  } catch (e: any) {
+    toastStore.error(e.message || 'Failed to create group')
+  }
+}
+
+const selectGroup = (groupId: string) => {
+  groupStore.selectGroup(groupId)
+}
+
+const sendGroupMessage = () => {
+  if (!groupMessage.value.trim()) return
+  groupStore.sendMessage(groupMessage.value)
+  groupMessage.value = ''
+}
+
+const handleAddFriendFromGroup = async (userId: string, username: string) => {
+  try {
+    await friendsStore.sendFriendRequest(username)
+    toastStore.success(`Friend request sent to ${username}`)
+  } catch (e: any) {
+    toastStore.error(e.message || 'Failed to send request')
   }
 }
 </script>
@@ -133,11 +184,49 @@ const handleAddFriend = async () => {
             </div>
           </div>
 
-          <!-- Groups Placeholder -->
-          <div v-if="activeTab === 'groups'" class="empty-state">
-            <i class="fas fa-users-slash"></i>
-            <p>No groups joined yet.</p>
-            <button class="btn-neon-sm">Discover Groups</button>
+          <!-- Groups List - Modern Design -->
+          <div v-if="activeTab === 'groups'" class="groups-list-modern">
+            <div class="groups-top-actions">
+              <button @click="showCreateGroupModal = true" class="btn-primary-modern">
+                <i class="fas fa-plus-circle"></i>
+                <span>New Group</span>
+              </button>
+            </div>
+            
+            <div v-if="filteredGroups.length === 0" class="empty-state-modern">
+              <div class="empty-icon">
+                <i class="fas fa-users"></i>
+              </div>
+              <h4>No groups yet</h4>
+              <p>Create your first group to collaborate with friends</p>
+            </div>
+            
+            <div v-else class="groups-grid">
+              <div 
+                v-for="group in filteredGroups" 
+                :key="group.id" 
+                class="group-card-modern"
+                :class="{ 'active': groupStore.activeGroupId === group.id }"
+                @click="selectGroup(group.id)"
+              >
+                <div class="group-card-header">
+                  <div class="group-icon">
+                    <img v-if="group.icon_url" :src="group.icon_url" alt="">
+                    <i v-else class="fas fa-users"></i>
+                  </div>
+                  <div class="group-card-badge" v-if="groupStore.activeGroupId === group.id">
+                    <i class="fas fa-check-circle"></i>
+                  </div>
+                </div>
+                <div class="group-card-body">
+                  <h4>{{ group.name }}</h4>
+                  <div class="group-card-meta">
+                    <span><i class="fas fa-user"></i> {{ group.members.length }}</span>
+                    <span class="group-status">Active</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Add Friend Tab -->
@@ -165,17 +254,108 @@ const handleAddFriend = async () => {
 
       <!-- Right Panel: Chat / Activity -->
       <div class="glass-panel main-panel">
-        <div class="empty-chat-state">
+        <!-- Group Chat -->
+        <div v-if="activeTab === 'groups' && groupStore.activeGroup" class="group-chat-panel">
+          <div class="chat-header">
+            <div class="chat-header-info">
+              <h3>{{ groupStore.activeGroup.name }}</h3>
+              <p>{{ groupStore.activeGroup.members.length }} members</p>
+            </div>
+            <button class="btn-icon" @click="showGroupSidebar = !showGroupSidebar">
+              <i class="fas fa-users"></i>
+            </button>
+          </div>
+          <div class="chat-messages">
+            <div v-for="msg in groupStore.activeMessages" :key="msg.id" class="message-item">
+              <img :src="msg.user.profile_pic || '/default-avatar.svg'" class="msg-avatar">
+              <div class="msg-content">
+                <div class="msg-header">
+                  <span class="msg-username">{{ msg.user.username }}</span>
+                  <span class="msg-time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+                </div>
+                <div class="msg-text">{{ msg.content }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-box">
+            <input 
+              v-model="groupMessage" 
+              @keyup.enter="sendGroupMessage" 
+              placeholder="Type a message..."
+            >
+            <button @click="sendGroupMessage" class="btn-send">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div v-else class="empty-chat-state">
           <div class="icon-circle">
             <i class="fas fa-comments"></i>
           </div>
-          <h2>Select a conversation</h2>
-          <p>Choose a friend from the list to start chatting or invite them to a game.</p>
+          <h2>{{ activeTab === 'groups' ? 'Select a group' : 'Select a conversation' }}</h2>
+          <p>{{ activeTab === 'groups' ? 'Choose a group to start chatting' : 'Choose a friend from the list to start chatting or invite them to a game.' }}</p>
         </div>
       </div>
 
+      <!-- Group Sidebar Panel -->
+      <transition name="slide-left">
+        <div v-if="showGroupSidebar && groupStore.activeGroup" class="group-sidebar-panel glass-panel">
+          <div class="sidebar-header">
+            <h3>Members</h3>
+            <button @click="showGroupSidebar = false" class="btn-icon-sm">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="sidebar-content">
+            <div v-for="memberId in groupStore.activeGroup.members" :key="memberId" class="member-item">
+              <div class="member-avatar">
+                <div class="status-dot online"></div>
+              </div>
+              <div class="member-info">
+                <div class="member-name">Member {{ memberId.slice(0, 6) }}</div>
+              </div>
+              <button @click="handleAddFriendFromGroup(memberId, 'User')" class="btn-add-friend-mini">
+                <i class="fas fa-user-plus"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+
     </div>
   </div>
+
+  <!-- Create Group Modal -->
+  <teleport to="body">
+    <transition name="fade">
+      <div v-if="showCreateGroupModal" class="modal-overlay" @click="showCreateGroupModal = false">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Create New Group</h3>
+            <button @click="showCreateGroupModal = false" class="btn-close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Group Name</label>
+              <input v-model="newGroupName" placeholder="Enter group name" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>Description (optional)</label>
+              <textarea v-model="newGroupDescription" placeholder="What's this group about?" class="form-textarea"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="showCreateGroupModal = false" class="btn-secondary">Cancel</button>
+            <button @click="handleCreateGroup" class="btn-primary">Create Group</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </teleport>
 </template>
 
 <style scoped>
@@ -362,6 +542,373 @@ const handleAddFriend = async () => {
 }
 .hint-text {
   font-size: 0.85rem; color: #777; text-align: center;
+}
+
+/* Groups UI */
+.groups-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px; border-bottom: 1px solid var(--glass-border);
+}
+.btn-create-group {
+  flex: 1; background: #ff7eb3; color: white; border: none;
+  padding: 10px 16px; border-radius: 8px; cursor: pointer;
+  font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-create-group:hover { background: #ff5a9e; }
+.btn-icon-only {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: var(--glass-border); border: none; color: var(--text-primary);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.btn-icon-only:hover { background: rgba(255,255,255,0.1); }
+.item-badge {
+  background: #ff7eb3; border-radius: 50%; width: 8px; height: 8px;
+}
+
+/* Group Chat Panel */
+.group-chat-panel {
+  display: flex; flex-direction: column; height: 100%;
+}
+.chat-header {
+  padding: 20px; border-bottom: 1px solid var(--glass-border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.chat-header-info h3 { margin: 0; font-size: 1.2rem; }
+.chat-header-info p { margin: 5px 0 0; font-size: 0.85rem; color: #777; }
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 20px;
+  display: flex; flex-direction: column; gap: 15px;
+}
+.message-item {
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.msg-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+}
+.msg-content { flex: 1; }
+.msg-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 5px;
+}
+.msg-username { font-weight: 600; font-size: 0.9rem; color: #ff7eb3; }
+.msg-time { font-size: 0.75rem; color: #777; }
+.msg-text {
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  padding: 10px 14px; border-radius: 12px; font-size: 0.9rem;
+}
+.chat-input-box {
+  padding: 20px; border-top: 1px solid var(--glass-border);
+  display: flex; gap: 10px;
+}
+.chat-input-box input {
+  flex: 1; padding: 12px 16px; background: var(--glass-bg);
+  border: 1px solid var(--glass-border); border-radius: 20px;
+  color: var(--text-primary);
+}
+.btn-send {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: #ff7eb3; border: none; color: white; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-send:hover { background: #ff5a9e; }
+
+/* Group Sidebar Panel */
+.group-sidebar-panel {
+  position: fixed; right: 20px; top: 20px; bottom: 20px;
+  width: 300px; z-index: 1000;
+  display: flex; flex-direction: column;
+}
+.sidebar-header {
+  padding: 20px; border-bottom: 1px solid var(--glass-border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.sidebar-header h3 { margin: 0; font-size: 1.1rem; }
+.btn-icon-sm {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--glass-border); border: none; color: var(--text-primary);
+  cursor: pointer;
+}
+.btn-icon-sm:hover { background: rgba(255,255,255,0.1); }
+.sidebar-content {
+  flex: 1; overflow-y: auto; padding: 10px;
+}
+.member-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; border-radius: 8px;
+  transition: background 0.2s;
+}
+.member-item:hover { background: var(--glass-border); }
+.member-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--glass-border); position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.member-info { flex: 1; }
+.member-name { font-size: 0.9rem; font-weight: 500; }
+.btn-add-friend-mini {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(127,252,255,0.2); border: none; color: #7afcff;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.btn-add-friend-mini:hover { background: #7afcff; color: black; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
+}
+.modal-content {
+  background: var(--glass-bg); backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border); border-radius: 16px;
+  width: 90%; max-width: 500px; overflow: hidden;
+}
+.modal-header {
+  padding: 20px; border-bottom: 1px solid var(--glass-border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { margin: 0; font-size: 1.3rem; }
+.btn-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: none; border: none; color: var(--text-primary);
+  cursor: pointer; font-size: 1.2rem;
+}
+.btn-close:hover { background: rgba(255,255,255,0.1); }
+.modal-body { padding: 24px; }
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem;
+}
+.form-input, .form-textarea {
+  width: 100%; padding: 12px; background: var(--glass-bg);
+  border: 1px solid var(--glass-border); border-radius: 8px;
+  color: var(--text-primary); font-family: inherit;
+}
+.form-textarea { min-height: 100px; resize: vertical; }
+.modal-footer {
+  padding: 20px; border-top: 1px solid var(--glass-border);
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+.btn-secondary {
+  padding: 10px 20px; background: var(--glass-border); border: none;
+  border-radius: 8px; color: var(--text-primary); cursor: pointer;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-primary {
+  padding: 10px 20px; background: #ff7eb3; border: none;
+  border-radius: 8px; color: white; cursor: pointer; font-weight: 600;
+}
+.btn-primary:hover { background: #ff5a9e; }
+
+/* Transitions */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.slide-left-enter-active, .slide-left-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s;
+}
+.slide-left-enter-from, .slide-left-leave-to {
+  transform: translateX(100%); opacity: 0;
+}
+
+/* Modern Groups Design - Compact */
+.groups-list-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.groups-top-actions {
+  display: flex;
+  align-items: center;
+}
+
+.btn-primary-modern {
+  flex: 1;
+  background: linear-gradient(135deg, #ff7eb3 0%, #ff5a9e 100%);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 126, 179, 0.2);
+}
+.btn-primary-modern:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 126, 179, 0.3);
+}
+.btn-primary-modern:active {
+  transform: translateY(0);
+}
+.btn-primary-modern i {
+  font-size: 0.9rem;
+}
+
+.empty-state-modern {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+.empty-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.1) 0%, rgba(122, 252, 255, 0.1) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.empty-icon i {
+  font-size: 1.3rem;
+  color: #ff7eb3;
+  opacity: 0.5;
+}
+.empty-state-modern h4 {
+  margin: 0 0 6px 0;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+.empty-state-modern p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 200px;
+}
+
+.groups-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-card-modern {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.group-card-modern::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #ff7eb3, #7afcff);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.group-card-modern:hover {
+  border-color: rgba(255, 126, 179, 0.4);
+  transform: translateX(2px);
+  background: rgba(255, 126, 179, 0.03);
+}
+.group-card-modern:hover::before {
+  opacity: 1;
+}
+.group-card-modern.active {
+  border-color: #ff7eb3;
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.08) 0%, rgba(122, 252, 255, 0.03) 100%);
+}
+.group-card-modern.active::before {
+  opacity: 1;
+}
+
+.group-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.group-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.15), rgba(122, 252, 255, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 126, 179, 0.2);
+  flex-shrink: 0;
+}
+.group-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.group-icon i {
+  font-size: 1rem;
+  color: #ff7eb3;
+}
+
+.group-card-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff7eb3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.group-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.group-card-body h4 {
+  margin: 0 0 4px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+.group-card-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+}
+.group-card-meta i {
+  font-size: 0.7rem;
+}
+.group-status {
+  background: rgba(122, 252, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 8px;
+  color: #7afcff;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 </style>

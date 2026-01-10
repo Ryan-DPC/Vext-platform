@@ -33,9 +33,9 @@ export class GamesService {
                 console.log('[Games] Fetching games metadata from Cloudinary...');
                 const games = await cloudinaryService.getAllGames();
 
-                // Save to Redis (1 hour TTL)
+                // Save to Redis with 24h TTL
                 try {
-                    await redisService.set(cacheKey, JSON.stringify(games), { EX: 3600 });
+                    await redisService.setWithTTL(cacheKey, JSON.stringify(games));
                 } catch (e) { }
 
                 return games;
@@ -48,7 +48,15 @@ export class GamesService {
         }
 
         // 3. Fallback to DB
-        return await Games.getAllGames();
+        const dbGames = await GameModel.find().lean();
+        const formattedGames = dbGames.map((g: any) => ({ id: g._id.toString(), ...g }));
+
+        // Cache DB results with 24h TTL
+        try {
+            await redisService.setWithTTL(cacheKey, JSON.stringify(formattedGames));
+        } catch (e) { }
+
+        return formattedGames;
     }
 
     static async getGameDetails(folderName: string, userId: string | null = null) {

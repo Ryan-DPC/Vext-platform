@@ -5,6 +5,7 @@ import { useCategoryStore } from '../stores/categoryStore'
 import { useFriendsStore } from '../stores/friendsStore'
 import { useUserStore } from '../stores/userStore'
 import { useAlertStore } from '../stores/alertStore'
+import { useGroupStore } from '../stores/groupStore'
 import { statsService } from '../services/stats.service'
 import axios from 'axios'
 import InstallPathSelector from '../components/InstallPathSelector.vue'
@@ -17,6 +18,7 @@ const gameStore = useGameStore()
 const categoryStore = useCategoryStore()
 const friendsStore = useFriendsStore()
 const alertStore = useAlertStore()
+const groupStore = useGroupStore()
 
 const showAddGameModal = ref(false)
 const newGameKey = ref('')
@@ -31,6 +33,8 @@ const isAddingFriend = ref(false)
 const showAddFriendInput = ref(false)
 const showFilterMenu = ref(false)
 const currentFriendFilter = ref<'all' | 'online' | 'in-game'>('all')
+const showGroupsPanel = ref(false)
+const expandedGroupId = ref<string | null>(null)
 import { useChatStore } from '../stores/chatStore'
 const chatStore = useChatStore()
 
@@ -50,6 +54,8 @@ onMounted(async () => {
   await gameStore.fetchMyGames()
   await categoryStore.fetchCategories()
   await friendsStore.fetchFriends()
+  await groupStore.fetchMyGroups()
+  groupStore.setupWebSocketListeners()
 
   // Setup Tauri listeners
   // Safe to call, internal check handles it
@@ -301,6 +307,35 @@ const addFriend = async () => {
     isAddingFriend.value = false
   }
 }
+
+const toggleGroupsPanel = () => {
+  showGroupsPanel.value = !showGroupsPanel.value
+  if (showGroupsPanel.value) {
+    showAddFriendInput.value = false
+    showFilterMenu.value = false
+  }
+}
+
+const toggleGroupExpand = (groupId: string) => {
+  expandedGroupId.value = expandedGroupId.value === groupId ? null : groupId
+}
+
+const handleAddFriendFromGroup = async (username: string) => {
+  try {
+    await friendsStore.sendFriendRequest(username)
+    alertStore.showAlert({
+      title: 'Success',
+      message: `Friend request sent to ${username}`,
+      type: 'success'
+    })
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Error',
+      message: error.message || 'Failed to send request',
+      type: 'error'
+    })
+  }
+}
 </script>
 
 <template>
@@ -395,6 +430,14 @@ const addFriend = async () => {
             <div class="sidebar-actions">
                 <button 
                   class="icon-btn" 
+                  :class="{ active: showGroupsPanel }"
+                  @click="toggleGroupsPanel" 
+                  title="Groups"
+                >
+                  <i class="fas fa-users"></i>
+                </button>
+                <button 
+                  class="icon-btn" 
                   :class="{ active: showAddFriendInput }"
                   @click="toggleAddFriend" 
                   title="Add Friend"
@@ -436,6 +479,50 @@ const addFriend = async () => {
                 <button :class="['filter-pill', { active: currentFriendFilter === 'all' }]" @click="setFriendFilter('all')">All</button>
                 <button :class="['filter-pill', { active: currentFriendFilter === 'online' }]" @click="setFriendFilter('online')">Online</button>
                 <button :class="['filter-pill', { active: currentFriendFilter === 'in-game' }]" @click="setFriendFilter('in-game')">In-Game</button>
+            </div>
+        </div>
+
+        <!-- Groups Panel -->
+        <div v-if="showGroupsPanel" class="sidebar-collapsible groups-panel">
+            <div class="groups-panel-header">
+                <span>Recent Groups</span>
+                <button @click="showGroupsPanel = false" class="icon-btn-mini"><i class="fas fa-times"></i></button>
+            </div>
+            <div v-if="groupStore.myGroups.length === 0" class="empty-groups">
+                <i class="fas fa-users-slash"></i>
+                <span>No groups yet</span>
+            </div>
+            <div v-else class="groups-compact-list">
+                <div v-for="group in groupStore.myGroups.slice(0, 5)" :key="group.id" class="group-compact-item">
+                    <div class="group-compact-header" @click="toggleGroupExpand(group.id)">
+                        <div class="group-compact-info">
+                            <span class="group-compact-name">{{ group.name }}</span>
+                            <span class="group-compact-count">{{ group.members.length }} members</span>
+                        </div>
+                        <i :class="['fas', expandedGroupId === group.id ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
+                    </div>
+                    <transition name="expand">
+                        <div v-if="expandedGroupId === group.id" class="group-members-list">
+                            <div class="group-members-actions">
+                                <button class="btn-invite-all" title="Invite whole group to game">
+                                    <i class="fas fa-gamepad"></i> Invite All
+                                </button>
+                            </div>
+                            <div v-for="memberId in group.members.slice(0, 8)" :key="memberId" class="group-member-mini">
+                                <div class="member-mini-avatar">
+                                    <div class="status-dot online"></div>
+                                </div>
+                                <span class="member-mini-name">User {{ memberId.slice(0, 6) }}</span>
+                                <button @click="handleAddFriendFromGroup('user' + memberId.slice(0, 6))" class="btn-add-mini" title="Add Friend">
+                                    <i class="fas fa-user-plus"></i>
+                                </button>
+                            </div>
+                            <div v-if="group.members.length > 8" class="more-members">
+                                +{{ group.members.length - 8 }} more
+                            </div>
+                        </div>
+                    </transition>
+                </div>
             </div>
         </div>
 
@@ -768,4 +855,258 @@ const addFriend = async () => {
 .btn-neon {
   background: #ff7eb3; color: white; padding: 12px; border: none; border-radius: 8px; width: 100%; font-weight: 700; cursor: pointer;
 }
+
+/* Groups Panel - Enhanced */
+.groups-panel {
+  max-height: 400px; 
+  overflow-y: auto;
+  padding-bottom: 5px;
+}
+.groups-panel::-webkit-scrollbar { width: 4px; }
+.groups-panel::-webkit-scrollbar-thumb { 
+  background: rgba(255, 126, 179, 0.3); 
+  border-radius: 2px; 
+}
+.groups-panel::-webkit-scrollbar-thumb:hover { background: rgba(255, 126, 179, 0.5); }
+
+.groups-panel-header {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  padding-bottom: 12px; 
+  border-bottom: 1px solid rgba(255, 126, 179, 0.1);
+  margin-bottom: 12px;
+}
+.groups-panel-header span { 
+  font-size: 0.85rem; 
+  font-weight: 700; 
+  color: #ff7eb3;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.icon-btn-mini {
+  background: rgba(255, 126, 179, 0.1); 
+  border: none; 
+  color: #ff7eb3;
+  cursor: pointer; 
+  padding: 6px 8px; 
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.icon-btn-mini:hover { 
+  background: #ff7eb3; 
+  color: white; 
+  transform: scale(1.05);
+}
+
+.empty-groups {
+  text-align: center; 
+  padding: 30px 20px; 
+  color: #888;
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  gap: 12px;
+}
+.empty-groups i { 
+  font-size: 2.5rem; 
+  opacity: 0.3;
+  color: #ff7eb3;
+}
+.empty-groups span { font-size: 0.85rem; }
+
+.groups-compact-list { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+
+.group-compact-item {
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.05) 0%, rgba(122, 252, 255, 0.05) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 126, 179, 0.15);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.group-compact-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff7eb3, #7afcff);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.group-compact-item:hover {
+  border-color: rgba(255, 126, 179, 0.4);
+  box-shadow: 0 4px 12px rgba(255, 126, 179, 0.15);
+  transform: translateY(-2px);
+}
+.group-compact-item:hover::before {
+  opacity: 1;
+}
+
+.group-compact-header {
+  padding: 12px 14px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  cursor: pointer; 
+  transition: background 0.2s;
+}
+.group-compact-header:hover { 
+  background: rgba(255, 126, 179, 0.08); 
+}
+.group-compact-header i {
+  color: #ff7eb3;
+  transition: transform 0.3s;
+}
+
+.group-compact-info { 
+  flex: 1; 
+  min-width: 0;
+}
+.group-compact-name {
+  font-size: 0.9rem; 
+  font-weight: 600; 
+  display: block;
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.group-compact-count { 
+  font-size: 0.72rem; 
+  color: #7afcff;
+  font-weight: 500;
+}
+
+.group-members-list {
+  padding: 12px 14px 14px; 
+  border-top: 1px solid rgba(255, 126, 179, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.25s ease-out;
+}
+
+.group-members-actions { 
+  margin-bottom: 12px; 
+}
+.btn-invite-all {
+  width: 100%; 
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.2) 0%, rgba(255, 126, 179, 0.1) 100%);
+  border: 1px solid rgba(255, 126, 179, 0.4);
+  color: #ff7eb3; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  cursor: pointer;
+  font-size: 0.8rem; 
+  font-weight: 700; 
+  display: flex; 
+  align-items: center;
+  justify-content: center; 
+  gap: 8px; 
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.btn-invite-all:hover { 
+  background: linear-gradient(135deg, #ff7eb3 0%, #ff5a9e 100%);
+  color: white;
+  border-color: #ff7eb3;
+  box-shadow: 0 4px 12px rgba(255, 126, 179, 0.3);
+  transform: translateY(-1px);
+}
+
+.group-member-mini {
+  display: flex; 
+  align-items: center; 
+  gap: 10px;
+  padding: 8px 10px; 
+  border-radius: 6px; 
+  margin-bottom: 5px;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.02);
+}
+.group-member-mini:hover { 
+  background: rgba(122, 252, 255, 0.08);
+  transform: translateX(3px);
+}
+
+.member-mini-avatar {
+  width: 28px; 
+  height: 28px; 
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.2), rgba(122, 252, 255, 0.2));
+  border: 2px solid rgba(122, 252, 255, 0.3);
+  position: relative;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  flex-shrink: 0;
+}
+.member-mini-name { 
+  flex: 1; 
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.btn-add-mini {
+  width: 26px; 
+  height: 26px; 
+  border-radius: 50%;
+  background: rgba(122, 252, 255, 0.15); 
+  border: 1px solid rgba(122, 252, 255, 0.3);
+  color: #7afcff;
+  cursor: pointer; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-size: 0.7rem; 
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+.btn-add-mini:hover { 
+  background: #7afcff; 
+  color: #120c18;
+  border-color: #7afcff;
+  box-shadow: 0 0 12px rgba(122, 252, 255, 0.5);
+  transform: scale(1.15);
+}
+
+.more-members {
+  text-align: center; 
+  padding: 10px; 
+  font-size: 0.75rem; 
+  color: #999;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Transitions */
+@keyframes slideDown {
+  from { 
+    opacity: 0; 
+    transform: translateY(-8px); 
+    max-height: 0;
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+    max-height: 500px;
+  }
+}
+.expand-enter-active { 
+  animation: slideDown 0.3s ease-out; 
+}
+.expand-leave-active { 
+  animation: slideDown 0.25s ease-in reverse; 
+}
+
 </style>

@@ -19,7 +19,7 @@ export class ItemsService {
                 filters.is_archived = { $ne: true };
             }
 
-            const cacheKey = `items:all:${JSON.stringify(filters)}`;
+            const cacheKey = `items:store:${JSON.stringify(filters)}`;
 
             try {
                 const cachedData = await redisService.get(cacheKey);
@@ -34,7 +34,8 @@ export class ItemsService {
             const formattedDocs = docs.map((d: any) => ({ id: d._id.toString(), ...d }));
 
             try {
-                await redisService.set(cacheKey, JSON.stringify(formattedDocs), { EX: 300 });
+                // Cache with 24h TTL
+                await redisService.setWithTTL(cacheKey, JSON.stringify(formattedDocs));
             } catch (cacheError: any) {
                 logger.warn('[Items] Failed to save to Redis:', cacheError.message);
             }

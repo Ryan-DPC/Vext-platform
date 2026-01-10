@@ -4,6 +4,7 @@ import { handleLobbyMessage, handleLobbyDisconnect } from './handlers/lobby';
 import { handleChatMessage } from './handlers/chat';
 import { handleTransactionMessage } from './handlers/transaction';
 import { handleStickArenaMessage, handleStickArenaDisconnect } from './features/stick-arena/stick-arena.socket';
+import { handleGroupMessage } from './handlers/groups';
 
 export const handleWsMessage = async (ws: any, message: any) => {
     let type: string;
@@ -50,6 +51,11 @@ export const handleWsMessage = async (ws: any, message: any) => {
 
         if (type.startsWith('chat:')) {
             await handleChatMessage(ws, type, payload);
+            return;
+        }
+
+        if (type.startsWith('group:')) {
+            await handleGroupMessage(ws, type, payload);
             return;
         }
 

@@ -21,10 +21,14 @@ import { reviewsRoutes } from './features/reviews/reviews.routes';
 import { statsRoutes } from './features/stats/stats.routes';
 import { devGamesRoutes } from './features/dev-games/dev-games.routes';
 import { adminRoutes } from './features/admin/admin.routes';
+import { groupsRoutes } from './features/groups/groups.routes';
 import { setWebSocketServer } from './services/websocket.service';
 
 // Connect Database
 await connectDB();
+
+// Start Redis Cleanup Job (runs daily at 3AM)
+import './jobs/redis-cleanup.job';
 
 import { staticPlugin } from '@elysiajs/static';
 
@@ -81,7 +85,7 @@ const app = new Elysia()
     .use(statsRoutes)
     .use(devGamesRoutes)
     .use(adminRoutes)
-
+    .use(groupsRoutes)
     .listen(3000);
 
 // Initialize Global WebSocket Server Reference
