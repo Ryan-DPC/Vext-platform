@@ -45,9 +45,10 @@ const app = new Elysia()
                 }
 
                 // Verify Token
-                const jwtTool = (ws as any).jwt;
+                const jwtTool = (ws as any).data.jwt;
                 if (!jwtTool) {
-                    console.error('WS Error: JWT plugin not found on ws object');
+                    console.error('WS Error: JWT plugin not found on ws.data');
+                    console.log('Available keys:', Object.keys((ws as any).data || {}));
                     ws.close();
                     return;
                 }
