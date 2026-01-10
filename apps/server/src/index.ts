@@ -28,19 +28,34 @@ const app = new Elysia()
     }))
     .ws('/', {
         async open(ws) {
-            const token = (ws as any).data.query.token || (ws as any).data.headers['authorization'];
-
-            if (!token) {
-                ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
-                ws.close();
-                return;
-            }
-
             try {
+                // console.log('WS Open - Data keys:', Object.keys((ws as any).data || {}));
+                const query = (ws as any).data?.query;
+                const headers = (ws as any).data?.headers;
+
+                // console.log('WS Query:', query);
+
+                const token = query?.token || headers?.['authorization'];
+
+                if (!token) {
+                    console.log('WS Auth Failed: No token found');
+                    ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+                    ws.close();
+                    return;
+                }
+
                 // Verify Token
-                const payload = await (ws as any).jwt.verify(token.startsWith?.('Bearer ') ? token.slice(7) : token);
+                const jwtTool = (ws as any).jwt;
+                if (!jwtTool) {
+                    console.error('WS Error: JWT plugin not found on ws object');
+                    ws.close();
+                    return;
+                }
+
+                const payload = await jwtTool.verify(token.startsWith?.('Bearer ') ? token.slice(7) : token);
 
                 if (!payload) {
+                    console.log('WS Auth Failed: Invalid token');
                     ws.send(JSON.stringify({ type: 'error', message: 'Invalid token' }));
                     ws.close();
                     return;
@@ -83,6 +98,7 @@ const app = new Elysia()
                 }
 
             } catch (err) {
+                console.error('WS Open Error:', err);
                 ws.close();
             }
         },
