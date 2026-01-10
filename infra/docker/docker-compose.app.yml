@@ -1,6 +1,8 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ../..
+      dockerfile: apps/backend-elysia/Dockerfile
     container_name: ether_backend
     ports:
       - "${PORT:-3001}:${PORT:-3001}"

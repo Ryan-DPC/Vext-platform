@@ -1,7 +1,7 @@
 
-import { Elysia, t } from 'elysia';
+import { t, Elysia } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
-import Users from '../users/user.model';
+import { Users } from '@vext/database';
 
 // Helper to generate a token
 // Note: We'll access the `jwt` plugin instance from the handler context
@@ -42,7 +42,8 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         const backendUrl = process.env.BACKEND_URL;
         const profile_pic = `${backendUrl}/public/avatars/${randomAvatar}`;
 
-        const newUser = await Users.createUser({ username: fullUsername, email, password, profile_pic });
+        const hashedPassword = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 });
+        const newUser = await Users.createUser({ username: fullUsername, email, password: hashedPassword, profile_pic });
 
         const token = await jwt.sign({
             id: newUser.id,

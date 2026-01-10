@@ -1,7 +1,7 @@
 
 import { TransactionModel } from './transaction.model';
 import { InvoiceModel } from './invoice.model';
-import Users from '../users/user.model';
+import { Users } from '@vext/database';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';

@@ -1,6 +1,6 @@
 import GroupModel, { IGroup } from './group.model';
 import GroupMessageModel, { IGroupMessage } from './groupMessage.model';
-import Users from '../users/user.model';
+import { Users } from '@vext/database';
 import mongoose from 'mongoose';
 
 export class GroupsService {

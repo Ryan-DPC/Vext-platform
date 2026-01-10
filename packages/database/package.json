@@ -1,0 +1,15 @@
+{
+    "name": "@vext/database",
+    "version": "1.0.0",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+        "mongoose": "^8.9.5"
+    },
+    "devDependencies": {
+        "bun-types": "latest"
+    }
+}

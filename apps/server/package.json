@@ -15,9 +15,9 @@
         "@elysiajs/cors": "latest",
         "@elysiajs/swagger": "latest",
         "jsonwebtoken": "^9.0.3",
-        "mongoose": "^8.0.3",
+        "mongoose": "^8.9.5",
         "node-cron": "^4.2.1",
-        "redis": "^4.6.12",
+        "redis": "^5.10.0",
         "winston": "^3.19.0"
     },
     "devDependencies": {

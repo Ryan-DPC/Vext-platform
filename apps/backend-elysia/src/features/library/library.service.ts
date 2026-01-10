@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 import { Blockchain, Transaction } from '../../services/blockchain.service';
 import { generateGameKey, isValidKeyFormat } from '../../utils/gameKeys';
 import { GameModel as Games, IGame } from '../games/game.model';
-import Users, { IUser } from '../users/user.model';
+import { Users, type IUser } from '@vext/database';
 import GameOwnership, { IGameOwnership } from '../game-ownership/game-ownership.model';
 import Commission from './commissions.model';
 import BlockchainTx from './blockchainTx.model';

@@ -1,5 +1,5 @@
 
-import Users from './user.model';
+import { Users } from '@vext/database';
 import { GameOwnershipModel } from '../game-ownership/game-ownership.model';
 import { ItemsService } from '../items/items.service'; // Assuming this exists or will need to be checked
 

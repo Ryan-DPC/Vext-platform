@@ -86,7 +86,7 @@ const app = new Elysia()
     .use(devGamesRoutes)
     .use(adminRoutes)
     .use(groupsRoutes)
-    .listen(3000);
+    .listen(process.env.PORT || 3000);
 
 // Initialize Global WebSocket Server Reference
 if (app.server) {

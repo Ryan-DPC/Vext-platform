@@ -1,6 +1,6 @@
 
 import { GameOwnershipModel, IGameOwnership } from './game-ownership.model';
-import Users from '../users/user.model';
+import { Users } from '@vext/database';
 import Games, { GameModel } from '../games/game.model';
 import mongoose from 'mongoose';
 import { BlockchainTxModel } from '../library/blockchainTx.model';

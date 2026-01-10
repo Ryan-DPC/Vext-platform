@@ -1,7 +1,7 @@
 
 import { ItemModel } from './items.model';
 import { UserItemModel } from './userItems.model';
-import Users from '../users/user.model';
+import { Users } from '@vext/database';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import BlockchainTx from '../library/blockchainTx.model';
 import mongoose from 'mongoose';
