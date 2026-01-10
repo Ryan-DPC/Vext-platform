@@ -191,7 +191,8 @@ export class FinanceService {
                     transaction_type: 'game_sale',
                     game_id: listing.game_id,
                     game_key: listing.game_key,
-                    ownership_token: listing.ownership_token
+                    ownership_token: listing.ownership_token,
+                    currency: 'CHF' // Game sales are in CHF
                 });
 
                 // 2. Transaction: Buyer -> Platform (Fee)

@@ -294,7 +294,7 @@ watch(selectedGameForSale, () => {
                         <span class="tx-type" :class="tx.type">{{ tx.type }}</span>
                         <span class="tx-game">{{ tx.game_name }}</span>
                     </div>
-                    <div class="tx-amount">{{ tx.amount }} CHF</div>
+                    <div class="tx-amount">{{ tx.amount }} {{ tx.currency }}</div>
                     <div class="tx-date">{{ new Date(tx.created_at).toLocaleDateString() }}</div>
                 </div>
             </div>

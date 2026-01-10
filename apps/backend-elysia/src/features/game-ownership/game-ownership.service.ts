@@ -347,6 +347,7 @@ export class GameOwnershipService {
                 game_name: name, // Frontend uses 'game_name' for display, we can reuse it or add 'name'
                 type: type,
                 amount: tx.amount,
+                currency: tx.currency || 'VTX', // Default to VTX if missing
                 created_at: tx.timestamp
             };
         }));

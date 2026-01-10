@@ -9,6 +9,11 @@
     - [ ] Vérifier la synchronisation du jeu (Stick Arena).
 - [x] **Transactions (Achats)** : Confirmer l'achat d'un item et la mise à jour immédiate du solde (Fixed).
 
+## 2. Performance & Optimisation (Terminé)
+- [x] **Benchmark Script** : Création de `load-test.ts` pour mesurer les RPS.
+- [x] **Optimisation Store** : Implémentation Redis + Index MongoDB pour `/items/store` (RPS x3).
+- [x] **Stabilité API** : Fallback DB pour `/games/all` si Cloudinary sature (Rate Limit fix).
+
 ## 2. Transactions & Économie (Nouveau)
 - [ ] **Historique des Transactions (UI)** :
     - [ ] Mettre à jour la page d'historique pour afficher la devise (`VTX` vs autres).
