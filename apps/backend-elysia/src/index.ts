@@ -17,6 +17,10 @@ import { financeRoutes } from './features/finance/finance.routes';
 import { lobbyRoutes } from './features/lobby/lobby.routes';
 import { gameCategoriesRoutes } from './features/game-categories/game-categories.routes';
 import { gameOwnershipRoutes } from './features/game-ownership/game-ownership.routes';
+import { reviewsRoutes } from './features/reviews/reviews.routes';
+import { statsRoutes } from './features/stats/stats.routes';
+import { devGamesRoutes } from './features/dev-games/dev-games.routes';
+import { adminRoutes } from './features/admin/admin.routes';
 
 import { Server } from 'socket.io';
 import { attachWebSocketBridge } from './features/ws-bridge/ws-bridge.socket';
@@ -48,6 +52,10 @@ const app = new Elysia()
     .use(lobbyRoutes)
     .use(gameCategoriesRoutes)
     .use(gameOwnershipRoutes)
+    .use(reviewsRoutes)
+    .use(statsRoutes)
+    .use(devGamesRoutes)
+    .use(adminRoutes)
     .listen(3000);
 
 import { setIO } from './socket';

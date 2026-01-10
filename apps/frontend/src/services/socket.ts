@@ -9,19 +9,21 @@ import router from '../router'
 // Get WebSocket URL based on environment
 // Get WebSocket URL based on environment
 const getSocketUrl = () => {
-    // For local development with Elysia + separate Socket.IO port
-    return 'http://localhost:3001';
-
-    /* Original logic commented out for migration
-    let url = import.meta.env.VITE_WEBSOCKET_URL;
-    const isTauri = !!(window as any).__TAURI__;
-    if (url && isTauri && url.includes('ether_server')) { return null; }
-    if (url) return url;
-    if (import.meta.env.PROD && isTauri) {
-        return 'https://server-1-z9ok.onrender.com';
+    // Check environment variable first
+    if (import.meta.env.VITE_WEBSOCKET_URL) {
+        return import.meta.env.VITE_WEBSOCKET_URL;
     }
-    return 'https://server-1-z9ok.onrender.com'
-    */
+
+    const prodUrl = 'https://server-1-z9ok.onrender.com';
+    const isTauri = !!(window as any).__TAURI__;
+
+    // In Production or Tauri, use production server
+    if (import.meta.env.PROD || isTauri) {
+        return prodUrl;
+    }
+
+    // Default to localhost for local dev if no env var is set
+    return 'http://localhost:3001';
 }
 
 class SocketService {
@@ -41,6 +43,7 @@ class SocketService {
         console.log('🔌 Connecting to socket:', socketUrl);
         console.log('🔌 Token:', token.substring(0, 10) + '...');
         this.socket = io(socketUrl, {
+            transports: ['websocket'], // Force WebSocket to verify connection speed (skip polling)
             auth: {
                 token: token
             },

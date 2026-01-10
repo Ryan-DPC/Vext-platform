@@ -2,7 +2,6 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import Users from '../users/user.model';
-import bcrypt from 'bcryptjs';
 
 // Helper to generate a token
 // Note: We'll access the `jwt` plugin instance from the handler context
@@ -40,7 +39,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         const defaultAvatars = ['avatar_blue.svg', 'avatar_green.svg', 'avatar_red.svg'];
         const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
         // Hardcoding backend URL for now or use env
-        const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+        const backendUrl = process.env.BACKEND_URL;
         const profile_pic = `${backendUrl}/public/avatars/${randomAvatar}`;
 
         const newUser = await Users.createUser({ username: fullUsername, email, password, profile_pic });
@@ -88,7 +87,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
             return { success: false, message: 'Account has no password (social login?).' };
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const isPasswordValid = await Bun.password.verify(password, user.password);
         if (!isPasswordValid) {
             set.status = 401;
             return { success: false, message: 'Invalid password.' };

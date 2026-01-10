@@ -3,29 +3,20 @@ import axios from 'axios'
 const isTauri = !!(window as any).__TAURI__;
 
 const getBaseURL = () => {
-    // TEMPORARY: Force Elysia Backend for performance testing
-    return 'http://localhost:3000/api';
-
-    // Original logic preserved below for rollback
-    /*
     // If VITE_API_URL is explicitly set, use it
     if (import.meta.env.VITE_API_URL) {
         return `${import.meta.env.VITE_API_URL}/api`
     }
 
-    // Hardcoded production fallback for Desktop App
-    if (import.meta.env.PROD && isTauri) {
-        return 'https://vext-backend.onrender.com/api'
-    }
+    const prodUrl = 'https://vext-backend.onrender.com/api'
 
-    // In Desktop App (Tauri) DEV mode, use production
-    if (isTauri) {
-        return 'https://vext-backend.onrender.com/api'
+    // Hardcoded production fallback for Desktop App or Production Mode
+    if (import.meta.env.PROD || isTauri) {
+        return prodUrl
     }
 
     // In dev mode (with Vite proxy), use relative path
     return '/api'
-    */
 }
 
 axios.defaults.baseURL = getBaseURL()

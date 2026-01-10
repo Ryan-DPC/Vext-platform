@@ -1,6 +1,4 @@
-
 import mongoose, { Document, Schema, Model, ClientSession } from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 export interface IUserBalances {
     chf: number;
@@ -96,7 +94,7 @@ export const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IU
 
 export default class Users {
     static async createUser({ username, password, email, tokens = 1000, profile_pic = null, elo = 1600, currency = 'CHF', balances = {}, github_id = null, github_username = null }: any): Promise<any> {
-        const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+        const hashedPassword = password ? await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 }) : null;
         const defaultBalances = { chf: 0, eur: 0, usd: 0, gbp: 0, ...balances };
         const userData: any = { username, email, tokens, profile_pic, elo, currency, balances: defaultBalances, github_id, github_username };
         if (hashedPassword) {

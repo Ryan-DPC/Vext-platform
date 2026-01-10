@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => {
         }
       },
       build: {
+        target: 'esnext', // Use modern JS features for smaller/faster code
+        minify: 'esbuild', // Fast minification
+        cssCodeSplit: true,
         rollupOptions: {
           output: {
             manualChunks: {
