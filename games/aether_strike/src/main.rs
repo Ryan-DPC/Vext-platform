@@ -116,6 +116,7 @@ async fn main() {
     let mut selected_session: Option<usize> = None;
     
     // Variables pour le jeu
+    let mut current_screen = GameScreen::MainMenu;
     let mut _game_state: Option<GameState> = None;
     let mut _player: Option<StickFigure> = None;
     let mut _enemy: Option<Enemy> = None;
