@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 export async function connectDB() {
     // Fallback to local if env var not set, for easier dev
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ether_finance';
+    const uri = process.env.MONGODB_URI;
 
     if (!uri) {
         console.error('❌ MONGODB_URI is not defined in environment variables.');

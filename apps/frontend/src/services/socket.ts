@@ -17,7 +17,7 @@ const getSocketUrl = () => {
     const prodUrl = import.meta.env.VITE_WEBSOCKET_URL;
     const isTauri = !!(window as any).__TAURI__;
 
-    let baseUrl = import.meta.env.VITE_API_URL; // Default to Elysia port 3000
+    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'; // Default to Elysia port 3000
 
     // In Production or Tauri, use production server
     if (import.meta.env.PROD || isTauri) {
