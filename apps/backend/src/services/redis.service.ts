@@ -7,13 +7,22 @@ class RedisService {
 
     constructor() {
         this.client = createClient({
-            url: process.env.REDIS_URL
+            url: process.env.REDIS_URL || 'redis://localhost:6379'
         });
 
-        this.client.on('error', (err) => console.error('Redis Client Error', err));
+        // Prevent crash on error, but don't spam console if it's just ECONNREFUSED repeatedly
+        this.client.on('error', (err) => {
+            if (err.code === 'ECONNREFUSED') {
+                // Only log once or sparingly? For now just silence repeated spam.
+                // console.warn('Redis Connection Failed (ECONNREFUSED) - Cache will be disabled.');
+            } else {
+                console.error('Redis Client Error', err);
+            }
+        });
+
         this.client.on('connect', () => {
             this.isConnected = true;
-            console.log('Redis Client Connected');
+            console.log('✅ Redis Client Connected');
         });
     }
 
