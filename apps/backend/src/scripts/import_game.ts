@@ -2,6 +2,8 @@
 import path from 'path';
 import dotenv from 'dotenv';
 
+import minimist from 'minimist';
+
 // Load .env from apps/backend/.env (we are in src/scripts, so up 2 levels)
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -9,13 +11,14 @@ import { connectDB } from '../config/db';
 import { GitHubService } from '../services/github.service';
 import { GameModel } from '@vext/database';
 
-const GITHUB_URL = process.argv[2];
-const MANIFEST_PATH = process.argv[3] || 'vext.json';
-const BRANCH = process.argv[4] || 'main'; // Default to main
+const args = minimist(process.argv.slice(2));
+const GITHUB_URL = args._[0];
+const MANIFEST_PATH = args.manifest || args.m || 'vext.json';
+const BRANCH = args.branch || args.b || 'main';
 
 if (!GITHUB_URL) {
-    console.error('Usage: bun run src/scripts/import_game.ts <GITHUB_URL> [MANIFEST_PATH] [BRANCH]');
-    console.error('Example: bun run src/scripts/import_game.ts https://github.com/Ryan-DPC/Vext-platform games/aether_strike/vext.json dev');
+    console.error('Usage: bun run src/scripts/import_game.ts <GITHUB_URL> [--manifest PATH] [--branch BRANCH]');
+    console.error('Example: bun run src/scripts/import_game.ts https://github.com/Ryan-DPC/Vext-platform --manifest games/aether_strike/vext.json --branch dev');
     process.exit(1);
 }
 
@@ -118,7 +121,7 @@ const main = async () => {
 
         // 5. Invalidate Cache
         const ADMIN_SECRET = process.env.ADMIN_SECRET;
-        const BACKEND_URL = process.env.VITE_API_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+        const BACKEND_URL = process.env.VITE_API_URL || process.env.BACKEND_URL;
         // Note: VITE_API_URL is usually frontend env, backend might have BACKEND_URL or just PORT. 
         // Let's assume user reads logs or sets it. 
         // Actually, for this specific user, they are running against prod DB so likely want to hit prod backend.
