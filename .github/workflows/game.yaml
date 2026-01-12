@@ -84,6 +84,11 @@ jobs:
             platform = "windows"
             architecture = "x64"
             engine = "Macroquad"
+            
+            # Liens pour VEXT Launcher
+            download_url = "https://github.com/Ryan-DPC/Vext-platform/releases/download/dev-latest/${{ env.GAME_NAME }}_v0.1.0_windows_x64.zip"
+            update_url = "https://api.github.com/repos/Ryan-DPC/Vext-platform/releases/tags/dev-latest"
+            
             requires = @{
               os = "Windows 10+"
               ram_mb = 512
@@ -96,7 +101,13 @@ jobs:
               "Character progression"
               "Inventory system"
             )
-            launch_args = @()
+            # Arguments que le Launcher doit passer au jeu
+            launch_args = @(
+              "--vext-token {token}"
+              "--vext-user-id {user_id}"
+              "--vext-server {server_url}"
+              "--fullscreen"
+            )
             save_data_path = "%APPDATA%/AetherStrike"
           }
           
