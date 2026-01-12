@@ -203,6 +203,8 @@ jobs:
     name: Create/Update Dev Release
     needs: build-game
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Nécessaire pour créer/modifier des releases
     # Plus de condition sur les tags, ça se lance à chaque build réussi sur dev
     
     steps:
