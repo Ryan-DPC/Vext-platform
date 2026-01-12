@@ -39,15 +39,38 @@ export class GitHubService {
                 }
             });
 
+            let data;
+
             if (!response.ok) {
                 if (response.status === 404) {
-                    console.warn(`[GitHub] No releases found for ${owner}/${repo}`);
-                    return null;
-                }
-                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-            }
+                    // Try fetching all releases (maybe it's a pre-release)
+                    console.log(`[GitHub] Latest release not found, checking all releases/tags...`);
+                    const listResponse = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/releases`, {
+                        headers: {
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Authorization': this.token ? `token ${this.token}` : ''
+                        }
+                    });
 
-            const data = await response.json() as any;
+                    if (listResponse.ok) {
+                        const list = await listResponse.json() as any[];
+                        if (list && list.length > 0) {
+                            data = list[0]; // Pick the most recent one
+                            console.log(`[GitHub] Found most recent release: ${data.tag_name}`);
+                        } else {
+                            console.warn(`[GitHub] No releases found in list either.`);
+                            return null;
+                        }
+                    } else {
+                        console.warn(`[GitHub] No releases found for ${owner}/${repo}`);
+                        return null;
+                    }
+                } else {
+                    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+                }
+            } else {
+                data = await response.json() as any;
+            }
 
             // Find zip or executable
             const zipAsset = data.assets.find((a: any) =>

@@ -10,10 +10,12 @@ import { GitHubService } from '../services/github.service';
 import { GameModel } from '@vext/database';
 
 const GITHUB_URL = process.argv[2];
+const MANIFEST_PATH = process.argv[3] || 'vext.json';
+const BRANCH = process.argv[4] || 'main'; // Default to main
 
 if (!GITHUB_URL) {
-    console.error('Usage: bun run src/scripts/import_game.ts <GITHUB_URL>');
-    console.error('Example: bun run src/scripts/import_game.ts https://github.com/Ryan-DPC/vext-aether-strike');
+    console.error('Usage: bun run src/scripts/import_game.ts <GITHUB_URL> [MANIFEST_PATH] [BRANCH]');
+    console.error('Example: bun run src/scripts/import_game.ts https://github.com/Ryan-DPC/Vext-platform games/aether_strike/vext.json dev');
     process.exit(1);
 }
 
@@ -29,12 +31,12 @@ const main = async () => {
             throw new Error('Invalid GitHub URL');
         }
 
-        console.log(`📦 Fetching metadata for ${repoInfo.owner}/${repoInfo.repo}...`);
+        console.log(`📦 Fetching metadata for ${repoInfo.owner}/${repoInfo.repo} (Manifest: ${MANIFEST_PATH}, Branch: ${BRANCH})...`);
 
         // 1. Fetch vext.json
-        const manifestBuffer = await ghService.getRawFile(repoInfo.owner, repoInfo.repo, 'vext.json');
+        const manifestBuffer = await ghService.getRawFile(repoInfo.owner, repoInfo.repo, MANIFEST_PATH, BRANCH);
         if (!manifestBuffer) {
-            throw new Error('vext.json not found in repository root. This file is required for Vext import.');
+            throw new Error(`${MANIFEST_PATH} not found in repository on branch '${BRANCH}'. This file is required for Vext import.`);
         }
 
         const manifest = JSON.parse(manifestBuffer.toString());
@@ -114,7 +116,34 @@ const main = async () => {
 
         console.log(`✅ Game imported successfully: ${game.game_name} (ID: ${game._id})`);
 
-        process.exit(0);
+        // 5. Invalidate Cache
+        // We need to import redisService dynamically or ensure connection is handled
+        // But redisService is exported as a singleton instance from the service file.
+        // We just need to import it at the top level, but wait, connection logic might need ensuring.
+        // redisService.connect() is called inside its methods, so just calling .del() is fine.
+
+        try {
+            // Import redisService locally or use the one if we imported it
+            // Let's rely on the import I will add at the top
+            const { redisService } = await import('../services/redis.service');
+
+            // Suppress default console.error listener for this brief operation to avoid noise if down
+            //  redisService['client'].removeAllListeners('error');
+            //  redisService['client'].on('error', (e) => {}); // Silent
+
+            console.log('🧹 Invalidating cache...');
+            // Attempt invalidation with short timeout or just try/catch
+            await redisService.del('games:all');
+            // Also invalidate details for this game just in case
+            await redisService.deletePattern(`game:details:*${manifest.folder_name}*`);
+            console.log('✅ Cache invalidated.');
+        } catch (cacheError: any) {
+            console.warn('⚠️ Could not invalidate cache (Redis may be down or unreachable):', cacheError.message || cacheError);
+            console.warn('ℹ️ You may need to restart the backend or wait for cache expiry to see changes.');
+        }
+
+        // Force exit to ensure we don't hang on open handles
+        setTimeout(() => process.exit(0), 100);
 
     } catch (error: any) {
         console.error('❌ Import Failed:', error.message);
