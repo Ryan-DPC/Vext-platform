@@ -3,7 +3,7 @@ name: Aether Strike - Game Build & Release
 on:
   push:
     branches:
-      - develop
+      - dev
     paths:
       - 'games/aether_strike/**'
   pull_request:
@@ -198,12 +198,12 @@ jobs:
           Metadata file included: `game_metadata.json`
           '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
-  # Job optionnel : Créer une release GitHub si on tag
+  # Créer une Release automatique (Nightly / Dev Build)
   create-release:
-    name: Create GitHub Release
+    name: Create/Update Dev Release
     needs: build-game
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Plus de condition sur les tags, ça se lance à chaque build réussi sur dev
     
     steps:
       - name: 📥 Download artifacts
@@ -212,32 +212,25 @@ jobs:
           name: aether_strike_archive
           path: ./release
 
-      - name: 🏷️ Create Release
+      - name: 🏷️ Update Dev Release
         uses: softprops/action-gh-release@v1
         with:
+          name: Aether Strike - Dev Build (${{ github.sha }})
+          tag_name: dev-latest
           files: ./release/*.zip
           draft: false
-          prerelease: false
+          prerelease: true
           generate_release_notes: true
           body: |
-            ## 🎮 Aether Strike Release
+            ## 🚧 Development Build
+            **Commit:** `${{ github.sha }}`
+            **Date:** ${{ github.event.head_commit.timestamp }}
             
-            ### Features
-            - Turn-based RPG combat system
-            - 3 playable classes (Warrior, Mage, Archer)
-            - Online multiplayer sessions
-            - Character progression & leveling
-            - Passive abilities system
+            Cette release contient la dernière version de dévelopement.
             
-            ### Installation
-            1. Download the `.zip` file
-            2. Extract to your desired location
-            3. Run `aether_strike.exe`
-            
-            ### Requirements
-            - Windows 10 or later
-            - 512 MB RAM
-            - 100 MB disk space
+            ### 📥 Installation
+            1. Télécharger le fichier `.zip` ci-dessous
+            2. Extraire et lancer `aether_strike.exe`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
