@@ -1,6 +1,7 @@
 import geckos, { GeckosServer, iceServers } from '@geckos.io/server';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { encode, decode } from '@msgpack/msgpack';
 
 dotenv.config();
 
@@ -92,17 +93,33 @@ io.onConnection((channel) => {
     }
   });
 
-  // 4. Game Action
+  // 4. Game Action (MsgPack Supported)
   channel.on('game:move', (data: any) => {
-    const lobbyId = data.lobbyId;
+    let payload = data;
+    // Decode if binary
+    if (
+      data instanceof ArrayBuffer ||
+      data instanceof Uint8Array ||
+      (typeof Buffer !== 'undefined' && Buffer.isBuffer(data))
+    ) {
+      try {
+        payload = decode(data);
+      } catch (e) {
+        console.error('Failed to decode MsgPack:', e);
+        return;
+      }
+    }
+
+    const { lobbyId, action } = payload;
     const lobby = lobbies.get(lobbyId);
+
     if (lobby && lobby.status === 'playing' && lobby.state) {
       if (lobby.state.turn !== channel.id) {
         channel.emit('error', { message: 'Not your turn' });
         return;
       }
 
-      console.log(`Move from ${channel.id}: ${data.action}`);
+      console.log(`Move from ${channel.id}: ${action}`);
 
       // Switch turn
       const opponent = lobby.players.find((p) => p !== channel.id);
@@ -110,11 +127,14 @@ io.onConnection((channel) => {
         lobby.state.turn = opponent;
         lobby.state.round++;
 
-        // Broadcast update
-        io.room(lobbyId).emit('game:update', {
-          lastAction: { player: channel.id, action: data.action },
+        // Broadcast update (Encoded)
+        const updateData = {
+          lastAction: { player: channel.id, action: action },
           state: lobby.state,
-        });
+        };
+
+        // Binary Emit
+        io.room(lobbyId).emit('game:update', encode(updateData));
       }
     }
   });
