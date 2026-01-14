@@ -202,6 +202,47 @@ const app = new Elysia()
           return;
         }
 
+        // Handle private chat messages
+        if (type === 'chat:send-message') {
+          const { toUserId, content } = data;
+          logger.info(`[WebSocket] Chat message from ${ws.data.username} to ${toUserId}`);
+
+          try {
+            // Import ChatService dynamically to avoid circular deps
+            const { ChatService } = await import('./features/chat/chat.service');
+
+            // Save to database
+            const message = await ChatService.sendMessage(ws.data.userId, toUserId, content);
+
+            // Notify recipient in real-time
+            ws.publish(`user:${toUserId}`, JSON.stringify({
+              type: 'chat:new-message',
+              data: {
+                id: message._id || message.id,
+                from_user_id: ws.data.userId,
+                from_username: ws.data.username,
+                content,
+                created_at: new Date(),
+                is_from_me: false
+              }
+            }));
+
+            // Confirm to sender
+            ws.send(JSON.stringify({
+              type: 'chat:message-sent',
+              data: { messageId: message._id || message.id }
+            }));
+
+          } catch (error) {
+            logger.error('[WebSocket] Chat message error:', error);
+            ws.send(JSON.stringify({
+              type: 'chat:error',
+              data: { error: 'Failed to send message' }
+            }));
+          }
+          return;
+        }
+
         // Handle Stick Arena messages
         if (type?.startsWith('stick-arena:')) {
           await handleStickArenaMessage(ws, type, data);
