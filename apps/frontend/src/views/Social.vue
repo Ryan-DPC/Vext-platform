@@ -1,5 +1,5 @@
-<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useFriendsStore } from '../stores/friendsStore'
 import { useToastStore } from '../stores/toastStore'
 import { useGroupStore } from '../stores/groupStore'
@@ -8,6 +8,7 @@ import UserAutocomplete from '../components/UserAutocomplete.vue'
 const friendsStore = useFriendsStore()
 const toastStore = useToastStore()
 const groupStore = useGroupStore()
+const router = useRouter()
 const activeTab = ref('friends') // 'friends', 'requests', 'groups', 'add_friend'
 const searchQuery = ref('')
 const addFriendQuery = ref('')
@@ -109,6 +110,10 @@ const handleRemoveFriend = async (friendId: string, username: string) => {
     toastStore.error(e.message || 'Failed to remove friend')
   }
 }
+
+const openChat = (friendId: string) => {
+  router.push({ name: 'chat', params: { friendId } })
+}
 </script>
 
 <template>
@@ -168,9 +173,8 @@ const handleRemoveFriend = async (friendId: string, username: string) => {
               <div class="item-info">
                 <div class="item-name">{{ friend.username }}</div>
                 <div class="item-status">{{ friend.status }}</div>
-              </div>
               <div class="item-actions">
-                <button class="btn-icon" title="Message"><i class="fas fa-comment-alt"></i></button>
+                <button class="btn-icon" title="Message" @click.stop="openChat(friend.id)"><i class="fas fa-comment-alt"></i></button>
                 <button class="btn-icon" title="Invite"><i class="fas fa-gamepad"></i></button>
                 <button class="btn-icon danger" title="Remove Friend" @click.stop="handleRemoveFriend(friend.id, friend.username)">
                   <i class="fas fa-user-minus"></i>
