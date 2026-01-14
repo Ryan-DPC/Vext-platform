@@ -8,6 +8,7 @@ pub enum GameScreen {
     CharacterCreation,  // Choix de classe
     SessionList,        // Liste des sessions (Online)
     CreateServer,       // Créer un serveur
+    Lobby,              // Salle d'attente (NOUVEAU)
     InGame,
     Options,
 }

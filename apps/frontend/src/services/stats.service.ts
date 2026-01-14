@@ -1,5 +1,6 @@
 import axios from '../utils/axiosConfig';
 import tauriAPI from '../tauri-adapter';
+import { socketService } from './socket';
 
 class StatsService {
   private currentSessionId: string | null = null;
@@ -29,11 +30,18 @@ class StatsService {
       const response = await axios.post('/stats/session/start', { gameId });
       this.currentSessionId = response.data.sessionId;
       this.currentGameId = gameId;
+
+      // Update Socket Status
+      socketService.updateStatus('in-game', this.currentSessionId || undefined);
+
       return this.currentSessionId;
     } catch (error) {
       console.error('Failed to start session:', error);
       // Even if server session fails, we track locally
       this.currentGameId = gameId;
+
+      // Still update status locally/socket
+      socketService.updateStatus('in-game');
       return null;
     }
   }
@@ -61,8 +69,13 @@ class StatsService {
       this.currentSessionId = null;
       this.currentGameId = null;
       this.sessionStartTime = 0;
+
+      // Reset Status
+      socketService.updateStatus('online');
+
     } catch (error) {
       console.error('Failed to end session/playtime:', error);
+      socketService.updateStatus('online'); // Reset anyway
     }
   }
 

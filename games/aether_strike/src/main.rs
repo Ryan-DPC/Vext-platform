@@ -310,7 +310,7 @@ async fn main() {
                             } else {
                                 // Rejoindre directement
                                 println!("Joining session: {}", session.session.name);
-                                current_screen = GameScreen::InGame;
+                                current_screen = GameScreen::Lobby;
                             }
                         }
                     }
@@ -393,7 +393,8 @@ async fn main() {
                         ));
 
                         println!("Server created: {}", server_name_input);
-                        current_screen = GameScreen::SessionList;
+                        selected_session = Some(sessions.len() - 1);
+                        current_screen = GameScreen::Lobby;
                     }
                 }
 
@@ -407,6 +408,47 @@ async fn main() {
                 // Dessiner bouton CREATE
                 let is_hovered = confirm_create_button.is_clicked(mouse_pos);
                 confirm_create_button.draw(is_hovered);
+
+                if is_key_pressed(KeyCode::Escape) {
+                    current_screen = GameScreen::SessionList;
+                }
+            }
+
+            GameScreen::Lobby => {
+                clear_background(Color::from_rgba(30, 30, 50, 255));
+                
+                let session_name = if let Some(idx) = selected_session {
+                    &sessions[idx].session.name
+                } else {
+                    "Lobby"
+                };
+
+                draw_text(&format!("LOBBY: {}", session_name), 50.0, 50.0, 40.0, WHITE);
+
+                // Players Box
+                draw_rectangle(50.0, 100.0, 400.0, 500.0, Color::from_rgba(20, 20, 40, 255));
+                draw_rectangle_lines(50.0, 100.0, 400.0, 500.0, 2.0, LIGHTGRAY);
+                
+                draw_text("PLAYERS (1/4)", 70.0, 140.0, 30.0, GOLD);
+                
+                // Mock Player 1 (You)
+                draw_text(&format!("1. {} (You)", player_profile.vext_username), 70.0, 190.0, 24.0, GREEN);
+                // Mock Empty slots
+                draw_text("2. Waiting...", 70.0, 230.0, 24.0, DARKGRAY);
+                draw_text("3. Waiting...", 70.0, 270.0, 24.0, DARKGRAY);
+                draw_text("4. Waiting...", 70.0, 310.0, 24.0, DARKGRAY);
+
+                // Start Button
+                let start_btn_rect = Rect::new(SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 150.0, 300.0, 80.0);
+                let is_hovered = start_btn_rect.contains(mouse_pos);
+                let btn_color = if is_hovered { GREEN } else { DARKGREEN };
+                
+                draw_rectangle(start_btn_rect.x, start_btn_rect.y, start_btn_rect.w, start_btn_rect.h, btn_color);
+                draw_text("START GAME", start_btn_rect.x + 30.0, start_btn_rect.y + 50.0, 40.0, WHITE);
+                
+                if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
+                     current_screen = GameScreen::InGame;
+                }
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::SessionList;
@@ -483,7 +525,7 @@ async fn main() {
                         if join_password_input == *password {
                             println!("Password correct! Joining session: {}", sessions[session_idx].session.name);
                             show_password_dialog = false;
-                            current_screen = GameScreen::InGame;
+                            current_screen = GameScreen::Lobby;
                         } else {
                             println!("Wrong password!");
                             join_password_input.clear();
