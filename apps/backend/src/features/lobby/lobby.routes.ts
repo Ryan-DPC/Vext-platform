@@ -42,6 +42,21 @@ export const lobbyRoutes = new Elysia({ prefix: '/api/lobby' })
     return { success: !!lobbyId, lobbyId };
   })
 
+  // Multiplayer Server Browser
+  .group('/multiplayer', (app) =>
+    app
+      .get('/list', () => {
+        return lobbyService.getMultiplayerLobbies();
+      })
+      .post('/announce', ({ body }) => {
+        return lobbyService.createMultiplayerLobby(body);
+      })
+      .post('/close', ({ body }) => {
+        const { id } = body as any;
+        return { success: lobbyService.removeMultiplayerLobby(id) };
+      })
+  )
+
   // Game Session Management (Protected)
   .group('/session', (app) =>
     app

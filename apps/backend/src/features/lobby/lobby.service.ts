@@ -7,6 +7,7 @@ import Games from '../games/game.model';
 // In-memory lobby store
 class LobbyStore {
   private lobbies: { [key: string]: any } = {};
+  private multiplayerLobbies: { [key: string]: any } = {};
 
   createLobby(socketId: string) {
     const lobbyId = Math.random().toString(36).substring(2, 8);
@@ -16,6 +17,31 @@ class LobbyStore {
       timeout: null,
     };
     return lobbyId;
+  }
+
+  // --- Multiplayer Server Listings ---
+  createMultiplayerLobby(data: any) {
+    // Generate a simple ID
+    const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    this.multiplayerLobbies[id] = {
+      id,
+      ...data,
+      createdAt: Date.now(),
+      currentPlayers: 1, // Host is creating it
+    };
+    return { id, ...this.multiplayerLobbies[id] };
+  }
+
+  getMultiplayerLobbies() {
+    return Object.values(this.multiplayerLobbies).sort((a: any, b: any) => b.createdAt - a.createdAt);
+  }
+
+  removeMultiplayerLobby(id: string) {
+    if (this.multiplayerLobbies[id]) {
+      delete this.multiplayerLobbies[id];
+      return true;
+    }
+    return false;
   }
 
   joinLobby(lobbyId: string, socketId: string) {
@@ -89,6 +115,19 @@ export class LobbyService {
 
   static getAllLobbies() {
     return lobbyStore.getAllLobbies();
+  }
+
+  // --- Multiplayer Management ---
+  static createMultiplayerLobby(data: any) {
+    return lobbyStore.createMultiplayerLobby(data);
+  }
+
+  static getMultiplayerLobbies() {
+    return lobbyStore.getMultiplayerLobbies();
+  }
+
+  static removeMultiplayerLobby(id: string) {
+    return lobbyStore.removeMultiplayerLobby(id);
   }
 
   // --- Game Session Management (Database) ---

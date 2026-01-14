@@ -10,6 +10,7 @@ mod inventory;
 mod menu_system;
 mod menu_ui;
 mod assets;
+mod network_api;
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
@@ -168,6 +169,7 @@ async fn main() {
     let confirm_button = MenuButton::new("START GAME", SCREEN_WIDTH / 2.0 - 150.0, 450.0, 300.0, 60.0);
     let create_server_button = MenuButton::new("CREATE SERVER", SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 70.0, 200.0, 50.0);
     let confirm_create_button = MenuButton::new("CREATE", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0);
+    let refresh_button = MenuButton::new("REFRESH", SCREEN_WIDTH - 170.0, 40.0, 150.0, 40.0);
 
     loop {
         let mouse_pos = vec2(mouse_position().0, mouse_position().1);
@@ -291,7 +293,34 @@ async fn main() {
                         is_private_server = false;
                         max_players = 4;
                     }
+
+                    // Bouton REFRESH
+                    if refresh_button.is_clicked(mouse_pos) {
+                        let lobbies = network_api::fetch_server_list();
+                        sessions = lobbies.into_iter().enumerate().map(|(i, lobby)| {
+                            SessionButton::new(
+                                GameSession {
+                                    name: lobby.name,
+                                    host: lobby.hostUsername,
+                                    current_players: lobby.currentPlayers,
+                                    max_players: lobby.maxPlayers,
+                                    average_level: 1, // Pas encore dans l'API
+                                    ping: 0, // Ping local pour l'instant
+                                    is_private: lobby.isPrivate,
+                                    password: lobby.password,
+                                    map: lobby.mapName,
+                                },
+                                20.0,
+                                140.0 + i as f32 * 70.0,
+                                SCREEN_WIDTH - 360.0,
+                                60.0,
+                            )
+                        }).collect();
+                    }
                 }
+
+                let is_hovered = refresh_button.is_clicked(mouse_pos);
+                refresh_button.draw(is_hovered);
 
                 // Dessiner le bouton CREATE SERVER
                 let is_hovered = create_server_button.is_clicked(mouse_pos);
@@ -337,7 +366,16 @@ async fn main() {
 
                     // Bouton CREATE
                     if confirm_create_button.is_clicked(mouse_pos) && !server_name_input.is_empty() {
-                        // Créer le serveur
+                        // Announce to Backend
+                        network_api::announce_server(
+                            &server_name_input, 
+                            &player_profile.vext_username,
+                            max_players,
+                            is_private_server,
+                            if is_private_server && !server_password_input.is_empty() { Some(server_password_input.clone()) } else { None }
+                        );
+
+                        // Créer le serveur localement (en attendant mieux)
                         let new_session = GameSession::new(
                             &server_name_input,
                             &player_profile.vext_username,
@@ -350,7 +388,7 @@ async fn main() {
                             },
                         );
                         
-                        // Ajouter à la liste
+                        // Ajouter à la liste (optimiste, ou refresh)
                         let y_pos = 140.0 + sessions.len() as f32 * 70.0;
                         sessions.push(SessionButton::new(
                             new_session,
