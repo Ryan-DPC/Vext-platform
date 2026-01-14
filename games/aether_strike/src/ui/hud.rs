@@ -36,7 +36,7 @@ impl HUD {
         
         // --- BATTLE TIMELINE (Top Center) ---
         let timeline_w = 400.0;
-        let timeline_h = 30.0;
+        let _timeline_h = 30.0;
         let timeline_x = (screen_width - timeline_w) / 2.0;
         let timeline_y = 15.0;
 
