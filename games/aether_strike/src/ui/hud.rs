@@ -60,31 +60,43 @@ impl HUD {
         let gold_text = format!("{} G", game_state.resources.gold);
         draw_text(&gold_text, screen_width - 100.0, 35.0, 24.0, GOLD);
 
-        // --- BOTTOM CENTER: SKILL BAR ---
-        let num_skills = 4;
-        let toolbar_w = (skill_size + skill_gap) * num_skills as f32 + padding * 2.0;
-        let toolbar_x = (screen_width - toolbar_w) / 2.0;
-        let toolbar_y = screen_height - skill_size - padding * 2.0;
+        // --- BOTTOM CENTER: ACTION BAR (Text-based RPG Menu) ---
+        // "ATTAQUE", "SAC", "FUITE", "PASSIF"
+        let actions = vec!["ATTAQUE", "SAC", "FUITE", "PASSIF"];
+        let btn_width = 120.0;
+        let btn_height = 50.0;
+        let gap = 15.0;
+        
+        // Calculate total width to center it
+        let total_w = actions.len() as f32 * btn_width + (actions.len() - 1) as f32 * gap;
+        let start_x = (screen_width - total_w) / 2.0;
+        let start_y = screen_height - btn_height - 30.0;
 
-        // Background
-        draw_rectangle(toolbar_x, toolbar_y, toolbar_w, skill_size + padding * 2.0, Color::from_rgba(20, 20, 20, 200));
-        draw_rectangle_lines(toolbar_x, toolbar_y, toolbar_w, skill_size + padding * 2.0, 2.0, GOLD);
-
-        for i in 0..num_skills {
-            let sx = toolbar_x + padding + i as f32 * (skill_size + skill_gap);
-            let sy = toolbar_y + padding;
+        for (i, action) in actions.iter().enumerate() {
+            let req_x = start_x + i as f32 * (btn_width + gap);
             
-            // Skill slot bg
-            draw_rectangle(sx, sy, skill_size, skill_size, Color::from_rgba(50, 50, 50, 255));
-            draw_rectangle_lines(sx, sy, skill_size, skill_size, 1.0, GRAY);
+            // Check hover (mockup logic as this is just draw code, main loop handles clicks ideally)
+            // But we can visualize it
+            let mouse = mouse_position();
+            let is_hovered = mouse.0 >= req_x && mouse.0 <= req_x + btn_width &&
+                             mouse.1 >= start_y && mouse.1 <= start_y + btn_height;
             
-            // Hotkey text
-            let key = match i { 0 => "Q", 1 => "W", 2 => "E", _ => "R" };
-            draw_text(key, sx + 2.0, sy + 12.0, 10.0, LIGHTGRAY);
+            let bg_color = if is_hovered { Color::from_rgba(80, 80, 150, 255) } else { Color::from_rgba(40, 40, 60, 230) };
+            let border_color = if is_hovered { WHITE } else { LIGHTGRAY };
             
-            // Placeholder Icon (Color based on index)
-            let color = match i { 0 => RED, 1 => BLUE, 2 => GREEN, _ => YELLOW };
-            draw_circle(sx + skill_size/2.0, sy + skill_size/2.0, 10.0, color);
+            // Draw Button
+            draw_rectangle(req_x, start_y, btn_width, btn_height, bg_color);
+            draw_rectangle_lines(req_x, start_y, btn_width, btn_height, 2.0, border_color);
+            
+            // Center text
+            let text_dims = measure_text(action, None, 20, 1.0);
+            draw_text(
+                action, 
+                req_x + (btn_width - text_dims.width) / 2.0, 
+                start_y + (btn_height - text_dims.height) / 2.0 + text_dims.offset_y, 
+                20.0, 
+                WHITE
+            );
         }
 
         // --- BOTTOM LEFT: CHAT/LOG ---
