@@ -833,7 +833,7 @@ async fn main() {
                         gs, 
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
-                        &player_profile.character_name,
+                        &player_profile.vext_username,
                         class_enum,
                         &other_players,
                         e_hp_percent,

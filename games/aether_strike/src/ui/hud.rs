@@ -271,25 +271,6 @@ impl HUD {
                     draw_text(&atk.name, x + 10.0, y + 20.0, 18.0, text_color);
                     draw_text(&format!("MP: {}", atk.mana_cost), x + 10.0, y + 40.0, 14.0, mp_color);
 
-                    if was_click && is_hovered {
-                        if can_afford {
-                            println!("Used {} for {} MP!", atk.name, atk.mana_cost);
-                            // Visual feedback only here, Logic needs to be in Main or call a callback
-                            // For now we assume logic is handled elsewhere or this is just UI
-                            // But request asks to make it use mana? HUD is just UI.
-                            // We can't mutate game_state here easily as it is immutable borrow.
-                            // We will just Print for now as per "Mock MP" instructions effectively, 
-                            // or we would need to change draw signature to take mutable GameState which is a big change.
-                            // Given request "fais une attaque de bases sans mana obligatoire", checking logic is key.
-                            
-                            // To actually spend mana, we need GameState mut. 
-                            // This `draw` function is purely visual usually. 
-                            // Let's stick to visual feedback of "Can/Cannot" here. 
-                            // Real interaction involves input handling in main loop usually.
-                        } else {
-                            println!("Not enough mana for {}!", atk.name);
-                        }
-                    }
                 }
 
                 // BACK Button

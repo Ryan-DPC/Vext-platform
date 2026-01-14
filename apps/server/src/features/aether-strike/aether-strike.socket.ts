@@ -191,11 +191,11 @@ class AetherStrikeManager {
       return;
     }
 
-    // 6. USE ATTACK
     if (type === 'aether-strike:use-attack') {
       const lobby = this.findLobbyBySocket(ws);
       if (lobby && lobby.currentTurnActorId === ws.data.userId) {
-        const player = lobby.players.get(ws.id);
+        const player = lobby.players.get(ws);
+        if (!player) return; // Safety check
         const { attackName, targetId } = payload;
 
         // Mock Damage/Mana calculation based on attack name
