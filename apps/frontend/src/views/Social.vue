@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useFriendsStore } from '../stores/friendsStore'
 import { useToastStore } from '../stores/toastStore'
 import { useGroupStore } from '../stores/groupStore'
+import { socketService } from '../services/socket'
 import UserAutocomplete from '../components/UserAutocomplete.vue'
 
 const friendsStore = useFriendsStore()
@@ -20,6 +22,14 @@ const newGroupDescription = ref('')
 const groupMessage = ref('')
 const showGroupSidebar = ref(false)
 
+// Private Chat State
+const activeFriend = ref<any>(null)
+const privateMessages = ref<any[]>([])
+const privateMessageInput = ref('')
+const privateChatLoading = ref(false)
+const privateMessagesContainer = ref<HTMLElement>()
+
+
 const filteredGroups = computed(() => {
   if (!searchQuery.value) return groupStore.myGroups
   return groupStore.myGroups.filter(g => 
@@ -32,6 +42,12 @@ onMounted(async () => {
   await friendsStore.fetchFriendRequests()
   await groupStore.fetchMyGroups()
   groupStore.setupWebSocketListeners()
+  
+  window.addEventListener('chat:new-message', handlePrivateMessage as EventListener)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('chat:new-message', handlePrivateMessage as EventListener)
 })
 
 const handleAccept = async (requestId: string) => {
@@ -112,8 +128,68 @@ const handleRemoveFriend = async (friendId: string, username: string) => {
   }
 }
 
-const openChat = (friendId: string) => {
-  router.push({ name: 'chat', params: { friendId } })
+const openChat = async (friendId: string) => {
+  activeFriend.value = friendsStore.friends.find((f: any) => f.id === friendId)
+  if (!activeFriend.value) return
+
+  activeTab.value = 'friends' // Ensure tab is selected
+  privateChatLoading.value = true
+  await loadPrivateMessages(friendId)
+  privateChatLoading.value = false
+  scrollToPrivateBottom()
+}
+
+const loadPrivateMessages = async (friendId: string) => {
+  try {
+    const response = await axios.get(`/chat/conversation/${friendId}`)
+    privateMessages.value = response.data.messages || []
+  } catch (e: any) {
+    console.error('Failed to load messages', e)
+    toastStore.error('Failed to load conversation')
+  }
+}
+
+const sendPrivateMessage = async () => {
+  if (!privateMessageInput.value.trim() || !activeFriend.value) return
+  const content = privateMessageInput.value.trim()
+  privateMessageInput.value = ''
+
+  // Optimistic UI
+  privateMessages.value.push({
+    id: 'temp-' + Date.now(),
+    content,
+    is_from_me: true,
+    created_at: new Date().toISOString(),
+    user: { username: 'Me' }
+  })
+
+  await nextTick()
+  scrollToPrivateBottom()
+
+  socketService.sendChatMessage(activeFriend.value.id, content)
+
+  try {
+    await axios.post(`/chat/send`, {
+      toUserId: activeFriend.value.id,
+      content
+    })
+  } catch (e) {
+    console.error('Failed to save msg', e)
+  }
+}
+
+const scrollToPrivateBottom = () => {
+  if (privateMessagesContainer.value) {
+    privateMessagesContainer.value.scrollTop = privateMessagesContainer.value.scrollHeight
+  }
+}
+
+const handlePrivateMessage = (event: CustomEvent) => {
+  const data = event.detail
+  if (activeFriend.value && data.from_user_id === activeFriend.value.id) {
+    privateMessages.value.push(data)
+    nextTick(scrollToPrivateBottom)
+  }
 }
 </script>
 
@@ -274,6 +350,58 @@ const openChat = (friendId: string) => {
       <!-- Right Panel: Chat / Activity -->
       <div class="glass-panel main-panel">
         <div class="main-content-wrapper">
+          <!-- Private Chat (Friends) -->
+          <div v-if="activeTab === 'friends' && activeFriend" class="group-chat-panel">
+            <div class="chat-header">
+              <div class="chat-header-info">
+                 <div style="display: flex; align-items: center; gap: 10px;">
+                    <img :src="activeFriend.profile_pic || '/default-avatar.svg'" style="width: 32px; height: 32px; border-radius: 50%;">
+                    <div>
+                        <h3>{{ activeFriend.username }}</h3>
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem;">
+                             <div class="status-dot" :class="activeFriend.status"></div>
+                             <span style="text-transform: capitalize; color: #888;">{{ activeFriend.status }}</span>
+                        </div>
+                    </div>
+                 </div>
+              </div>
+              <button class="btn-icon" @click="activeFriend = null" title="Close Chat">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div class="chat-messages" ref="privateMessagesContainer">
+               <div v-if="privateChatLoading" style="text-align: center; color: #888; padding: 20px;">Loading conversation...</div>
+               <div v-else-if="privateMessages.length === 0" style="text-align: center; color: #888; padding: 20px; flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                  <i class="fas fa-comment-dots" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                  <p>Start a conversation with {{ activeFriend.username }}!</p>
+               </div>
+               
+               <div v-for="msg in privateMessages" :key="msg.id" class="message-item" :class="{ 'mine': msg.is_from_me }">
+                 <img v-if="!msg.is_from_me" :src="activeFriend.profile_pic || '/default-avatar.svg'" class="msg-avatar">
+                 <div class="msg-content">
+                   <div class="msg-header" v-if="!msg.is_from_me">
+                     <span class="msg-username">{{ activeFriend.username }}</span>
+                     <span class="msg-time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+                   </div>
+                   <!-- For my messages, show time simply -->
+                   <div class="msg-text" :class="{ 'my-text': msg.is_from_me }">{{ msg.content }}</div>
+                 </div>
+               </div>
+            </div>
+            
+            <div class="chat-input-box">
+              <input 
+                v-model="privateMessageInput" 
+                @keyup.enter="sendPrivateMessage" 
+                placeholder="Type a message..."
+              >
+              <button @click="sendPrivateMessage" class="btn-send">
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+
           <!-- Group Chat -->
           <div v-if="activeTab === 'groups' && groupStore.activeGroup" class="group-chat-panel">
             <div class="chat-header">
@@ -647,6 +775,23 @@ const openChat = (friendId: string) => {
   width: fit-content;
   max-width: 100%;
 }
+.msg-text.my-text {
+  background: #ff7eb3;
+  color: white;
+  border-color: #ff7eb3;
+  border-bottom-right-radius: 4px;
+}
+
+/* My Messages Alignment */
+.message-item.mine {
+  flex-direction: row-reverse;
+}
+.message-item.mine .msg-content {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+}
+
 .chat-input-box {
   padding: 20px; border-top: 1px solid var(--glass-border);
   display: flex; gap: 10px;
