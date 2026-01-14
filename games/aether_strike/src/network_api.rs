@@ -12,7 +12,7 @@ pub fn get_api_url() -> String {
              return format!("{}/api/lobby/multiplayer", trimmed);
         }
     }
-    "https://vext-backend.onrender.com/api/lobby/multiplayer".to_string()
+    "https://vext-backend-gur7.onrender.com/api/lobby/multiplayer".to_string()
 }
 
 // Get WebSocket URL based on config
@@ -26,7 +26,7 @@ pub fn get_ws_url() -> String {
              return format!("{}://{}/ws", ws_protocol, base);
         }
     }
-    "wss://vext-backend.onrender.com/ws".to_string()
+    "wss://vext-backend-gur7.onrender.com/ws".to_string()
 }
 
 // Auto-detect local IP (LAN)

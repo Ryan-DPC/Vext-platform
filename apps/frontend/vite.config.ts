@@ -22,12 +22,12 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: env.VITE_API_URL || 'https://vext-backend.onrender.com',
+          target: env.VITE_API_URL || 'https://vext-backend-gur7.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/socket.io': {
-          target: env.VITE_WEBSOCKET_URL || 'https://vext-ws-server.onrender.com',
+          target: env.VITE_WEBSOCKET_URL || 'https://vext-ws-server-gur7.onrender.com',
           ws: true,
           changeOrigin: true,
           secure: false,

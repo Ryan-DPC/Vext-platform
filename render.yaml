@@ -8,8 +8,8 @@ services:
     env: node
     plan: free # Change to starter/standard for production
     rootDir: . # Root context for Monorepo
-    # Build: Use npm for native modules stability, manually install bun for Elysia
-    buildCommand: npm install && (curl -fsSL https://bun.sh/install | bash) && cd apps/backend && ~/.bun/bin/bun run build
+    # Build: Install Bun, then install dependencies with Bun (respecting workspaces/lockfile), then build
+    buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install && cd apps/backend && ~/.bun/bin/bun run build
     # Start: Run with the manually installed bun
     startCommand: cd apps/backend && ~/.bun/bin/bun run start
     envVars:
@@ -40,7 +40,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm install && (curl -fsSL https://bun.sh/install | bash)
+    buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install
     startCommand: cd apps/server && ~/.bun/bin/bun run src/index.ts
     envVars:
       - key: NODE_ENV
@@ -63,13 +63,13 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm install && (curl -fsSL https://bun.sh/install | bash)
+    buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install
     startCommand: cd apps/game-server && ~/.bun/bin/bun run src/index.ts
     envVars:
       - key: NODE_ENV
         value: production
       - key: BACKEND_URL
-        value: https://vext-backend.onrender.com/api
+        value: https://vext-backend-gur7.onrender.com/api
       - key: PORT
         sync: false
       - key: JWT_SECRET

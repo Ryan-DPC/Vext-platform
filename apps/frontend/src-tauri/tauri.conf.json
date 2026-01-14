@@ -1,5 +1,5 @@
 {
-  "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
+  "$schema": "../../../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "VEXT",
   "version": "0.1.0",
   "identifier": "com.vext.app",
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://vext-backend.onrender.com https://server-1-z9ok.onrender.com ws://localhost:3002 wss://server-1-z9ok.onrender.com data: asset: https://asset.cloudinary.com https://res.cloudinary.com; img-src 'self' https: data: blob: asset:; connect-src 'self' https://vext-backend.onrender.com https://server-1-z9ok.onrender.com wss://server-1-z9ok.onrender.com http://localhost:3001 ws://localhost:3002 https://api.ipify.org;"
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://vext-backend-gur7.onrender.com https://vext-ws-server-gur7.onrender.com wss://vext-ws-server-gur7.onrender.com https://vext-game-server-gur7.onrender.com wss://vext-game-server-gur7.onrender.com data: asset: https://asset.cloudinary.com https://res.cloudinary.com; img-src 'self' https: data: blob: asset:; connect-src 'self' https://vext-backend-gur7.onrender.com https://vext-ws-server-gur7.onrender.com wss://vext-ws-server-gur7.onrender.com https://vext-game-server-gur7.onrender.com wss://vext-game-server-gur7.onrender.com http://localhost:3001 ws://localhost:3002 https://api.ipify.org;"
     }
   },
   "bundle": {

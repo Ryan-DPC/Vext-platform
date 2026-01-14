@@ -22,7 +22,7 @@ const app = new Elysia()
       origin: [
         'http://localhost:5173',
         'https://vext-frontend.onrender.com',
-        'https://vext-backend.onrender.com',
+        'https://vext-backend-gur7.onrender.com',
         /\.onrender\.com$/,
       ],
       credentials: true,
@@ -35,7 +35,7 @@ const app = new Elysia()
     })
   )
   .ws('/', {
-    async open(ws) {
+    async open(ws: any) {
       try {
         // console.log('WS Open - Data keys:', Object.keys((ws as any).data || {}));
         const query = (ws as any).data?.query;
@@ -120,11 +120,11 @@ const app = new Elysia()
       }
     },
 
-    async message(ws, message) {
+    async message(ws: any, message: any) {
       await handleWsMessage(ws, message);
     },
 
-    async close(ws) {
+    async close(ws: any) {
       await handleWsDisconnect(ws);
 
       const userId = (ws as any).data.userId;

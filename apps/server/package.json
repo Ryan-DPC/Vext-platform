@@ -1,27 +1,27 @@
 {
-    "name": "vext-ws-server",
-    "version": "1.0.0",
-    "description": "Vext WebSocket Server",
-    "main": "src/index.js",
-    "scripts": {
-        "start": "bun run src/index.ts",
-        "dev": "bun run --watch src/index.ts"
-    },
-    "dependencies": {
-        "ajv": "^8.17.1",
-        "dotenv": "^16.3.1",
-        "elysia": "latest",
-        "@elysiajs/jwt": "latest",
-        "@elysiajs/cors": "latest",
-        "@elysiajs/swagger": "latest",
-        "jsonwebtoken": "^9.0.3",
-        "mongoose": "^8.9.5",
-        "node-cron": "^4.2.1",
-        "redis": "^5.10.0",
-        "winston": "^3.19.0",
-        "@vext/database": "workspace:*"
-    },
-    "devDependencies": {
-        "bun-types": "latest"
-    }
+  "name": "vext-ws-server",
+  "version": "1.0.0",
+  "description": "Vext WebSocket Server",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "dotenv": "^16.3.1",
+    "elysia": "^1.4.21",
+    "@elysiajs/jwt": "latest",
+    "@elysiajs/cors": "latest",
+    "@elysiajs/swagger": "latest",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.9.5",
+    "node-cron": "^4.2.1",
+    "redis": "^5.10.0",
+    "winston": "^3.19.0",
+    "@vext/database": "workspace:*"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
 }
