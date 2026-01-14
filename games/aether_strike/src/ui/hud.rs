@@ -115,7 +115,47 @@ impl HUD {
         ];
 
         // ============================================================
-        // LEFT SIDE: TEAM PANEL
+        // TOP: TIMELINE (Turn Order)
+        // ============================================================
+        // Mock turn order: Player -> Boss -> Teammate1 -> Enemy1 -> Teammate2 -> Enemy2...
+        // Icons represented by small colored squares/circles
+        let timeline_y = 10.0;
+        let timeline_h = 40.0;
+        let center_x = screen_width / 2.0;
+        
+        // Background for timeline
+        // draw_rectangle(center_x - 300.0, timeline_y, 600.0, timeline_h, Color::from_rgba(0, 0, 0, 150));
+        
+        let turn_order = vec![
+            (true, "You", Color::from_rgba(50, 100, 200, 255)), // Player
+            (false, "Boss", Color::from_rgba(200, 50, 50, 255)), // Boss
+            (true, "Ally", Color::from_rgba(200, 50, 50, 255)), // Warrior
+            (false, "Mob", Color::from_rgba(150, 60, 60, 255)), // Minion
+            (true, "Ally", Color::from_rgba(60, 200, 100, 255)), // Archer
+            (false, "Mob", Color::from_rgba(150, 60, 60, 255)), // Minion
+        ];
+
+        let icon_size = 30.0;
+        let gap = 10.0;
+        let total_w = turn_order.len() as f32 * (icon_size + gap) - gap;
+        let start_x = center_x - total_w / 2.0;
+
+        for (i, (is_ally, label, color)) in turn_order.iter().enumerate() {
+            let x = start_x + i as f32 * (icon_size + gap);
+            let y = timeline_y + 5.0;
+            
+            // Highlight current turn (first item)
+            if i == 0 {
+                draw_rectangle(x - 2.0, y - 2.0, icon_size + 4.0, icon_size + 4.0, GOLD);
+                draw_text("TURN", x, y - 5.0, 10.0, GOLD);
+            }
+
+            draw_rectangle(x, y, icon_size, icon_size, *color);
+            draw_rectangle_lines(x, y, icon_size, icon_size, 1.0, WHITE);
+            
+            // "Head" representation (simple letter)
+            draw_text(&label[0..1], x + 8.0, y + 20.0, 20.0, WHITE);
+        }
         // ============================================================
         let team_panel_w = 220.0;
         let team_panel_h = 30.0 + mock_team.len() as f32 * 55.0;
@@ -145,14 +185,15 @@ impl HUD {
             };
             draw_rectangle(padding - 5.0, y - 5.0, team_panel_w - padding * 2.0 + 10.0, height, bg_color);
             
-            // Class color indicator
+            // Class color definition (needed for text)
             let class_color = match member.class.to_lowercase().as_str() {
                 "warrior" => Color::from_rgba(200, 60, 60, 255),
                 "mage" => Color::from_rgba(60, 100, 200, 255),
                 "archer" => Color::from_rgba(60, 200, 100, 255),
                 _ => GRAY,
             };
-            draw_rectangle(padding - 5.0, y - 5.0, 4.0, height, class_color);
+            // Vertical bar removed as per feedback:
+            // draw_rectangle(padding - 5.0, y - 5.0, 4.0, height, class_color);
             
             // Name
             let name_color = if member.is_player { GOLD } else { WHITE };
