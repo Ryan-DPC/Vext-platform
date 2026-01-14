@@ -1,120 +1,6 @@
 use macroquad::prelude::*;
-
-/// Classe du joueur
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PlayerClass {
-    Warrior,
-    Mage,
-    Archer,
-}
-
-impl PlayerClass {
-    pub fn name(&self) -> &'static str {
-        match self {
-            PlayerClass::Warrior => "Warrior",
-            PlayerClass::Mage => "Mage",
-            PlayerClass::Archer => "Archer",
-        }
-    }
-
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name.to_lowercase().as_str() {
-            "warrior" => Some(PlayerClass::Warrior),
-            "mage" => Some(PlayerClass::Mage),
-            "archer" => Some(PlayerClass::Archer),
-            _ => None,
-        }
-    }
-
-    pub fn base_hp(&self) -> f32 {
-        match self {
-            PlayerClass::Warrior => 150.0,
-            PlayerClass::Mage => 80.0,
-            PlayerClass::Archer => 100.0,
-        }
-    }
-
-    pub fn base_mana(&self) -> u32 {
-        match self {
-            PlayerClass::Warrior => 50,
-            PlayerClass::Mage => 150,
-            PlayerClass::Archer => 100,
-        }
-    }
-
-    pub fn base_speed(&self) -> f32 {
-        match self {
-            PlayerClass::Warrior => 80.0,
-            PlayerClass::Mage => 100.0,
-            PlayerClass::Archer => 120.0,
-        }
-    }
-
-    pub fn color(&self) -> Color {
-        match self {
-            PlayerClass::Warrior => Color::from_rgba(200, 50, 50, 255),
-            PlayerClass::Mage => Color::from_rgba(50, 100, 200, 255),
-            PlayerClass::Archer => Color::from_rgba(50, 200, 100, 255),
-        }
-    }
-    pub fn get_attacks(&self) -> Vec<Attack> {
-        match self {
-            PlayerClass::Warrior => vec![
-                Attack::new("Slash", 0, 10.0),
-                Attack::new("Bash", 5, 15.0),
-                Attack::new("Strike", 10, 20.0),
-                Attack::new("Cleave", 15, 25.0),
-                Attack::new("Smash", 20, 30.0),
-                Attack::new("Execute", 30, 50.0),
-                Attack::new("Rage", 0, 5.0),
-                Attack::new("Guard Break", 10, 15.0),
-                Attack::new("Whirlwind", 40, 40.0),
-                Attack::new("Heroic Strike", 50, 60.0),
-            ],
-            PlayerClass::Mage => vec![
-                Attack::new("Firebolt", 5, 12.0),
-                Attack::new("Ice Shard", 8, 15.0),
-                Attack::new("Thunder", 15, 25.0),
-                Attack::new("Arcane Blast", 20, 30.0),
-                Attack::new("Fireball", 30, 45.0),
-                Attack::new("Blizzard", 40, 40.0),
-                Attack::new("Void Ray", 50, 60.0),
-                Attack::new("Meteor", 60, 80.0),
-                Attack::new("Zap", 0, 5.0),
-                Attack::new("Mana Burn", 10, 10.0),
-            ],
-            PlayerClass::Archer => vec![
-                Attack::new("Shoot", 0, 10.0),
-                Attack::new("Quick Shot", 5, 15.0),
-                Attack::new("Power Shot", 10, 25.0),
-                Attack::new("Volley", 20, 30.0),
-                Attack::new("Snipe", 30, 50.0),
-                Attack::new("Piercing Arrow", 15, 20.0),
-                Attack::new("Explosive Arrow", 25, 35.0),
-                Attack::new("Rain of Arrows", 40, 45.0),
-                Attack::new("Poison Shot", 10, 5.0), // DOT logic separate
-                Attack::new("Headshot", 50, 70.0),
-            ],
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Attack {
-    pub name: String,
-    pub mana_cost: u32,
-    pub damage: f32,
-}
-
-impl Attack {
-    pub fn new(name: &str, mana_cost: u32, damage: f32) -> Self {
-        Attack {
-            name: name.to_string(),
-            mana_cost,
-            damage,
-        }
-    }
-}
+use std::fs;
+use std::path::Path;
 
 /// Type de passif
 #[derive(Debug, Clone)]
@@ -133,72 +19,211 @@ pub enum PassiveEffect {
     CriticalChance(f32),      // Chance de coup critique X%
 }
 
-impl Passive {
-    pub fn warrior_passives() -> Vec<Passive> {
-        vec![
-            Passive {
-                name: "Iron Skin".to_string(),
-                description: "Reduce damage taken by 15%".to_string(),
-                effect: PassiveEffect::IncreaseDefense(0.15),
-            },
-            Passive {
-                name: "Berserker".to_string(),
-                description: "Increase damage by 20%".to_string(),
-                effect: PassiveEffect::IncreaseDamage(0.20),
-            },
-            Passive {
-                name: "Life Drain".to_string(),
-                description: "Heal 10% of damage dealt".to_string(),
-                effect: PassiveEffect::LifeSteal(0.10),
-            },
-        ]
+#[derive(Debug, Clone)]
+pub struct Skill {
+    pub id: u32,
+    pub name: String,
+    pub skill_type: String,
+    pub unlock_level: u32,
+    pub mana_cost: u32,
+    pub base_damage: f32,
+    pub description: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CharacterClass {
+    pub name: String,
+    pub role: String,
+    pub sprite_path: String,
+    pub max_level: u32,
+    pub hp: f32,
+    pub mana: u32,
+    pub speed: f32,
+    pub defense: f32,
+    pub crit_rate: f32,
+    pub precision: u32,
+    pub element: String,
+    pub visual_scale: f32,
+    pub visual_offset_x: f32,
+    pub visual_offset_y: f32,
+    pub sprite_frames_x: u32,
+    pub sprite_frames_y: u32,
+    pub sprite_frame_index: u32,
+    pub skills: Vec<Skill>,
+}
+
+impl CharacterClass {
+    pub fn load_all() -> Vec<Self> {
+        let mut classes = Vec::new();
+        let sub_paths = [
+            "character/dps/melee",
+            "character/dps/ranged",
+            "character/tank/melee",
+            "character/support/ranged",
+        ];
+
+        // On essaie plusieurs bases : localement, ou en remontant (si lancé depuis games/aether_strike)
+        let base_paths = [".", "..", "../.."];
+
+        for base in base_paths {
+            for sub in sub_paths {
+                let full_path = Path::new(base).join(sub);
+                if let Ok(entries) = fs::read_dir(&full_path) {
+                    println!("📂 Searching in: {:?}", full_path);
+                    for entry in entries {
+                        if let Ok(entry) = entry {
+                            let path = entry.path();
+                            if path.extension().and_then(|s| s.to_str()) == Some("md") {
+                                if let Some(cls) = Self::from_file(&path) {
+                                    println!("  ✨ Loaded class: {}", cls.name);
+                                    classes.push(cls);
+                                } else {
+                                    println!("  ⚠️ Failed to parse: {:?}", path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !classes.is_empty() {
+                break; // On a trouvé nos classes, on arrête de chercher plus loin
+            }
+        }
+        
+        if classes.is_empty() {
+            println!("❌ CRITICAL: No classes found in any of the base paths!");
+        }
+        
+        classes
     }
 
-    pub fn mage_passives() -> Vec<Passive> {
-        vec![
-            Passive {
-                name: "Arcane Focus".to_string(),
-                description: "Increase spell damage by 25%".to_string(),
-                effect: PassiveEffect::IncreaseDamage(0.25),
-            },
-            Passive {
-                name: "Mana Flow".to_string(),
-                description: "+10 mana regen per second".to_string(),
-                effect: PassiveEffect::ManaRegen(10.0),
-            },
-            Passive {
-                name: "Critical Mind".to_string(),
-                description: "15% chance for critical hits".to_string(),
-                effect: PassiveEffect::CriticalChance(0.15),
-            },
-        ]
+    pub fn from_file(path: &Path) -> Option<Self> {
+        let content = fs::read_to_string(path).ok()?;
+        let mut lines = content.lines();
+
+        let name = lines.next()?.trim_start_matches("# ").to_string();
+        let mut role = String::new();
+        let mut sprite_path = String::new();
+        let mut max_level = 200;
+        let mut hp = 100.0;
+        let mut mana = 100;
+        let mut speed = 1.0;
+        let mut defense = 10.0;
+        let mut crit_rate = 0.05;
+        let mut precision = 10;
+        let mut element = "Physical".to_string();
+        let mut visual_scale = 1.0;
+        let mut visual_offset_x = 0.0;
+        let mut visual_offset_y = 0.0;
+        let mut sprite_frames_x = 1;
+        let mut sprite_frames_y = 1;
+        let mut sprite_frame_index = 0;
+        let mut skills = Vec::new();
+
+
+        let mut in_stats = false;
+        let mut in_skills = false;
+
+        for line in lines {
+            if line.contains("**Role**") {
+                role = line.split(':').nth(1)?.trim().to_string();
+            } else if line.contains("**Sprite**") {
+                sprite_path = line.split(':').nth(1)?.trim().trim_matches('`').to_string();
+            } else if line.contains("**Max Level**") {
+                max_level = line.split(':').nth(1)?.trim().parse().unwrap_or(200);
+            } else if line.contains("**Visual Scale**") {
+                visual_scale = line.split(':').nth(1)?.trim().parse().unwrap_or(1.0);
+            } else if line.contains("**Visual Offset**") {
+                let val = line.split(':').nth(1)?.trim();
+                let parts: Vec<&str> = val.split(',').collect();
+                if parts.len() >= 2 {
+                    visual_offset_x = parts[0].trim().parse().unwrap_or(0.0);
+                    visual_offset_y = parts[1].trim().parse().unwrap_or(0.0);
+                }
+            } else if line.contains("**Sprite Frame Index**") {
+                sprite_frame_index = line.split(':').nth(1)?.trim().parse().unwrap_or(0);
+            } else if line.contains("**Sprite Cols**") {
+                sprite_frames_x = line.split(':').nth(1).unwrap_or("1").trim().parse().unwrap_or(1);
+            } else if line.contains("**Sprite Rows**") {
+                sprite_frames_y = line.split(':').nth(1).unwrap_or("1").trim().parse().unwrap_or(1);
+            } else if line.contains("**Sprite Frames**") && !line.contains(" X") && !line.contains(" Y") {
+                let val = line.split(':').nth(1).unwrap_or("1").trim();
+                if val.contains('x') {
+                    let parts: Vec<&str> = val.split('x').collect();
+                    if parts.len() >= 2 {
+                        sprite_frames_x = parts[0].trim().parse().unwrap_or(1);
+                        sprite_frames_y = parts[1].trim().parse().unwrap_or(1);
+                    }
+                } else {
+                    sprite_frames_x = val.parse().unwrap_or(1);
+                }
+            } else if line.contains("Base Stats") {
+                in_stats = true;
+                in_skills = false;
+            } else if line.contains("Skill List") {
+                in_stats = false;
+                in_skills = true;
+            } else if in_stats && line.starts_with("- ") {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() >= 2 {
+                    let key = parts[0].trim_start_matches("- **").trim_end_matches("**").trim();
+                    let val = parts[1].trim();
+                    match key {
+                        "HP" => hp = val.parse().unwrap_or(100.0),
+                        "Mana" => mana = val.split(' ').next()?.parse().unwrap_or(100),
+                        "Speed" => speed = val.split(' ').next()?.parse().unwrap_or(1.0),
+                        "Def" | "Defense" => defense = val.split(' ').next()?.parse().unwrap_or(0.0),
+                        "Crit Rate" => crit_rate = val.trim_end_matches('%').parse::<f32>().unwrap_or(5.0) / 100.0,
+                        "Precision" => precision = val.parse().unwrap_or(10),
+                        "Element" => element = val.to_string(),
+                        _ => {}
+                    }
+                }
+            } else if in_skills && line.contains('|') && !line.contains("ID") && !line.contains("---") {
+                let cols: Vec<&str> = line.split('|').map(|s| s.trim()).collect();
+                if cols.len() >= 8 {
+                    skills.push(Skill {
+                        id: cols[1].parse().unwrap_or(0),
+                        name: cols[2].trim_matches('*').to_string(),
+                        skill_type: cols[3].to_string(),
+                        unlock_level: cols[4].parse().unwrap_or(1),
+                        mana_cost: cols[5].parse().unwrap_or(0),
+                        base_damage: cols[6].parse().unwrap_or(0.0),
+                        description: cols[7].to_string(),
+                    });
+                }
+            }
+        }
+
+        Some(Self {
+            name,
+            role,
+            sprite_path,
+            max_level,
+            hp,
+            mana,
+            speed,
+            defense,
+            crit_rate,
+            precision,
+            element,
+            visual_scale,
+            visual_offset_x,
+            visual_offset_y,
+            sprite_frames_x,
+            sprite_frames_y,
+            sprite_frame_index,
+            skills,
+        })
     }
 
-    pub fn archer_passives() -> Vec<Passive> {
-        vec![
-            Passive {
-                name: "Precision".to_string(),
-                description: "20% chance for critical hits".to_string(),
-                effect: PassiveEffect::CriticalChance(0.20),
-            },
-            Passive {
-                name: "Swift Arrows".to_string(),
-                description: "Increase damage by 15%".to_string(),
-                effect: PassiveEffect::IncreaseDamage(0.15),
-            },
-            Passive {
-                name: "Evasion".to_string(),
-                description: "Reduce damage taken by 10%".to_string(),
-                effect: PassiveEffect::IncreaseDefense(0.10),
-            },
-        ]
-    }
-
-    pub fn get_for_class(class: PlayerClass) -> Vec<Passive> {
-        match class {
-            PlayerClass::Warrior => Self::warrior_passives(),
-            PlayerClass::Mage => Self::mage_passives(),
-            PlayerClass::Archer => Self::archer_passives(),
+    pub fn color(&self) -> Color {
+        match self.role.to_lowercase().as_str() {
+            r if r.contains("tank") => Color::from_rgba(200, 50, 50, 255),
+            r if r.contains("dps") && r.contains("ranged") => Color::from_rgba(50, 100, 200, 255),
+            r if r.contains("dps") && r.contains("melee") => Color::from_rgba(200, 150, 50, 255),
+            r if r.contains("support") => Color::from_rgba(50, 200, 100, 255),
+            _ => WHITE,
         }
     }
 }

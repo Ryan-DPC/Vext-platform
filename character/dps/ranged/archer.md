@@ -3,6 +3,10 @@
 **Role**: Ranged DPS / Mobile
 **Sprite**: `character/sprites/archer.png`
 **Max Level**: 200
+**Visual Scale**: 1.5
+**Visual Offset**: 0, 0
+**Sprite Frames**: 1
+**Sprite Frame Index**: 0
 
 ## 📊 Base Stats (Level 1)
 
@@ -10,6 +14,9 @@
 - **Mana**: 80 (Focus)
 - **Speed**: 1.2 (Fast)
 - **Def**: 7
+- **Crit Rate**: 15%
+- **Precision**: 25
+- **Element**: Physical
 
 ## ⚔️ Skill List (20 Total)
 

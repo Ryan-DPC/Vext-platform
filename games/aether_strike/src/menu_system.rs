@@ -168,63 +168,69 @@ impl ClassButton {
     }
 
     pub fn draw_with_selection(&self, is_hovered: bool, is_selected: bool) {
-        let alpha = if is_hovered || is_selected { 255 } else { 200 };
-        let color = Color::new(self.color.r, self.color.g, self.color.b, alpha as f32 / 255.0);
+        let base_color = Color::from_rgba(15, 15, 25, 200);
+        let accent_color = self.color;
+        
+        // 1. Outer Glow (si sélectionné ou hover)
+        if is_selected || is_hovered {
+            let glow_alpha = if is_selected { 0.4 } else { 0.2 };
+            for i in 1..4 {
+                let spread = i as f32 * 2.0;
+                draw_rectangle_lines(
+                    self.rect.x - spread,
+                    self.rect.y - spread,
+                    self.rect.w + spread * 2.0,
+                    self.rect.h + spread * 2.0,
+                    2.0,
+                    Color::new(accent_color.r, accent_color.g, accent_color.b, glow_alpha / i as f32),
+                );
+            }
+        }
 
-        // Ombre
-        draw_rectangle(
-            self.rect.x + 5.0,
-            self.rect.y + 5.0,
-            self.rect.w,
-            self.rect.h,
-            Color::from_rgba(0, 0, 0, 150),
-        );
+        // 2. Main Background (Glassmorphism dark base)
+        draw_rectangle(self.rect.x, self.rect.y, self.rect.w, self.rect.h, base_color);
+        
+        // 3. Accent bar (Bottom)
+        draw_rectangle(self.rect.x, self.rect.y + self.rect.h - 4.0, self.rect.w, 4.0, accent_color);
 
-        // Fond
-        draw_rectangle(self.rect.x, self.rect.y, self.rect.w, self.rect.h, color);
-
-        // Bordure (or si sélectionné ou hover)
+        // 4. Border
         let border_color = if is_selected {
             GOLD
         } else if is_hovered {
             WHITE
         } else {
-            Color::from_rgba(100, 100, 100, 255)
+            Color::from_rgba(60, 60, 80, 255)
         };
-        let border_width = if is_selected { 5.0 } else { 4.0 };
-        draw_rectangle_lines(
-            self.rect.x,
-            self.rect.y,
-            self.rect.w,
-            self.rect.h,
-            border_width,
-            border_color,
+        draw_rectangle_lines(self.rect.x, self.rect.y, self.rect.w, self.rect.h, 2.0, border_color);
+
+        // 5. Header Highlight
+        draw_rectangle(self.rect.x, self.rect.y, self.rect.w, 30.0, Color::from_rgba(255, 255, 255, 10));
+
+        // 6. Name (Centered or slightly padded)
+        let name_font_size = 22.0;
+        let name_color = if is_selected { GOLD } else { WHITE };
+        draw_text(
+            &self.class_name,
+            self.rect.x + 12.0,
+            self.rect.y + 25.0,
+            name_font_size,
+            name_color,
+        );
+
+        // 7. Role / Description (Condensé)
+        let desc_size = 14.0;
+        draw_text(
+            &self.description,
+            self.rect.x + 12.0,
+            self.rect.y + 50.0,
+            desc_size,
+            Color::from_rgba(180, 180, 200, 255),
         );
 
         // Checkmark si sélectionné
         if is_selected {
-            draw_text("✓", self.rect.x + self.rect.w - 35.0, self.rect.y + 35.0, 30.0, GREEN);
+            draw_text("✓", self.rect.x + self.rect.w - 25.0, self.rect.y + 25.0, 24.0, GOLD);
         }
-
-        // Nom de la classe
-        let text_size = 28.0;
-        draw_text(
-            &self.class_name,
-            self.rect.x + 20.0,
-            self.rect.y + 40.0,
-            text_size,
-            WHITE,
-        );
-
-        // Description
-        let desc_size = 18.0;
-        draw_text(
-            &self.description,
-            self.rect.x + 20.0,
-            self.rect.y + 70.0,
-            desc_size,
-            LIGHTGRAY,
-        );
     }
 
     pub fn is_clicked(&self, mouse_pos: Vec2) -> bool {

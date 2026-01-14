@@ -3,6 +3,10 @@
 **Role**: Ranged DPS / Caster
 **Sprite**: `character/sprites/mage.png`
 **Max Level**: 200
+**Visual Scale**: 1.5
+**Visual Offset**: 0, 0
+**Sprite Frames**: 1
+**Sprite Frame Index**: 0
 
 ## 📊 Base Stats (Level 1)
 
@@ -10,6 +14,9 @@
 - **Mana**: 150
 - **Speed**: 1.0
 - **Def**: 5
+- **Crit Rate**: 8%
+- **Precision**: 15
+- **Element**: Magic
 
 ## ⚔️ Skill List (20 Total)
 

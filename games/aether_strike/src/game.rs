@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use crate::class_system::{PlayerClass, Passive, PassiveEffect};
+use crate::class_system::{CharacterClass, Passive, PassiveEffect};
 use crate::inventory::Inventory;
 
 /// Resources du joueur (or, mana, etc.)
@@ -64,7 +64,7 @@ impl Resources {
 pub struct GameState {
     pub resources: Resources,
     pub inventory: Inventory,
-    pub player_class: PlayerClass,
+    pub character_class: CharacterClass,
     pub active_passives: Vec<Passive>,
     pub auto_attack_enabled: bool,
     pub auto_attack_timer: f32,
@@ -78,17 +78,16 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(player_class: PlayerClass) -> Self {
-        let passives = Passive::get_for_class(player_class);
-        let max_mana = player_class.base_mana();
-        let max_hp = player_class.base_hp();
-        let speed = player_class.base_speed();
+    pub fn new(character_class: CharacterClass) -> Self {
+        let max_mana = character_class.mana;
+        let max_hp = character_class.hp;
+        let speed = character_class.speed;
         
         GameState {
             resources: Resources::new(max_mana, max_hp, speed),
             inventory: Inventory::new(),
-            player_class,
-            active_passives: passives,
+            character_class,
+            active_passives: Vec::new(), // Initial empty passives
             auto_attack_enabled: false,
             auto_attack_timer: 0.0,
             auto_attack_cooldown: 1.5, // 1.5 seconde entre chaque auto-attack
@@ -139,13 +138,13 @@ impl GameState {
     /// Calculer le HP max selon le niveau et la classe
     pub fn get_max_hp(&self) -> f32 {
         // HP base + 10 par niveau
-        self.player_class.base_hp() + (self.level - 1) as f32 * 10.0
+        self.character_class.hp + (self.level - 1) as f32 * 10.0
     }
 
     /// Calculer le MP max selon le niveau et la classe
     pub fn get_max_mp(&self) -> u32 {
         // MP base + 5 par niveau
-        self.player_class.base_mana() + (self.level - 1) * 5
+        self.character_class.mana + (self.level - 1) * 5
     }
 
     /// Mettre à jour les stats max après level up
@@ -235,14 +234,11 @@ impl GameState {
         }
         
         // Chance de coup critique
-        for passive in &self.active_passives {
-            if let PassiveEffect::CriticalChance(chance) = passive.effect {
-                let crit_chance = chance * multiplier;
-                if rand::gen_range(0.0, 1.0) < crit_chance {
-                    damage *= 2.0; // Coup critique = x2 dégâts
-                    println!("💥 CRITICAL HIT! (x2 damage)");
-                }
-            }
+        // Use character_class.crit_rate
+        let crit_chance = self.character_class.crit_rate * multiplier;
+        if rand::gen_range(0.0, 1.0) < crit_chance {
+            damage *= 2.0; // Coup critique = x2 dégâts
+            println!("💥 CRITICAL HIT! (x2 damage)");
         }
         
         damage

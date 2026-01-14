@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use crate::menu_system::{PlayerProfile, MenuButton, ClassButton, Friend, SessionButton};
+pub use crate::menu_system::{PlayerProfile, MenuButton, ClassButton, Friend, SessionButton, GameSession, GameScreen};
 
 /// Dessiner le menu principal
 pub fn draw_main_menu(profile: &PlayerProfile, buttons: &[MenuButton], mouse_pos: Vec2) {
@@ -131,42 +131,65 @@ pub fn draw_class_selection(
     player_name: &str,
     selected_class: Option<&str>,
 ) {
-    // Background
-    clear_background(Color::from_rgba(20, 20, 40, 255));
+    // 1. Dark background with texture
+    clear_background(Color::from_rgba(10, 10, 18, 255));
+    
+    // Ambient circles for background aesthetic
+    draw_circle(200.0, 200.0, 150.0, Color::from_rgba(100, 100, 255, 5));
+    draw_circle(screen_width() - 200.0, screen_height() - 200.0, 200.0, Color::from_rgba(255, 100, 100, 5));
 
-    // Titre
-    let title = "SELECT YOUR CLASS";
-    let title_size = 50.0;
+    // 2. Title with shadow
+    let title = "SELECT YOUR CHARACTER";
+    let title_size = 56.0;
     let title_dims = measure_text(title, None, title_size as u16, 1.0);
-    draw_text(
-        title,
-        screen_width() / 2.0 - title_dims.width / 2.0,
-        80.0,
-        title_size,
-        GOLD,
-    );
+    let title_x = screen_width() / 2.0 - title_dims.width / 2.0;
+    let title_y = 70.0;
+    
+    draw_text(title, title_x + 3.0, title_y + 3.0, title_size, Color::from_rgba(0, 0, 0, 150));
+    draw_text(title, title_x, title_y, title_size, GOLD);
 
-    // Afficher le nom du joueur (non modifiable)
-    draw_text("Playing as:", 100.0, 140.0, 20.0, LIGHTGRAY);
-    draw_text(player_name, 100.0, 170.0, 32.0, GOLD);
+    // 3. Player Identity Card
+    let card_w = 400.0;
+    let card_h = 100.0;
+    let card_x = screen_width() / 2.0 - card_w / 2.0;
+    let card_y = 110.0;
+    
+    // Glass card base
+    draw_rectangle(card_x, card_y, card_w, card_h, Color::from_rgba(30, 30, 50, 180));
+    draw_rectangle_lines(card_x, card_y, card_w, card_h, 2.0, Color::from_rgba(100, 100, 150, 255));
+    draw_rectangle(card_x, card_y, card_w, 4.0, GOLD); // Top border accent
+    
+    draw_text("PLAYER PROFILE", card_x + 20.0, card_y + 30.0, 18.0, LIGHTGRAY);
+    draw_text(player_name, card_x + 20.0, card_y + 70.0, 38.0, WHITE);
+    
+    // Selected Class Badge in the card
+    if let Some(cls) = selected_class {
+        let badge_x = card_x + card_w - 150.0;
+        draw_rectangle(badge_x, card_y + 20.0, 130.0, 60.0, Color::from_rgba(0, 0, 0, 100));
+        draw_rectangle_lines(badge_x, card_y + 20.0, 130.0, 60.0, 1.0, GOLD);
+        draw_text("SELECTED", badge_x + 10.0, card_y + 40.0, 14.0, GOLD);
+        draw_text(cls, badge_x + 10.0, card_y + 65.0, 18.0, WHITE);
+    }
 
-    // Titre des classes
-    draw_text("Choose Your Class:", 100.0, 230.0, 28.0, WHITE);
+    // 4. Instructions
+    let instr_y = 250.0;
+    draw_text("CHOOSE YOUR CLASS", 30.0, instr_y, 22.0, GOLD);
+    draw_line(30.0, instr_y + 10.0, 300.0, instr_y + 10.0, 2.0, Color::from_rgba(255, 215, 0, 100));
 
-    // Boutons de classe
+    // 5. Class Grid (Calculated in main.rs but handled here)
     for button in class_buttons {
         let is_hovered = button.is_clicked(mouse_pos);
-        let is_selected = selected_class.map_or(false, |s| button.label.contains(s));
+        let is_selected = selected_class.map_or(false, |s| button.label.eq_ignore_ascii_case(s));
         button.draw_with_selection(is_hovered, is_selected);
     }
 
-    // Instructions
+    // Footer info
     draw_text(
-        "Click a class to select | Press ESC to go back",
+        "ESC to return to menu",
         20.0,
         screen_height() - 20.0,
         18.0,
-        LIGHTGRAY,
+        Color::from_rgba(150, 150, 170, 255),
     );
 }
 

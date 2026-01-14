@@ -3,6 +3,10 @@
 **Role**: Tank / Melee DPS
 **Sprite**: `character/sprites/warrior.png`
 **Max Level**: 200
+**Visual Scale**: 1.5
+**Visual Offset**: 0, 0
+**Sprite Frames**: 1
+**Sprite Frame Index**: 0
 
 ## 📊 Base Stats (Level 1)
 
@@ -10,6 +14,9 @@
 - **Mana**: 50
 - **Speed**: 1.0 (Normal)
 - **Def**: 10
+- **Crit Rate**: 5%
+- **Precision**: 10
+- **Element**: Physical
 
 ## ⚔️ Skill List (20 Total)
 

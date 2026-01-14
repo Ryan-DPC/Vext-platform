@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use macroquad::prelude::*;
+use crate::input::handle_text_input;
 use crate::ui::hud::HUD;
 use std::collections::HashMap;
 
@@ -14,12 +15,17 @@ mod menu_ui;
 mod assets;
 mod network_api;
 mod network_client;
+mod launcher;
+mod input;
+mod draw;
+mod server;
+mod backend;
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
-use class_system::PlayerClass;
 use menu_system::{GameScreen, PlayerProfile, MenuButton, ClassButton, GameSession, SessionButton};
-use menu_ui::{draw_main_menu, draw_play_menu, draw_class_selection, draw_session_list, draw_create_server, draw_password_dialog};
+use class_system::CharacterClass;
+use menu_ui::{draw_create_server, draw_password_dialog};
 use assets::GameAssets;
 use network_client::{GameClient, GameEvent};
 
@@ -44,44 +50,21 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // Charger les assets
+    // ==== CHARGEMENT DES CLASSES DYNAMIQUE ====
+    println!("📚 Loading character classes...");
+    let all_classes = crate::class_system::CharacterClass::load_all();
+    println!("✅ Loaded {} classes!", all_classes.len());
+
+    // Charger les assets (besoin des classes pour les textures spécifiques)
     println!("🎨 Loading assets...");
-    let assets = GameAssets::load().await;
+    let assets = GameAssets::load(&all_classes).await;
     println!("✅ Assets loaded!");
 
     // Gestion des arguments de lancement (VEXT Integration)
-    let args: Vec<String> = std::env::args().collect();
-    let mut vext_username = "GuestPlayer".to_string();
-    let mut _vext_token = String::new();
-    
-    // Parser les arguments
-    for i in 0..args.len() {
-        if args[i] == "--vext-user-id" && i + 1 < args.len() {
-            vext_username = args[i + 1].clone();
-            println!("✅ VEXT Integration: Logged in as {}", vext_username);
-        }
-        if args[i] == "--vext-token" && i + 1 < args.len() {
-            _vext_token = args[i + 1].clone();
-            println!("🔐 VEXT Integration: Token received");
-        }
-        if args[i] == "--vext-friends" && i + 1 < args.len() {
-            let friends_str = &args[i + 1];
-            println!("👥 VEXT Integration: Loading friends list...");
-            
-            // Format: "User1:online,User2:offline"
-            let friends_list: Vec<&str> = friends_str.split(',').collect();
-            for friend_entry in friends_list {
-                let parts: Vec<&str> = friend_entry.split(':').collect();
-                if parts.len() == 2 {
-                    let _name = parts[0];
-                    let _is_online = parts[1] == "online";
-                    // Only add if we manage to parse it
-                    // Hacky way to access private method or just reuse `add_friend` if public
-                    // PlayerProfile::add_friend is public? Yes line 59 calls it.
-                }
-            }
-        }
-    }
+    let (launcher_config, mut player_profile) = launcher::parse_launch_args();
+    let vext_username = launcher_config.username;
+    let _vext_token = launcher_config.token;
+    let vext_token = _vext_token.clone();
 
     // Extraire le nom de personnage (username sans discriminant)
     let character_name_input = vext_username
@@ -89,30 +72,11 @@ async fn main() {
         .next()
         .unwrap_or(&vext_username)
         .to_string();
-    
-    // Profil du joueur
-    let mut player_profile = PlayerProfile::new(vext_username);
-    
-    // Parse friends again securely after creation because we need the instance
-    for i in 0..args.len() {
-        if args[i] == "--vext-friends" && i + 1 < args.len() {
-             let friends_str = &args[i + 1];
-             let friends_list: Vec<&str> = friends_str.split(',').collect();
-             for friend_entry in friends_list {
-                 let parts: Vec<&str> = friend_entry.split(':').collect();
-                 if parts.len() >= 2 {
-                    let name = parts[0];
-                    let is_online = parts[1] == "online";
-                    player_profile.add_friend(name, is_online);
-                 }
-            }
-        }
-    }
 
     // Fallback if no friends passed (optional, or just leave empty)
     // player_profile.add_friend("MaxGamer42", true);
     
-    let mut selected_class: Option<PlayerClass> = None;
+    let mut selected_class: Option<CharacterClass> = None;
     
     // Variables pour le online
     let mut server_name_input = String::new();
@@ -126,8 +90,11 @@ async fn main() {
     // Sessions mock (normalement viendraient du serveur - vide maintenant)
     let mut sessions: Vec<SessionButton> = Vec::new();
     
-    // Network multiplayer relay
-    let mut game_client: Option<GameClient> = None;
+    // Network manager (Refactored)
+    let mut network_manager = server::NetworkManager::new();
+    
+    // Renderer (Refactored)
+    let renderer = draw::Renderer::new(&assets, &all_classes);
     let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
     let mut is_host = false;
     let mut _lobby_host_id = String::new();
@@ -150,14 +117,14 @@ async fn main() {
     let mut battle_ui_state = crate::ui::hud::BattleUIState::Main;
     let mut current_turn_id = String::new();
     let mut enemy_hp = 500.0;
-    let mut enemy_max_hp = 500.0;
+    let enemy_max_hp = 500.0;
     let mut combat_logs: Vec<String> = Vec::new();
     
     // Solo combat state
     let mut is_solo_mode = false;
     let mut is_player_turn = true;
     let mut enemy_attack_timer = 0.0;
-    let mut last_enemy_action_time = 0.0;
+    let _last_enemy_action_time = 0.0;
 
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
@@ -173,30 +140,23 @@ async fn main() {
         MenuButton::new("ONLINE", SCREEN_WIDTH / 2.0 - 200.0, 350.0, 400.0, 80.0),
     ];
 
-    // ==== CRÉATION DE PERSONNAGE ====
-    let class_buttons = vec![
-        ClassButton::new(
-            "⚔️ WARRIOR",
-            "Tank / Melee DPS - High HP, Strong Defense",
-            100.0, 280.0, 280.0, 100.0,
-            Color::from_rgba(200, 50, 50, 255),
-        ),
-        ClassButton::new(
-            "🔮 MAGE",
-            "Ranged DPS / Caster - High Mana, Spell Power",
-            400.0, 280.0, 280.0, 100.0,
-            Color::from_rgba(50, 100, 200, 255),
-        ),
-        ClassButton::new(
-            "🏹 ARCHER",
-            "Balanced DPS - Precision, Critical Hits",
-            700.0, 280.0, 280.0, 100.0,
-            Color::from_rgba(50, 200, 100, 255),
-        ),
-    ];
+
+    let mut class_buttons = Vec::new();
+    for (idx, cls) in all_classes.iter().enumerate() {
+        let cols = 5;
+        let x = 22.0 + (idx % cols) as f32 * 200.0;
+        let y = 280.0 + (idx / cols) as f32 * 105.0;
+        
+        class_buttons.push(ClassButton::new(
+            &cls.name,
+            &cls.role,
+            x, y, 190.0, 95.0,
+            cls.color(),
+        ));
+    }
 
     // Boutons
-    let confirm_button = MenuButton::new("START GAME", SCREEN_WIDTH / 2.0 - 150.0, 450.0, 300.0, 60.0);
+    let confirm_button = MenuButton::new("START GAME", SCREEN_WIDTH / 2.0 - 150.0, SCREEN_HEIGHT - 80.0, 300.0, 60.0);
     let create_server_button = MenuButton::new("CREATE SERVER", SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 70.0, 200.0, 50.0);
     let confirm_create_button = MenuButton::new("CREATE", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0);
     let refresh_button = MenuButton::new("REFRESH", SCREEN_WIDTH - 170.0, 40.0, 150.0, 40.0);
@@ -207,7 +167,7 @@ async fn main() {
         // ==== GESTION DES INPUTS ====
         match current_screen {
             GameScreen::MainMenu => {
-                draw_main_menu(&player_profile, &main_menu_buttons, mouse_pos);
+                renderer.draw_main_menu(&player_profile, &main_menu_buttons, mouse_pos);
 
                 if is_mouse_button_pressed(MouseButton::Left) {
                     if main_menu_buttons[0].is_clicked(mouse_pos) {
@@ -224,7 +184,7 @@ async fn main() {
             }
 
             GameScreen::PlayMenu => {
-                draw_play_menu(&play_menu_buttons, mouse_pos);
+                renderer.draw_play_menu(&play_menu_buttons, mouse_pos);
 
                 if is_mouse_button_pressed(MouseButton::Left) {
                     if play_menu_buttons[0].is_clicked(mouse_pos) {
@@ -244,28 +204,27 @@ async fn main() {
             GameScreen::CharacterCreation => {
                 // Nom automatique depuis le username VEXT (sans discriminant)
                 let player_name = character_name_input.as_str();
-                let selected_class_name = selected_class.map(|c| c.name());
-                draw_class_selection(&class_buttons, mouse_pos, player_name, selected_class_name);
+                let selected_class_name = selected_class.as_ref().map(|c| c.name.as_str());
+                renderer.draw_class_selection(&class_buttons, mouse_pos, player_name, selected_class_name);
 
                 // Sélection de classe
                 if is_mouse_button_pressed(MouseButton::Left) {
-                    if class_buttons[0].is_clicked(mouse_pos) {
-                        selected_class = Some(PlayerClass::Warrior);
-                    } else if class_buttons[1].is_clicked(mouse_pos) {
-                        selected_class = Some(PlayerClass::Mage);
-                    } else if class_buttons[2].is_clicked(mouse_pos) {
-                        selected_class = Some(PlayerClass::Archer);
+                    for (idx, btn) in class_buttons.iter().enumerate() {
+                        if btn.is_clicked(mouse_pos) {
+                            selected_class = Some(all_classes[idx].clone());
+                            break;
+                        }
                     }
 
                     // Bouton START GAME (seulement si classe sélectionnée)
                     if confirm_button.is_clicked(mouse_pos) && selected_class.is_some() {
-                        let player_class = selected_class.unwrap();
+                        let player_class = selected_class.as_ref().unwrap();
                         player_profile.character_name = character_name_input.clone();
                         
-                        _game_state = Some(GameState::new(player_class));
+                        _game_state = Some(GameState::new(player_class.clone()));
                         // Player Position (Front Left)
                         let mut new_player = StickFigure::new(vec2(250.0, 450.0), "You".to_string());
-                        new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
+                        new_player.max_health = player_class.hp;
                         new_player.health = new_player.max_health;
                         new_player.color = player_class.color();
                         _player = Some(new_player);
@@ -326,7 +285,7 @@ async fn main() {
                 }
 
                 // Dessiner le bouton START GAME si classe sélectionnée
-                if selected_class.is_some() {
+                if let Some(_player_class) = &selected_class {
                     let is_hovered = confirm_button.is_clicked(mouse_pos);
                     confirm_button.draw(is_hovered);
                 }
@@ -338,7 +297,7 @@ async fn main() {
             }
 
             GameScreen::SessionList => {
-                draw_session_list(&sessions, &player_profile, mouse_pos);
+                renderer.draw_session_list(&sessions, &player_profile, mouse_pos);
 
                 if is_mouse_button_pressed(MouseButton::Left) {
                     // Vérifier les clics sur les boutons JOIN
@@ -354,11 +313,11 @@ async fn main() {
                                 &ws_url,
                                 &vext_token,
                                 lobby_id.clone(),
-                                selected_class.unwrap_or(PlayerClass::Warrior).name().to_lowercase(),
+                                selected_class.as_ref().map(|c| c.name.to_lowercase()).unwrap_or_else(|| "warrior".to_string()),
                                 false // is_host = false
                             ) {
                                 Ok(client) => {
-                                    game_client = Some(client);
+                                    network_manager.client = Some(client);
                                     is_host = false;
                                     println!("✅ Connected to relay server!");
                                     println!("✅ Joined lobby: {}", lobby_id);
@@ -385,26 +344,7 @@ async fn main() {
 
                     // Bouton REFRESH
                     if refresh_button.is_clicked(mouse_pos) {
-                        let lobbies = network_api::fetch_server_list();
-                        sessions = lobbies.into_iter().enumerate().map(|(i, lobby)| {
-                            SessionButton::new(
-                                GameSession {
-                                    name: lobby.name,
-                                    host: lobby.hostUsername,
-                                    current_players: lobby.currentPlayers,
-                                    max_players: lobby.maxPlayers,
-                                    average_level: 1, // Pas encore dans l'API
-                                    ping: 0, // Ping local pour l'instant
-                                    is_private: lobby.isPrivate,
-                                    password: lobby.password,
-                                    map: lobby.mapName,
-                                },
-                                20.0,
-                                140.0 + i as f32 * 70.0,
-                                SCREEN_WIDTH - 360.0,
-                                60.0,
-                            )
-                        }).collect();
+                        sessions = backend::refresh_sessions();
                     }
                 }
 
@@ -472,11 +412,11 @@ async fn main() {
                             &ws_url,
                             &vext_token,
                             lobby_id.clone(),
-                            selected_class.unwrap_or(PlayerClass::Warrior).name().to_lowercase(),
+                            selected_class.as_ref().map(|c| c.name.clone()).unwrap_or_else(|| "warrior".to_string()).to_lowercase(),
                             true // is_host = true
                         ) {
                             Ok(client) => {
-                                game_client = Some(client);
+                                network_manager.client = Some(client);
                                 is_host = true;
                                 println!("✅ Server created and connected to relay: {}", lobby_id);
                             }
@@ -541,25 +481,22 @@ async fn main() {
                 draw_text(&format!("LOBBY: {}", session_name), 50.0, 50.0, 40.0, WHITE);
 
                 // ===== RELAY MULTIPLAYER: Poll for updates =====
-                if let Some(client) = &game_client {
-                    for event in client.poll_updates() {
+                if let Some(client) = &network_manager.client {
+                    let events: Vec<GameEvent> = client.poll_updates();
+                    for event in events {
                         match event {
                             GameEvent::GameState { players, host_id } => {
                                 let msg = format!("Sync ({} players)", players.len());
                                 println!("📋 {}", msg);
                                 last_network_log = msg;
                                 other_players.clear();
-                                for mut p in players {
+                                for p in players {
                                     if p.username != player_profile.vext_username {
-                                        // Normalize class for display
-                                        if let Some(cls) = PlayerClass::from_name(&p.class) {
-                                            p.class = cls.name().to_string();
-                                        }
                                         other_players.insert(p.userId.clone(), p);
                                     } else {
                                         // Sync our own local selected_class with server record
-                                        if let Some(cls) = PlayerClass::from_name(&p.class) {
-                                            selected_class = Some(cls);
+                                        if let Some(cls) = all_classes.iter().find(|c| c.name.eq_ignore_ascii_case(&p.class)) {
+                                            selected_class = Some(cls.clone());
                                         }
                                     }
                                 }
@@ -570,10 +507,7 @@ async fn main() {
                                 println!("👋 {}", msg);
                                 last_network_log = msg;
                                 if username != player_profile.vext_username {
-                                    let mut display_class = class.clone();
-                                    if let Some(cls) = PlayerClass::from_name(&class) {
-                                        display_class = cls.name().to_string();
-                                    }
+                                    let display_class = class.clone();
                                     other_players.insert(player_id.clone(), network_client::RemotePlayer {
                                         userId: player_id,
                                         username: username,
@@ -589,10 +523,7 @@ async fn main() {
                                 other_players.remove(&player_id);
                             }
                             GameEvent::PlayerUpdated { player_id, class } => {
-                                let mut display_class = class.clone();
-                                if let Some(cls) = PlayerClass::from_name(&class) {
-                                    display_class = cls.name().to_string();
-                                }
+                                let display_class = class.clone();
                                 let msg = format!("Update: {} -> {}", &player_id[..4], display_class);
                                 println!("✏️ {}", msg);
                                 last_network_log = msg;
@@ -608,10 +539,10 @@ async fn main() {
                                 last_network_log = msg;
                                 
                                 // --- INITIALIZE GAME STATE FOR MULTIPLAYER ---
-                                let p_class = selected_class.unwrap_or(PlayerClass::Warrior);
-                                selected_class = Some(p_class);
+                                let p_class = selected_class.clone().unwrap_or_else(|| all_classes[0].clone());
+                                selected_class = Some(p_class.clone());
                                 
-                                _game_state = Some(GameState::new(p_class));
+                                _game_state = Some(GameState::new(p_class.clone()));
                                 
                                 let mut new_player = StickFigure::new(vec2(PLAYER_X, PLAYER_Y), "You".to_string());
                                 new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
@@ -647,63 +578,37 @@ async fn main() {
                     }
                 }
 
-                // Players Box
-                draw_rectangle(50.0, 100.0, 400.0, 500.0, Color::from_rgba(20, 20, 40, 255));
-                draw_rectangle_lines(50.0, 100.0, 400.0, 500.0, 2.0, LIGHTGRAY);
-                
-                // Dynamic player count
-                let player_count = 1 + other_players.len();
-                draw_text(&format!("PLAYERS ({}/4)", player_count), 70.0, 140.0, 30.0, GOLD);
-                
-                // Player 1 (You)
-                let my_class_name = selected_class.unwrap_or(PlayerClass::Warrior).name();
-                draw_text(&format!("1. {} [{}] (You)", player_profile.vext_username, my_class_name), 70.0, 190.0, 24.0, GREEN);
-                
-                // Other players
-                let mut y = 230.0;
-                let mut i = 2;
-                for player in other_players.values() {
-                    draw_text(&format!("{}. {} [{}]", i, player.username, player.class), 70.0, y, 24.0, WHITE);
-                    y += 40.0;
-                    i += 1;
-                }
-                
-                // Empty slots
-                for j in i..=4 {
-                    draw_text(&format!("{}. Waiting...", j), 70.0, y, 24.0, DARKGRAY);
-                    y += 40.0;
-                }
-
-                // --- CLASS SELECTION UI (Burger/Buttons) ---
-                draw_text("CHOOSE CLASS:", 500.0, 140.0, 30.0, WHITE);
-                
-                let classes = vec![PlayerClass::Warrior, PlayerClass::Mage, PlayerClass::Archer];
-                for (idx, cls) in classes.iter().enumerate() {
-                    let btn_x = 500.0;
-                    let btn_y = 180.0 + idx as f32 * 60.0;
-                    let btn_w = 200.0;
-                    let btn_h = 50.0;
-                    
-                    let is_selected = selected_class.unwrap_or(PlayerClass::Warrior) == *cls;
-                    let color = if is_selected { cls.color() } else { DARKGRAY };
-                    
-                    let is_hovered = mouse_pos.x >= btn_x && mouse_pos.x <= btn_x + btn_w && mouse_pos.y >= btn_y && mouse_pos.y <= btn_y + btn_h;
-                    
-                    if is_hovered {
-                        draw_rectangle(btn_x - 2.0, btn_y - 2.0, btn_w + 4.0, btn_h + 4.0, WHITE);
-                    }
-                    draw_rectangle(btn_x, btn_y, btn_w, btn_h, color);
-                    draw_text(cls.name(), btn_x + 20.0, btn_y + 35.0, 24.0, WHITE);
-                    
-                    if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
-                        selected_class = Some(*cls);
-                        // Send update to server
-                        if let Some(client) = &game_client {
-                            println!("📤 Sending class change: {}", cls.name().to_lowercase());
-                            client.send_class_change(cls.name().to_lowercase());
-                        }
-                    }
-                }
+                renderer.draw_lobby(session_name, 1 + other_players.len(), &player_profile, &other_players);
+ 
+                 // --- CLASS SELECTION UI (Grid restricted for space or scrollable) ---
+                 draw_text("CHOOSE CLASS:", 500.0, 100.0, 30.0, WHITE);
+                 
+                 for (idx, cls) in all_classes.iter().enumerate() {
+                     let btn_x = 500.0 + (idx / 10) as f32 * 170.0; // Two columns if many classes
+                     let btn_y = 140.0 + (idx % 10) as f32 * 45.0;
+                     let btn_w = 160.0;
+                     let btn_h = 40.0;
+                     
+                     let is_selected = selected_class.as_ref().map(|c| &c.name == &cls.name).unwrap_or(false);
+                     let color = if is_selected { cls.color() } else { DARKGRAY };
+                     
+                     let is_hovered = mouse_pos.x >= btn_x && mouse_pos.x <= btn_x + btn_w && mouse_pos.y >= btn_y && mouse_pos.y <= btn_y + btn_h;
+                     
+                     if is_hovered {
+                         draw_rectangle(btn_x - 2.0, btn_y - 2.0, btn_w + 4.0, btn_h + 4.0, WHITE);
+                     }
+                     draw_rectangle(btn_x, btn_y, btn_w, btn_h, color);
+                     draw_text(&cls.name, btn_x + 10.0, btn_y + 28.0, 18.0, WHITE);
+                     
+                     if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
+                         selected_class = Some(cls.clone());
+                         // Send update to server
+                         if let Some(client) = &network_manager.client {
+                             println!("📤 Sending class change: {}", cls.name.to_lowercase());
+                             client.send_class_change(cls.name.to_lowercase());
+                         }
+                     }
+                 }
 
                 // Start Button (Host Only)
                 if is_host {
@@ -716,7 +621,7 @@ async fn main() {
                     draw_text("START GAME", start_btn_rect.x + 30.0, start_btn_rect.y + 50.0, 40.0, WHITE);
                     
                     if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
-                         if let Some(client) = &game_client {
+                         if let Some(client) = &network_manager.client {
                              client.start_game();
                          }
                          // Initialize our own state immediately as well or wait for event?
@@ -735,10 +640,10 @@ async fn main() {
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::SessionList;
                     // Disconnect relay
-                    if let Some(client) = &game_client {
+                    if let Some(client) = &network_manager.client {
                         client.disconnect();
                     }
-                    game_client = None;
+                    network_manager.client = None;
                     other_players.clear();
                     last_network_log = "Disconnected".to_string();
                 }
@@ -764,8 +669,9 @@ async fn main() {
                 draw_rectangle(0.0, 500.0, SCREEN_WIDTH, 20.0, Color::from_rgba(50, 40, 30, 255));
 
                 // ===== RELAY MULTIPLAYER: Poll for updates in-game =====
-                if let Some(client) = &game_client {
-                    for event in client.poll_updates() {
+                if let Some(client) = &network_manager.client {
+                    let events: Vec<GameEvent> = client.poll_updates();
+                    for event in events {
                         match event {
                             GameEvent::PlayerUpdate(update) => {
                                 if let Some(player) = other_players.get_mut(&update.player_id) {
@@ -784,9 +690,9 @@ async fn main() {
                                 other_players.clear();
                                 for mut p in players {
                                     if p.username != player_profile.vext_username {
-                                        if let Some(cls) = PlayerClass::from_name(&p.class) {
-                                            p.class = cls.name().to_string();
-                                        }
+                                    if let Some(cls) = all_classes.iter().find(|c| c.name.eq_ignore_ascii_case(&p.class)) {
+                                        p.class = cls.name.clone();
+                                    }
                                         other_players.insert(p.userId.clone(), p);
                                     }
                                 }
@@ -837,132 +743,32 @@ async fn main() {
                     }
                 }
                 
-                // Dessiner les entités
+                // Dessiner les entités (Y-Sorted)
+                let player_class_name = if let Some(gs) = &_game_state {
+                    gs.character_class.name.as_str()
+                } else {
+                    "Warrior"
+                };
+
+                renderer.draw_game_scene(
+                    _player.as_ref(),
+                    &_teammates,
+                    &other_players,
+                    &_enemies,
+                    _enemy.as_ref(),
+                    player_class_name,
+                );
+
+
+
+
+
+
                 
-                // Draw Teammates (With correct class sprites)
-                for (i, teammate) in _teammates.iter_mut().enumerate() {
-                     let rect = match i {
-                         1 => assets.get_mage_rect(0),   // Elara (Mage)
-                         2 => assets.get_archer_rect(0), // SwiftArrow (Archer)
-                         _ => assets.get_warrior_rect(0), // DarkKnight (Warrior)
-                     };
-                     
-                     // Draw centered
-                     draw_texture_ex(
-                        &assets.sprite_sheet,
-                        teammate.position.x - 70.0, // Centering 140/2
-                        teammate.position.y - 70.0, // Centering 140/2
-                        WHITE,
-                        DrawTextureParams {
-                            source: Some(rect),
-                            dest_size: Some(vec2(140.0, 140.0)), // Same size as player
-                            ..Default::default()
-                        }
-                     );
-                     // Name Tag (Restored)
-                     draw_text(&teammate.name, teammate.position.x - 40.0, teammate.position.y - 80.0, 18.0, WHITE);
-                }
-
-                if let Some(player) = &mut _player {
-                    // Sélectionner la texture et le rect en fonction de la classe
-                    // Utiliser frame 0 (idle) pour l'instant. On pourrait animer ça plus tard.
-                    let (tex, rect) = if let Some(cls) = selected_class {
-                         match cls {
-                            PlayerClass::Warrior => (Some(&assets.sprite_sheet), Some(assets.get_warrior_rect(0))),
-                            PlayerClass::Mage => (Some(&assets.sprite_sheet), Some(assets.get_mage_rect(0))),
-                            PlayerClass::Archer => (Some(&assets.sprite_sheet), Some(assets.get_archer_rect(0))),
-                        }
-                    } else {
-                        (None, None) 
-                    };
-                    
-                    if let Some(r) = rect {
-                         draw_texture_ex(
-                            &assets.sprite_sheet,
-                            player.position.x - 70.0,
-                            player.position.y - 70.0,
-                            WHITE,
-                            DrawTextureParams {
-                                source: Some(r),
-                                dest_size: Some(vec2(140.0, 140.0)), // Bigger player
-                                ..Default::default()
-                            },
-                        );
-
-                        // Name tag (Restored)
-                        draw_text("YOU", player.position.x - 25.0, player.position.y - 80.0, 20.0, GOLD);
-                    } else {
-                        player.draw(tex, rect);
-                    }
-                }
-                
-                // Draw Minion Enemies
-                for enemy in &mut _enemies {
-                     // Draw (Size 140 to match teammates)
-                     draw_texture_ex(
-                        &assets.sprite_sheet,
-                        enemy.position.x - 70.0,
-                        enemy.position.y - 70.0,
-                        WHITE,
-                        DrawTextureParams {
-                             source: Some(assets.get_enemy_rect(0)),
-                             dest_size: Some(vec2(140.0, 140.0)), 
-                             flip_x: true,
-                             ..Default::default()
-                        }
-                     );
-                }
-
-                // Draw Main Boss
-                if let Some(enemy) = &mut _enemy {
-                    // Draw Boss Bigger
-                     draw_texture_ex(
-                        &assets.sprite_sheet,
-                        enemy.position.x - 90.0,
-                        enemy.position.y - 90.0,
-                        WHITE,
-                        DrawTextureParams {
-                             source: Some(assets.get_enemy_rect(0)),
-                             dest_size: Some(vec2(180.0, 180.0)), // Big Boss
-                             flip_x: true,
-                             ..Default::default()
-                        }
-                     );
-
-                     // Boss Label (Added)
-                     draw_text("BOSS", enemy.position.x - 30.0, enemy.position.y - 100.0, 30.0, RED);
-
-                     // AGGRO LINE VISUALIZATION REMOVED
-
-
-                     // Boss Name Tag REMOVED
-                     // draw_text("BOSS", enemy.position.x + 60.0, enemy.position.y - 15.0, 24.0, RED);
-                }
-
-                // Dessiner les autres joueurs (Online)
-                for player in other_players.values() {
-                    let rect = match player.class.to_lowercase().as_str() {
-                        "mage" => assets.get_mage_rect(0),
-                        "archer" => assets.get_archer_rect(0),
-                        _ => assets.get_warrior_rect(0),
-                    };
-                    draw_texture_ex(
-                        &assets.sprite_sheet,
-                        player.position.0,
-                        player.position.1,
-                        WHITE,
-                        DrawTextureParams {
-                            source: Some(rect),
-                            dest_size: Some(vec2(100.0, 100.0)),
-                            ..Default::default()
-                        },
-                    );
-                    draw_text(&player.username, player.position.0, player.position.1 - 10.0, 18.0, WHITE);
-                }
 
                 // --- DRAW HUD ---
                 if let Some(gs) = &mut _game_state {
-                    let class_enum = selected_class.unwrap_or(PlayerClass::Warrior);
+                    let _current_class = &gs.character_class;
                     
                     // Determine if it's player's turn
                     let is_my_turn = if is_solo_mode {
@@ -978,7 +784,7 @@ async fn main() {
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
                         &character_name_input,
-                        class_enum,
+                        &gs.character_class,
                         &other_players,
                         e_hp_percent,
                         is_my_turn,
@@ -991,14 +797,13 @@ async fn main() {
                             match action {
                                 crate::ui::hud::HUDAction::UseAttack(name) => {
                                     // Find attack damage
-                                    let attacks = class_enum.get_attacks();
-                                    if let Some(atk) = attacks.iter().find(|a| a.name == name) {
+                                    if let Some(atk) = gs.character_class.skills.iter().find(|s| s.name == name) {
                                         if gs.resources.can_afford_mana(atk.mana_cost) {
                                             // Spend mana
                                             gs.resources.mana = gs.resources.mana.saturating_sub(atk.mana_cost);
                                             
                                             // Deal damage to enemy
-                                            let damage = atk.damage;
+                                            let damage = atk.base_damage;
                                             enemy_hp = (enemy_hp - damage).max(0.0);
                                             
                                             // Update Aggro
@@ -1081,7 +886,7 @@ async fn main() {
                                 }
                         } else {
                             // Multiplayer mode: send to server
-                            if let Some(client) = &game_client {
+                            if let Some(client) = &network_manager.client {
                                 match action {
                                     crate::ui::hud::HUDAction::UseAttack(name) => {
                                         client.use_attack(name, Some("enemy".to_string()));
@@ -1147,10 +952,10 @@ async fn main() {
                     current_screen = GameScreen::MainMenu;
                     is_solo_mode = false;
                     // Properly disconnect from server
-                    if let Some(client) = &game_client {
+                    if let Some(client) = &network_manager.client {
                         client.disconnect();
                     }
-                    game_client = None;
+                    network_manager.client = None;
                     other_players.clear();
                     last_network_log = "Left Game".to_string();
                 }
@@ -1200,71 +1005,6 @@ async fn main() {
 
         next_frame().await;
     }
+
 }
 
-/// Gérer l'input de texte
-fn handle_text_input(text: &mut String, max_len: usize) {
-    let keys_pressed = get_keys_pressed();
-    for key in keys_pressed {
-        match key {
-            KeyCode::Backspace => {
-                text.pop();
-            }
-            KeyCode::Space => {
-                if text.len() < max_len {
-                    text.push(' ');
-                }
-            }
-            _ => {
-                if let Some(c) = key_to_char(key) {
-                    if text.len() < max_len {
-                        text.push(c);
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Convertir une touche en caractère
-fn key_to_char(key: KeyCode) -> Option<char> {
-    match key {
-        KeyCode::A => Some('a'),
-        KeyCode::B => Some('b'),
-        KeyCode::C => Some('c'),
-        KeyCode::D => Some('d'),
-        KeyCode::E => Some('e'),
-        KeyCode::F => Some('f'),
-        KeyCode::G => Some('g'),
-        KeyCode::H => Some('h'),
-        KeyCode::I => Some('i'),
-        KeyCode::J => Some('j'),
-        KeyCode::K => Some('k'),
-        KeyCode::L => Some('l'),
-        KeyCode::M => Some('m'),
-        KeyCode::N => Some('n'),
-        KeyCode::O => Some('o'),
-        KeyCode::P => Some('p'),
-        KeyCode::Q => Some('q'),
-        KeyCode::R => Some('r'),
-        KeyCode::S => Some('s'),
-        KeyCode::T => Some('t'),
-        KeyCode::U => Some('u'),
-        KeyCode::V => Some('v'),
-        KeyCode::W => Some('w'),
-        KeyCode::X => Some('x'),
-        KeyCode::Y => Some('y'),
-        KeyCode::Z => Some('z'),
-        KeyCode::Key0 => Some('0'),
-        KeyCode::Key1 => Some('1'),
-        KeyCode::Key2 => Some('2'),
-        KeyCode::Key3 => Some('3'),
-        KeyCode::Key4 => Some('4'),
-        KeyCode::Key5 => Some('5'),
-        KeyCode::Key6 => Some('6'),
-        KeyCode::Key7 => Some('7'),
-        KeyCode::Key8 => Some('8'),
-        KeyCode::Key9 => Some('9'),
-        _ => None,
-    }
-}
