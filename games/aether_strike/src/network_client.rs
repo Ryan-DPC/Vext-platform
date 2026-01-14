@@ -89,10 +89,11 @@ impl GameClient {
         // Cloner pour le thread
         let game_id_clone = game_id.clone();
         let player_class_clone = player_class.clone();
+        let token_clone = token.to_string();
 
         // Lancer le thread WebSocket
         thread::spawn(move || {
-            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws) {
+            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws, token_clone) {
                 eprintln!("❌ WebSocket thread error: {}", e);
             }
         });
@@ -144,6 +145,7 @@ fn ws_thread_loop(
     is_host: bool,
     rx_commands: Receiver<WsCommand>,
     tx_events: Sender<GameEvent>,
+    token: String,
 ) -> Result<(), String> {
     // Connexion WebSocket
     // Connexion WebSocket
@@ -154,8 +156,19 @@ fn ws_thread_loop(
         url
     };
 
-    let url_parsed = Url::parse(&clean_url).map_err(|e| format!("Invalid URL: {}", e))?;
-    println!("🔌 Attempting to connect to WS: {}", clean_url);
+    let mut final_url = clean_url.clone();
+    
+    // Manually ensure token is present in query string
+    if !final_url.contains("token=") {
+        if final_url.contains('?') {
+            final_url.push_str(&format!("&token={}", token));
+        } else {
+            final_url.push_str(&format!("?token={}", token));
+        }
+    }
+
+    let url_parsed = Url::parse(&final_url).map_err(|e| format!("Invalid URL: {}", e))?;
+    println!("🔌 Attempting to connect to WS: {}", final_url);
 
     // Build request with headers to mimic browser/frontend
     let mut request = url_parsed.into_client_request()
