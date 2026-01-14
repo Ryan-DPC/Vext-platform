@@ -272,41 +272,40 @@ async fn main() {
                         // Solo mode setup
                         is_solo_mode = true;
                         
-                        // Reposition Player for better layout (Shift RIGHT)
+                        // Reposition Player (Center Forward)
                         if let Some(p) = &mut _player {
-                            p.position = vec2(400.0, 320.0); // Moved Right (was 300) and Up (was 350)
+                            p.position = vec2(360.0, 300.0); // Reculé et Monté (X: 400->360, Y: 320->300)
                         }
                         
-                        // Create Mock Teammates (Better Spacing, Shifted RIGHT)
+                        // Create Mock Teammates
                         _teammates.clear();
-                        // 1. DarkKnight (Top Front)
-                        let mut t1 = StickFigure::new(vec2(320.0, 220.0)); // Right + Up
+                        // 1. DarkKnight (Top Back)
+                        let mut t1 = StickFigure::new(vec2(280.0, 200.0)); // Reculé et Monté (X: 320->280, Y: 220->200)
                         t1.color = Color::from_rgba(200, 50, 50, 255); 
                         _teammates.push(t1);
-                        // 2. Elara (Back Middle) - Behind Player
-                        let mut t2 = StickFigure::new(vec2(250.0, 320.0)); // Right + Up
+                        // 2. Elara (Middle Far Back)
+                        let mut t2 = StickFigure::new(vec2(200.0, 380.0)); // Reculé et Baissé (X: 250->200, Y: 320->380)
                         t2.color = Color::from_rgba(50, 100, 200, 255); 
                         _teammates.push(t2);
-                        // 3. SwiftArrow (Bottom Front)
-                        let mut t3 = StickFigure::new(vec2(320.0, 420.0)); // Right + Up
+                        // 3. SwiftArrow (Bottom Back)
+                        let mut t3 = StickFigure::new(vec2(280.0, 400.0)); // Symétrique à T1/Joueur (X: 320->280, Y: 420->400)
                         t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
-                        // Create Mock Enemies (Better Spacing, Shifted Left slightly?)
-                        // User circled enemies too. They seem okay but maybe too far right?
-                        // Let's keep them where they are but lift them up a bit more if needed.
-                        // Actually, looking at the screenshot, enemies are fine in X, just maybe lift Y a bit more?
-                        // User drew circles where they SHOULD be.
-                        // Circles for enemies are slightly to the left of current positions?
-                        // Circles for allies are much more to the right.
+                        // Create Mock Enemies (Axial Symmetry)
+                        // Screen Width ~1280. Symmetry around 640.
+                        // Player (360) -> Boss (1280 - 360 = 920)
+                        // T1 (280, 200) -> M1 (1280 - 280 = 1000, 200)
+                        // T2 (200, 380) -> M2 (1280 - 200 = 1080, 380)
+                        // T3 (280, 400) -> M3 (1280 - 280 = 1000, 400)
                         
                         _enemies.clear();
-                        // 1. Shadow Minion (Top)
-                        _enemies.push(Enemy::new(vec2(900.0, 220.0))); // Lifted Y
-                        // 2. Dark Spirit (Middle Front)
-                        _enemies.push(Enemy::new(vec2(850.0, 320.0))); // Lifted Y
-                        // 3. Void Crawler (Bottom)
-                        _enemies.push(Enemy::new(vec2(900.0, 420.0))); // Lifted Y
+                        // 1. Shadow Minion (Top Back)
+                        _enemies.push(Enemy::new(vec2(1000.0, 200.0)));
+                        // 2. Dark Spirit (Middle Far Back)
+                        _enemies.push(Enemy::new(vec2(1080.0, 380.0)));
+                        // 3. Void Crawler (Bottom Back)
+                        _enemies.push(Enemy::new(vec2(1000.0, 400.0)));
                         
                         is_player_turn = true;
                         enemy_hp = 500.0;
@@ -314,7 +313,7 @@ async fn main() {
                         
                         // Initialize boss
                         if let Some(e) = &mut _enemy {
-                            e.position = vec2(1050.0, 320.0); // Lifted Y
+                            e.position = vec2(920.0, 300.0); // Symétrique Player
                             e.max_health = 500.0;
                             e.health = 500.0;
                             e.add_threat("teammate_0", 40.0); 

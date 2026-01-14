@@ -161,8 +161,8 @@ impl HUD {
         // ============================================================
         // ============================================================
         let team_panel_w = 180.0; // Reduced width
-        // Calculate needed height: 15 (top) + 70 (player) + 15 (gap) + 3 * (45 + 15 gap) + 10 (bottom) = ~275
-        let team_panel_h = 275.0; 
+        // Calculate needed height: 10 (top) + 70 (player) + 15 (gap) + 3 * (45 + 15 gap) + 10 (bottom) = ~280
+        let team_panel_h = 280.0; 
         
         draw_rectangle(0.0, 0.0, team_panel_w, team_panel_h, Color::from_rgba(15, 20, 30, 240));
         draw_line(team_panel_w, 0.0, team_panel_w, team_panel_h, 2.0, Color::from_rgba(60, 80, 120, 255));
@@ -178,7 +178,10 @@ impl HUD {
                 (45.0, 11.0, 9.0)
             };
             
-            let y_offset_base = if i == 0 { 15.0 } else { 15.0 + 75.0 + (i as f32 - 1.0) * 50.0 };
+            
+            // Reduced top offset to 5.0 to align better with top of panel
+            let y_offset_base = if i == 0 { 5.0 } else { 5.0 + 80.0 + (i as f32 - 1.0) * 60.0 }; 
+            // Previous logic was 15.0 + 75.0... adjusted gap to be consistent (70+10=80, 45+15=60)
             let y = y_offset_base;
 
             // Background for each member
