@@ -272,29 +272,34 @@ async fn main() {
                         // Solo mode setup
                         is_solo_mode = true;
                         
-                        // Create Mock Teammates (Better Spacing)
+                        // Reposition Player for better layout
+                        if let Some(p) = &mut _player {
+                            p.position = vec2(300.0, 350.0); // Centered Y, slightly forward X
+                        }
+                        
+                        // Create Mock Teammates (Better Spacing, Lifted Up)
                         _teammates.clear();
                         // 1. DarkKnight (Top Front)
-                        let mut t1 = StickFigure::new(vec2(220.0, 350.0));
+                        let mut t1 = StickFigure::new(vec2(220.0, 250.0));
                         t1.color = Color::from_rgba(200, 50, 50, 255); 
                         _teammates.push(t1);
                         // 2. Elara (Back Middle) - Behind Player
-                        let mut t2 = StickFigure::new(vec2(150.0, 450.0));
+                        let mut t2 = StickFigure::new(vec2(150.0, 350.0));
                         t2.color = Color::from_rgba(50, 100, 200, 255); 
                         _teammates.push(t2);
                         // 3. SwiftArrow (Bottom Front)
-                        let mut t3 = StickFigure::new(vec2(220.0, 550.0));
+                        let mut t3 = StickFigure::new(vec2(220.0, 450.0));
                         t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
-                        // Create Mock Enemies (Better Spacing)
+                        // Create Mock Enemies (Better Spacing, Lifted Up)
                         _enemies.clear();
                         // 1. Shadow Minion (Top)
-                        _enemies.push(Enemy::new(vec2(900.0, 350.0)));
+                        _enemies.push(Enemy::new(vec2(900.0, 250.0)));
                         // 2. Dark Spirit (Middle Front)
-                        _enemies.push(Enemy::new(vec2(850.0, 450.0)));
+                        _enemies.push(Enemy::new(vec2(850.0, 350.0)));
                         // 3. Void Crawler (Bottom)
-                        _enemies.push(Enemy::new(vec2(900.0, 550.0)));
+                        _enemies.push(Enemy::new(vec2(900.0, 450.0)));
                         
                         is_player_turn = true;
                         enemy_hp = 500.0;
@@ -302,7 +307,7 @@ async fn main() {
                         
                         // Initialize boss with some threat to teammate (Tanking simulation)
                         if let Some(e) = &mut _enemy {
-                            e.position = vec2(1050.0, 450.0); // Boss centered
+                            e.position = vec2(1050.0, 350.0); // Boss centered
                             e.max_health = 500.0;
                             e.health = 500.0;
                             e.add_threat("teammate_0", 40.0); 
