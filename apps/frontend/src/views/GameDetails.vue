@@ -77,9 +77,14 @@ const checkInstallationStatus = async () => {
 }
 
 const setupInstallListeners = () => {
+    // Helper to match event ID with current game (Slug or MongoID)
+    const isCurrentGame = (eventId: string) => {
+        return eventId === game.value.slug || (game.value._id && eventId === game.value._id);
+    }
+
     tauriAPI.onInstallProgress((data: any) => {
-        if (data.gameId === game.value.slug) {
-            installingGameId.value = data.gameId
+        if (isCurrentGame(data.gameId)) {
+            installingGameId.value = game.value.slug // Keep using slug for local state consistency
             isInstalling.value = true
             installProgress.value = {
                 progress: data.progress,
@@ -93,7 +98,7 @@ const setupInstallListeners = () => {
     })
 
     tauriAPI.onInstallComplete((data: any) => {
-        if (data.gameId === game.value.slug) {
+        if (isCurrentGame(data.gameId)) {
             isInstalling.value = false
             installingGameId.value = null
             isInstalled.value = true
@@ -117,7 +122,7 @@ const setupInstallListeners = () => {
     })
 
     tauriAPI.onInstallError((data: any) => {
-        if (data.gameId === game.value.slug) {
+        if (isCurrentGame(data.gameId)) {
             isInstalling.value = false
             installingGameId.value = null
             installingGameId.value = null
@@ -173,8 +178,8 @@ const installGame = async () => {
 }
 
 const launchGame = async () => {
-    // Use detected path if available
-    await launcherLaunch(game.value.slug, detectedInstallPath.value || undefined);
+    // Use detected path if available, and pass real ID for stats
+    await launcherLaunch(game.value.slug, detectedInstallPath.value || undefined, game.value._id);
 }
 
 const purchaseGame = async () => {

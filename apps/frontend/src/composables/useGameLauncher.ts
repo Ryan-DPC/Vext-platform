@@ -21,7 +21,7 @@ export function useGameLauncher() {
    * Launch a game given its folder name (slug).
    * Automatically handles User Data, Tokens, Friends List, and Stats.
    */
-  const launchGame = async (folderName: string, specificPath?: string) => {
+  const launchGame = async (folderName: string, specificPath?: string, gameId?: string) => {
     if (!(window as any).__TAURI__) {
       console.warn('Launch requested in non-Tauri environment');
       return;
@@ -61,17 +61,22 @@ export function useGameLauncher() {
 
       const userData = { user: plainUser, token: token, friends: plainFriends };
 
-      // Find game ID for stats (optional but recommended)
-      // We might need to look it up from gameStore if we only have folderName
-      // or pass it as an arg. For now, let's try to look it up if gameStore has it loaded.
-      const gameStore = useGameStore();
-      const game = gameStore.myGames.find(
-        (g: any) => g.folder_name === folderName || g.slug === folderName
-      );
-      const gameId = game ? game._id || game.id : folderName; // Fallback to folderName if not found
-
       // 1. Start Session (Backend)
-      await statsService.startSession(gameId);
+      // Use provided gameId if available, otherwise try to lookup, finally fallback to folderName
+      let statsGameId = gameId;
+
+      if (!statsGameId) {
+        const gameStore = useGameStore();
+        const game = gameStore.myGames.find(
+          (g: any) => g.folder_name === folderName || g.slug === folderName
+        );
+        statsGameId = game ? (game._id || game.id) : folderName;
+      }
+
+      // Ensure we have a string
+      if (statsGameId) {
+        await statsService.startSession(statsGameId);
+      }
 
       // 2. Launch (Tauri)
       await tauriAPI.launchGame(installPath, folderName, userData);
