@@ -30,6 +30,18 @@ import { handleAetherStrikeMessage, handleAetherStrikeDisconnect } from './featu
 import { FriendsService } from './features/friends/friends.service';
 import { jwt } from '@elysiajs/jwt';
 
+// WebSocket Data Interface
+interface WebSocketData {
+  userId?: string;
+  username?: string;
+  authenticated?: boolean;
+  stickArenaRoomId?: string;
+  aetherGameId?: string;
+  query?: {
+    token?: string;
+  };
+}
+
 // Connect Database
 await connectDB();
 
@@ -97,8 +109,9 @@ const app = new Elysia()
   .use(installationRoutes)
 
   // WebSocket Handler
+  // @ts-ignore - Elysia WebSocket ts.data dynamic properties
   .ws('/ws', {
-    async open(ws) {
+    async open(ws: any) {
       logger.info('[WebSocket] New connection opened');
 
       // Try to authenticate from query parameter
@@ -132,7 +145,7 @@ const app = new Elysia()
       }
     },
 
-    async message(ws, message) {
+    async message(ws: any, message: any) {
       try {
         // Parse message
         let parsed: any;
@@ -264,7 +277,7 @@ const app = new Elysia()
       }
     },
 
-    close(ws) {
+    close(ws: any) {
       logger.info(`[WebSocket] Connection closed for user: ${ws.data.username || 'anonymous'}`);
 
       // Clean up Stick Arena if needed
