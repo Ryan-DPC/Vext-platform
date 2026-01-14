@@ -272,38 +272,40 @@ async fn main() {
                         // Solo mode setup
                         is_solo_mode = true;
                         
-                        // Create Mock Teammates
+                        // Create Mock Teammates (Better Spacing)
                         _teammates.clear();
-                        // 1. DarkKnight (Back Top)
-                        let mut t1 = StickFigure::new(vec2(180.0, 400.0));
-                        t1.color = Color::from_rgba(200, 50, 50, 255); // Warrior red
+                        // 1. DarkKnight (Top Front)
+                        let mut t1 = StickFigure::new(vec2(220.0, 350.0));
+                        t1.color = Color::from_rgba(200, 50, 50, 255); 
                         _teammates.push(t1);
-                        // 2. Elara (Back Middle/Far)
-                        let mut t2 = StickFigure::new(vec2(120.0, 450.0));
-                        t2.color = Color::from_rgba(50, 100, 200, 255); // Mage blue
+                        // 2. Elara (Back Middle) - Behind Player
+                        let mut t2 = StickFigure::new(vec2(150.0, 450.0));
+                        t2.color = Color::from_rgba(50, 100, 200, 255); 
                         _teammates.push(t2);
-                        // 3. SwiftArrow (Back Bottom)
-                        let mut t3 = StickFigure::new(vec2(180.0, 500.0));
-                        t3.color = Color::from_rgba(50, 200, 100, 255); // Archer green
+                        // 3. SwiftArrow (Bottom Front)
+                        let mut t3 = StickFigure::new(vec2(220.0, 550.0));
+                        t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
-                        // Create Mock Enemies
+                        // Create Mock Enemies (Better Spacing)
                         _enemies.clear();
-                        // 1. Shadow Minion
-                        _enemies.push(Enemy::new(vec2(1050.0, 400.0)));
-                        // 2. Dark Spirit
-                        _enemies.push(Enemy::new(vec2(1100.0, 450.0)));
-                        // 3. Void Crawler
-                        _enemies.push(Enemy::new(vec2(1050.0, 500.0)));
+                        // 1. Shadow Minion (Top)
+                        _enemies.push(Enemy::new(vec2(900.0, 350.0)));
+                        // 2. Dark Spirit (Middle Front)
+                        _enemies.push(Enemy::new(vec2(850.0, 450.0)));
+                        // 3. Void Crawler (Bottom)
+                        _enemies.push(Enemy::new(vec2(900.0, 550.0)));
+                        
                         is_player_turn = true;
                         enemy_hp = 500.0;
                         enemy_max_hp = 500.0;
                         
                         // Initialize boss with some threat to teammate (Tanking simulation)
                         if let Some(e) = &mut _enemy {
+                            e.position = vec2(1050.0, 450.0); // Boss centered
                             e.max_health = 500.0;
                             e.health = 500.0;
-                            e.add_threat("teammate_0", 40.0); // Warrior mocked threat
+                            e.add_threat("teammate_0", 40.0); 
                             e.add_threat("player", 0.0);
                         }
                         combat_logs.clear();
@@ -827,10 +829,26 @@ async fn main() {
                 
                 // Dessiner les entités
                 
-                // Draw Teammates (Smaller)
-                for teammate in &mut _teammates {
-                     // Draw smaller (0.8 scale)
-                     teammate.draw(Some(&assets.sprite_sheet), Some(assets.get_warrior_rect(0))); // Default sprite for now or vary based on mock class
+                // Draw Teammates (With correct class sprites)
+                for (i, teammate) in _teammates.iter_mut().enumerate() {
+                     let rect = match i {
+                         1 => assets.get_mage_rect(0),   // Elara (Mage)
+                         2 => assets.get_archer_rect(0), // SwiftArrow (Archer)
+                         _ => assets.get_warrior_rect(0), // DarkKnight (Warrior)
+                     };
+                     
+                     // Draw centered
+                     draw_texture_ex(
+                        &assets.sprite_sheet,
+                        teammate.position.x - 50.0,
+                        teammate.position.y - 50.0,
+                        WHITE,
+                        DrawTextureParams {
+                            source: Some(rect),
+                            dest_size: Some(vec2(100.0, 100.0)),
+                            ..Default::default()
+                        }
+                     );
                 }
 
                 if let Some(player) = &mut _player {

@@ -199,6 +199,8 @@ impl HUD {
             // Vertical bar removed as per feedback:
             // draw_rectangle(padding - 5.0, y - 5.0, 4.0, height, class_color);
             
+            // Adjusted Y positions to fit inside background better
+            
             // Name
             let name_color = if member.is_player { GOLD } else { WHITE };
             let display_name = if member.is_player { 
@@ -206,15 +208,15 @@ impl HUD {
             } else { 
                 member.name.clone() 
             };
-            draw_text(&display_name, padding + 5.0, y + 14.0, font_size_name, name_color);
+            draw_text(&display_name, padding + 5.0, y + 10.0, font_size_name, name_color); // Moved up (was +14.0)
             
             // Class text
-            draw_text(&member.class, padding + 5.0, y + 14.0 + font_size_name, font_size_small, class_color);
+            draw_text(&member.class, padding + 5.0, y + 10.0 + font_size_name, font_size_small, class_color); // Moved up
             
             // HP Bar
             let hp_bar_w = team_panel_w - padding * 2.0 - 10.0;
             let hp_percent = (member.hp / member.max_hp).clamp(0.0, 1.0);
-            let hp_bar_y = y + 18.0 + font_size_name + 4.0;
+            let hp_bar_y = y + 12.0 + font_size_name + 4.0; // Moved up (was +18.0)
             let hp_bar_h = if member.is_player { 12.0 } else { 8.0 };
             
             draw_rectangle(padding + 5.0, hp_bar_y, hp_bar_w, hp_bar_h, Color::from_rgba(40, 15, 15, 255));
