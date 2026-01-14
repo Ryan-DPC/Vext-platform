@@ -73,7 +73,19 @@ jobs:
           
           # Copier les assets
           if (Test-Path "assets") {
-              Copy-Item -Path "assets" -Destination "dist/assets" -Recurse
+              New-Item -ItemType Directory -Force -Path "dist/assets"
+              Copy-Item -Path "assets/*" -Destination "dist/assets" -Recurse
+              
+              # Vérification critique
+              if (-not (Test-Path "dist/assets/characters.png")) {
+                  Write-Error "❌ Critical: characters.png not found in dist/assets after copy!"
+                  exit 1
+              } else {
+                  echo "✅ Assets copied and verified."
+              }
+          } else {
+               Write-Error "❌ Critical: Source assets folder not found!"
+               exit 1
           }
           
           # Créer le fichier de métadonnées pour VEXT
