@@ -145,7 +145,15 @@ fn ws_thread_loop(
     tx_events: Sender<GameEvent>,
 ) -> Result<(), String> {
     // Connexion WebSocket
-    let url_parsed = Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
+    // Connexion WebSocket
+    // Remove /api suffix if present to avoid 400 Bad Request
+    let clean_url = if url.ends_with("/api") {
+        url.replace("/api", "")
+    } else {
+        url
+    };
+
+    let url_parsed = Url::parse(&clean_url).map_err(|e| format!("Invalid URL: {}", e))?;
     let (mut socket, _response) = connect(url_parsed)
         .map_err(|e| format!("Connection failed: {}", e))?;
 
