@@ -26,7 +26,7 @@ pub fn get_ws_url() -> String {
              return format!("{}://{}/ws", ws_protocol, base);
         }
     }
-    "ws://vext-backend.onrender.com/ws".to_string()
+    "wss://vext-backend.onrender.com/ws".to_string()
 }
 
 // Auto-detect local IP (LAN)
