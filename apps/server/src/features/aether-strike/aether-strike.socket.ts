@@ -121,7 +121,38 @@ class AetherStrikeManager {
       return;
     }
 
-    // 4. PLAYER INPUT (Movement/Action)
+    // 4. CHANGE CLASS (Lobby)
+    if (type === 'aether-strike:change-class') {
+      const lobby = this.findLobbyBySocket(ws);
+      if (lobby) {
+        const player = lobby.players.get(ws.id);
+        if (player) {
+          player.class = payload.newClass;
+
+          // Broadcast update
+          ws.publish(
+            `aether-strike:${lobby.id}`,
+            JSON.stringify({
+              type: 'aether-strike:player-updated',
+              data: {
+                playerId: player.userId,
+                username: player.username,
+                class: player.class,
+                position: player.position,
+              },
+            })
+          );
+          // Send back to sender too just in case or rely on local state?
+          // Actually backend broadcast usually goes to everyone subscribed (including sender) if using pub/sub correctly?
+          // Render/Bun WebSocket publish typically sends to all subscribers of the topic EXCEPT sender sometimes initiated by publish?
+          // Let's use broadcastGameState for simplicity to ensure sync? Or specific event.
+          // Let's stick to specific event `player-updated`.
+        }
+      }
+      return;
+    }
+
+    // 5. PLAYER INPUT (Movement/Action)
     if (type === 'aether-strike:player-input') {
       const lobby = this.findLobbyBySocket(ws);
       if (lobby) {

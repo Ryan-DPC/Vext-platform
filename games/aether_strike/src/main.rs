@@ -513,15 +513,22 @@ async fn main() {
                                 last_network_log = msg;
                                 other_players.remove(&player_id);
                             }
+                            GameEvent::PlayerUpdated { player_id, class } => {
+                                let msg = format!("Player {} changed class to {}", player_id.chars().take(4).collect::<String>(), class);
+                                println!("✏️ {}", msg);
+                                last_network_log = msg;
+                                if let Some(player) = other_players.get_mut(&player_id) {
+                                    player.class = class;
+                                }
+                            }
                             GameEvent::GameStarted => {
+                                // ... existing GameStarted logic ...
                                 let msg = "Game start received! Launching...".to_string();
                                 println!("🚀 {}", msg);
                                 last_network_log = msg;
                                 
                                 // --- INITIALIZE GAME STATE FOR MULTIPLAYER ---
-                                // If we came straight to Online, these might be None.
                                 let p_class = selected_class.unwrap_or(PlayerClass::Warrior);
-                                // Ensure we set selected_class if it was None, for HUD drawing
                                 selected_class = Some(p_class);
                                 
                                 _game_state = Some(GameState::new(p_class));
@@ -537,6 +544,7 @@ async fn main() {
 
                                 current_screen = GameScreen::InGame;
                             }
+                            // ... existing cases ...
                             GameEvent::NewHost { host_id } => {
                                 let msg = format!("New host: {}", host_id);
                                 println!("👑 {}", msg);
@@ -567,13 +575,14 @@ async fn main() {
                 draw_text(&format!("PLAYERS ({}/4)", player_count), 70.0, 140.0, 30.0, GOLD);
                 
                 // Player 1 (You)
-                draw_text(&format!("1. {} (You)", player_profile.vext_username), 70.0, 190.0, 24.0, GREEN);
+                let my_class_name = selected_class.unwrap_or(PlayerClass::Warrior).name();
+                draw_text(&format!("1. {} [{}] (You)", player_profile.vext_username, my_class_name), 70.0, 190.0, 24.0, GREEN);
                 
-                // Other players (dynamically from relay)
+                // Other players
                 let mut y = 230.0;
                 let mut i = 2;
                 for player in other_players.values() {
-                    draw_text(&format!("{}. {}", i, player.username), 70.0, y, 24.0, WHITE);
+                    draw_text(&format!("{}. {} [{}]", i, player.username, player.class), 70.0, y, 24.0, WHITE);
                     y += 40.0;
                     i += 1;
                 }
@@ -584,8 +593,39 @@ async fn main() {
                     y += 40.0;
                 }
 
-                // Start Button (Only for Host)
+                // --- CLASS SELECTION UI (Burger/Buttons) ---
+                draw_text("CHOOSE CLASS:", 500.0, 140.0, 30.0, WHITE);
+                
+                let classes = vec![PlayerClass::Warrior, PlayerClass::Mage, PlayerClass::Archer];
+                for (idx, cls) in classes.iter().enumerate() {
+                    let btn_x = 500.0;
+                    let btn_y = 180.0 + idx as f32 * 60.0;
+                    let btn_w = 200.0;
+                    let btn_h = 50.0;
+                    
+                    let is_selected = selected_class.unwrap_or(PlayerClass::Warrior) == *cls;
+                    let color = if is_selected { cls.color() } else { DARKGRAY };
+                    
+                    let is_hovered = mouse_pos.x >= btn_x && mouse_pos.x <= btn_x + btn_w && mouse_pos.y >= btn_y && mouse_pos.y <= btn_y + btn_h;
+                    
+                    if is_hovered {
+                        draw_rectangle(btn_x - 2.0, btn_y - 2.0, btn_w + 4.0, btn_h + 4.0, WHITE);
+                    }
+                    draw_rectangle(btn_x, btn_y, btn_w, btn_h, color);
+                    draw_text(cls.name(), btn_x + 20.0, btn_y + 35.0, 24.0, WHITE);
+                    
+                    if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
+                        selected_class = Some(*cls);
+                        // Send update to server
+                        if let Some(client) = &game_client {
+                            client.send_class_change(cls.name().to_lowercase());
+                        }
+                    }
+                }
+
+                // Start Button (Host Only)
                 if is_host {
+                    // ... existing start button logic ...
                     let start_btn_rect = Rect::new(SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 150.0, 300.0, 80.0);
                     let is_hovered = start_btn_rect.contains(mouse_pos);
                     let btn_color = if is_hovered { GREEN } else { DARKGREEN };
@@ -597,12 +637,15 @@ async fn main() {
                          if let Some(client) = &game_client {
                              client.start_game();
                          }
-                         current_screen = GameScreen::InGame;
+                         // Initialize our own state immediately as well or wait for event?
+                         // Wait for event to be safe and consistent with clients
+                         // current_screen = GameScreen::InGame; 
                     }
                 } else {
-                    // Client view
                     draw_text("WAITING FOR HOST TO START...", SCREEN_WIDTH - 450.0, SCREEN_HEIGHT - 100.0, 24.0, LIGHTGRAY);
                 }
+                
+                // ... debug log ...
 
                 // Debug Network Log
                 draw_text(&format!("Last Event: {}", last_network_log), 50.0, SCREEN_HEIGHT - 30.0, 20.0, YELLOW);

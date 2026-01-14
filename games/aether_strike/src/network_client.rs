@@ -39,9 +39,11 @@ pub struct RemotePlayer {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum GameEvent {
     PlayerJoined { player_id: String, username: String, class: String },
     PlayerLeft { player_id: String },
+    PlayerUpdated { player_id: String, class: String }, // New event
     PlayerUpdate(PlayerUpdate),
     GameState { players: Vec<RemotePlayer>, host_id: String },
     GameStarted,
@@ -61,9 +63,46 @@ pub struct GameClient {
 enum WsCommand {
     SendInput { position: (f32, f32), velocity: (f32, f32), action: String },
     SendAttack { target_pos: (f32, f32) },
+    ChangeClass { new_class: String }, // New command
     StartGame,
     Disconnect,
 }
+
+impl GameClient {
+// ... existing connect ...
+
+    /// Envoie la position et l'action du joueur local
+    pub fn send_input(&self, position: (f32, f32), velocity: (f32, f32), action: String) {
+        let _ = self.tx_to_ws.send(WsCommand::SendInput { position, velocity, action });
+    }
+
+    /// Change la classe du joueur
+    pub fn send_class_change(&self, new_class: String) {
+        let _ = self.tx_to_ws.send(WsCommand::ChangeClass { new_class });
+    }
+// ... existing methods ...
+}
+
+// ... in ws_thread_loop ...
+// ... in match cmd ...
+                WsCommand::ChangeClass { new_class } => {
+                    let msg = serde_json::json!({
+                        "type": "aether-strike:change-class",
+                        "data": {
+                            "newClass": new_class
+                        }
+                    });
+                    let _ = socket.send(Message::Text(msg.to_string()));
+                }
+// ...
+
+// ... in match event_type ...
+                                    "aether-strike:player-updated" => {
+                                        Some(GameEvent::PlayerUpdated {
+                                            player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                            class: data["class"].as_str().unwrap_or("warrior").to_string(),
+                                        })
+                                    }
 
 impl GameClient {
     /// Crée une connexion au serveur relay
@@ -112,6 +151,11 @@ impl GameClient {
     /// Envoie une attaque
     pub fn send_attack(&self, target_pos: (f32, f32)) {
         let _ = self.tx_to_ws.send(WsCommand::SendAttack { target_pos });
+    }
+
+    /// Change la classe du joueur
+    pub fn send_class_change(&self, new_class: String) {
+        let _ = self.tx_to_ws.send(WsCommand::ChangeClass { new_class });
     }
 
     /// Démarre la partie (Hôte uniquement)
@@ -255,6 +299,15 @@ fn ws_thread_loop(
                     });
                     let _ = socket.send(Message::Text(msg.to_string()));
                 }
+                WsCommand::ChangeClass { new_class } => {
+                    let msg = serde_json::json!({
+                        "type": "aether-strike:change-class",
+                        "data": {
+                            "newClass": new_class
+                        }
+                    });
+                    let _ = socket.send(Message::Text(msg.to_string()));
+                }
                 WsCommand::Disconnect => {
                     let leave_msg = serde_json::json!({
                         "type": "aether-strike:leave-game",
@@ -311,6 +364,12 @@ fn ws_thread_loop(
                                     "aether-strike:player-left" => {
                                         Some(GameEvent::PlayerLeft {
                                             player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                        })
+                                    }
+                                    "aether-strike:player-updated" => {
+                                        Some(GameEvent::PlayerUpdated {
+                                            player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                            class: data["class"].as_str().unwrap_or("warrior").to_string(),
                                         })
                                     }
                                     "aether-strike:player-update" => {
