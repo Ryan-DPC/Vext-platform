@@ -99,6 +99,16 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
     toastStore.error(e.message || 'Failed to send request')
   }
 }
+
+const handleRemoveFriend = async (friendId: string, username: string) => {
+  if (!confirm(`Are you sure you want to remove ${username} from friends?`)) return
+  try {
+    await friendsStore.removeFriend(friendId)
+    toastStore.success('Friend removed')
+  } catch (e: any) {
+    toastStore.error(e.message || 'Failed to remove friend')
+  }
+}
 </script>
 
 <template>
@@ -162,6 +172,9 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
               <div class="item-actions">
                 <button class="btn-icon" title="Message"><i class="fas fa-comment-alt"></i></button>
                 <button class="btn-icon" title="Invite"><i class="fas fa-gamepad"></i></button>
+                <button class="btn-icon danger" title="Remove Friend" @click.stop="handleRemoveFriend(friend.id, friend.username)">
+                  <i class="fas fa-user-minus"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -493,6 +506,7 @@ const handleAddFriendFromGroup = async (userId: string, username: string) => {
   cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .btn-icon:hover { background: #ff7eb3; }
+.btn-icon.danger:hover { background: #ff4d4d; color: white; }
 
 /* Requests */
 .avatar-sm { width: 36px; height: 36px; border-radius: 50%; }
