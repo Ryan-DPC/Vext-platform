@@ -58,3 +58,13 @@
 - **Debuffs** : Poison, Etourdissement (Stun), Brûlure, Ralentissement.
 - **Buffs** : Bouclier, Rage (ATK up), Hâte (Vitesse up).
 - **Synergies** : Combinaison d'effets entre classes (ex: Eau + Foudre = Dégâts accrus + Stun).
+
+### Intelligence Artificielle (IA)
+
+- **Gestion Aggro** : Chaque ennemi gère sa propre table de menace de manière indépendante.
+- **Comportement Avancé** :
+  - **PV Bas (<30%)** : L'ennemi doit évaluer la situation :
+    - _Kill Potential_ : Si l'ennemi peut achever un joueur, il attaque au lieu de se soigner.
+    - _Support_ : Si l'ennemi va mourir, il peut choisir de buffer un allié puissant plutôt que de se soigner inutilement.
+    - _Éviter la boucle de soin_ : Ne pas spammer le soin si les dégâts reçus sont supérieurs au soin.
+  - **Esprit d'équipe** : Les ennemis peuvent protéger celui qui est ciblé par les joueurs (Taunt, Bouclier).
