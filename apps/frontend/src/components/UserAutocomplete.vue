@@ -33,7 +33,7 @@ const performSearch = async (query: string) => {
 
   loading.value = true
   try {
-    const response = await axios.get(`/users/search?query=${encodeURIComponent(query)}`)
+    const response = await axios.get(`/users/search?q=${encodeURIComponent(query)}`)
     // Limit to 5 results as requested
     results.value = (response.data.users || []).slice(0, 5)
     showDropdown.value = true
