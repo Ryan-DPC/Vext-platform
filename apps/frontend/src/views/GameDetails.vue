@@ -113,10 +113,19 @@ const installGame = async () => {
     // GameDetails has its own pathSelector ref.
     if (result.reason === 'no_path') {
          if (pathSelector.value) {
-            const selected = await pathSelector.value.show();
-            if (selected) {
+             const selected = await pathSelector.value.show();
+             if (selected) {
+                 // Save this path as default if not set
+                 if (!localStorage.getItem('etherInstallPath')) {
+                     localStorage.setItem('etherInstallPath', selected);
+                     
+                     // Also add to libraries list
+                     const libs = [selected];
+                     localStorage.setItem('vextLibraryPaths', JSON.stringify(libs));
+                 }
+                 
                  await launcherInstall(game.value, selected);
-            }
+             }
          } else {
              alertStore.showAlert({
                 title: 'Configuration requise',
