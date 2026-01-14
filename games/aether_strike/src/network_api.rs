@@ -1,7 +1,19 @@
 use serde::{Deserialize, Serialize};
 use reqwest::blocking::Client;
 
-const API_BASE_URL: &str = "http://localhost:3000/api/lobby/multiplayer";
+use std::fs;
+
+// Default to localhost, but try to read from config file
+pub fn get_api_url() -> String {
+    if let Ok(url) = fs::read_to_string("server_config.txt") {
+        let trimmed = url.trim().to_string();
+        if !trimmed.is_empty() {
+             return format!("{}/api/lobby/multiplayer", trimmed);
+        }
+    }
+    "http://localhost:3000/api/lobby/multiplayer".to_string()
+}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MultiplayerLobby {
@@ -19,9 +31,10 @@ pub struct MultiplayerLobby {
 }
 
 pub fn fetch_server_list() -> Vec<MultiplayerLobby> {
-    println!("Fetching server list from {}...", API_BASE_URL);
+    let api_url = get_api_url();
+    println!("Fetching server list from {}...", api_url);
     let client = Client::new();
-    let res = client.get(format!("{}/list", API_BASE_URL)).send();
+    let res = client.get(format!("{}/list", api_url)).send();
 
     match res {
         Ok(response) => {
@@ -67,7 +80,8 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
     };
 
     println!("Announcing server: {}", name);
-    let res = client.post(format!("{}/announce", API_BASE_URL))
+    let api_url = get_api_url();
+    let res = client.post(format!("{}/announce", api_url))
         .json(&lobby)
         .send();
 
