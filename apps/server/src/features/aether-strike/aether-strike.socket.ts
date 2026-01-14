@@ -10,7 +10,7 @@ const logger = {
 class GameLobby {
   id: string;
   hostId: string;
-  players: Map<string, any> = new Map(); // socketId -> playerData
+  players: Map<any, any> = new Map(); // ws -> playerData
   isStarted: boolean = false;
 
   // Combat State
@@ -47,7 +47,7 @@ class AetherStrikeManager {
       }
 
       // Add host to players
-      lobby.players.set(ws.id, {
+      lobby.players.set(ws, {
         userId,
         username,
         class: playerClass,
@@ -84,7 +84,7 @@ class AetherStrikeManager {
         return;
       }
 
-      lobby.players.set(ws.id, {
+      lobby.players.set(ws, {
         userId,
         username,
         class: playerClass,
@@ -163,9 +163,10 @@ class AetherStrikeManager {
     if (type === 'aether-strike:change-class') {
       const lobby = this.findLobbyBySocket(ws);
       if (lobby) {
-        const player = lobby.players.get(ws.id);
+        const player = lobby.players.get(ws);
         if (player) {
           player.class = payload.newClass;
+          logger.info(`[Aether Strike] Player ${player.username} changed class to ${player.class}`);
 
           // Broadcast update
           const updateMsg = JSON.stringify({
@@ -309,9 +310,9 @@ class AetherStrikeManager {
   handleDisconnect(ws: any) {
     const lobby = this.findLobbyBySocket(ws);
     if (lobby) {
-      const player = lobby.players.get(ws.id);
+      const player = lobby.players.get(ws);
       if (player) {
-        lobby.players.delete(ws.id);
+        lobby.players.delete(ws);
         ws.unsubscribe(`aether-strike:${lobby.id}`);
 
         // Notify others
@@ -334,7 +335,7 @@ class AetherStrikeManager {
 
   findLobbyBySocket(socket: any): GameLobby | undefined {
     for (const lobby of this.lobbies.values()) {
-      if (lobby.players.has(socket.id)) return lobby;
+      if (lobby.players.has(socket)) return lobby;
     }
     return undefined;
   }

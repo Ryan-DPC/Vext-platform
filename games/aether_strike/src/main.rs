@@ -489,12 +489,16 @@ async fn main() {
                     for event in client.poll_updates() {
                         match event {
                             GameEvent::GameState { players, host_id } => {
-                                let msg = format!("Syncing state: {} players", players.len());
+                                let msg = format!("Sync ({} players)", players.len());
                                 println!("📋 {}", msg);
                                 last_network_log = msg;
                                 other_players.clear();
-                                for p in players {
+                                for mut p in players {
                                     if p.username != player_profile.vext_username {
+                                        // Normalize class for display
+                                        if let Some(cls) = PlayerClass::from_name(&p.class) {
+                                            p.class = cls.name().to_string();
+                                        }
                                         other_players.insert(p.userId.clone(), p);
                                     } else {
                                         // Sync our own local selected_class with server record
@@ -506,14 +510,18 @@ async fn main() {
                                 _lobby_host_id = host_id;
                             }
                             GameEvent::PlayerJoined { player_id, username, class } => {
-                                let msg = format!("{} joined!", username);
+                                let msg = format!("{} joined! ({})", username, &player_id[..4]);
                                 println!("👋 {}", msg);
                                 last_network_log = msg;
                                 if username != player_profile.vext_username {
+                                    let mut display_class = class.clone();
+                                    if let Some(cls) = PlayerClass::from_name(&class) {
+                                        display_class = cls.name().to_string();
+                                    }
                                     other_players.insert(player_id.clone(), network_client::RemotePlayer {
                                         userId: player_id,
                                         username: username,
-                                        class: class,
+                                        class: display_class,
                                         position: (400.0, 300.0),
                                     });
                                 }
@@ -525,12 +533,16 @@ async fn main() {
                                 other_players.remove(&player_id);
                             }
                             GameEvent::PlayerUpdated { player_id, class } => {
-                                let msg = format!("Player update: {} to {}", player_id.chars().take(4).collect::<String>(), class);
+                                let mut display_class = class.clone();
+                                if let Some(cls) = PlayerClass::from_name(&class) {
+                                    display_class = cls.name().to_string();
+                                }
+                                let msg = format!("Update: {} -> {}", &player_id[..4], display_class);
                                 println!("✏️ {}", msg);
                                 last_network_log = msg;
                                 // If it's another player, update them
                                 if let Some(player) = other_players.get_mut(&player_id) {
-                                    player.class = class;
+                                    player.class = display_class;
                                 }
                             }
                             GameEvent::GameStarted => {
@@ -710,8 +722,13 @@ async fn main() {
                                 }
                             }
                             GameEvent::GameState { players, .. } => {
-                                for p in players {
+                                // Full sync in game too
+                                other_players.clear();
+                                for mut p in players {
                                     if p.username != player_profile.vext_username {
+                                        if let Some(cls) = PlayerClass::from_name(&p.class) {
+                                            p.class = cls.name().to_string();
+                                        }
                                         other_players.insert(p.userId.clone(), p);
                                     }
                                 }
