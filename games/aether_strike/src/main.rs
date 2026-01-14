@@ -608,7 +608,7 @@ async fn main() {
 
                     // Envoyer notre position (mock movement for now)
                     if let Some(player) = &_player {
-                        client.send_input((player.pos.x, player.pos.y), (0.0, 0.0), "idle".to_string());
+                        client.send_input((player.position.x, player.position.y), (0.0, 0.0), "idle".to_string());
                     }
                 }
                 
