@@ -11,7 +11,7 @@ pub fn get_api_url() -> String {
              return format!("{}/api/lobby/multiplayer", trimmed);
         }
     }
-    "http://localhost:3000/api/lobby/multiplayer".to_string()
+    "https://vext-backend.onrender.com/api/lobby/multiplayer".to_string()
 }
 
 
