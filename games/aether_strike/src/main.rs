@@ -549,6 +549,7 @@ async fn main() {
                 }
                 
                 // Empty slots
+                for j in i..=4 {
                     draw_text(&format!("{}. Waiting...", j), 70.0, y, 24.0, DARKGRAY);
                     y += 40.0;
                 }
