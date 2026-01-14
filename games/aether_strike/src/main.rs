@@ -140,6 +140,7 @@ async fn main() {
     let mut _game_state: Option<GameState> = None;
     let mut _player: Option<StickFigure> = None;
     let mut _enemy: Option<Enemy> = None;
+    let mut last_network_log = String::from("Ready");
 
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
@@ -483,7 +484,9 @@ async fn main() {
                     for event in client.poll_updates() {
                         match event {
                             GameEvent::GameState { players, host_id } => {
-                                println!("📋 Received game state: {} players", players.len());
+                                let msg = format!("Received game state: {} players", players.len());
+                                println!("📋 {}", msg);
+                                last_network_log = msg;
                                 other_players.clear();
                                 for p in players {
                                     if p.username != player_profile.vext_username {
@@ -491,13 +494,11 @@ async fn main() {
                                     }
                                 }
                                 lobby_host_id = host_id;
-                                // On peut vérifier si on est devenu host (ex: si host_id == notre ID)
-                                // Mais pour l'instant on garde le flag is_host local
                             }
                             GameEvent::PlayerJoined { player_id, username } => {
-                                println!("👋 {} joined!", username);
-                                // On l'ajoutera vraiment lors du premier update de position ou via un GameState refresh
-                                // Pour l'instant on mock une position pour l'afficher dans la liste
+                                let msg = format!("{} joined!", username);
+                                println!("👋 {}", msg);
+                                last_network_log = msg;
                                 other_players.insert(player_id.clone(), network_client::RemotePlayer {
                                     userId: player_id,
                                     username: username,
@@ -506,16 +507,26 @@ async fn main() {
                                 });
                             }
                             GameEvent::PlayerLeft { player_id } => {
-                                println!("👋 Player {} left", &player_id[..6]);
+                                let msg = format!("Player {} left", &player_id[..6]);
+                                println!("👋 {}", msg);
+                                last_network_log = msg;
                                 other_players.remove(&player_id);
                             }
                             GameEvent::GameStarted => {
-                                println!("🚀 Game starting!");
+                                let msg = "Game start received! Launching...".to_string();
+                                println!("🚀 {}", msg);
+                                last_network_log = msg;
                                 current_screen = GameScreen::InGame;
                             }
                             GameEvent::NewHost { host_id } => {
-                                println!("👑 New host: {}", host_id);
+                                let msg = format!("New host: {}", host_id);
+                                println!("👑 {}", msg);
+                                last_network_log = msg;
                                 lobby_host_id = host_id;
+                            }
+                            GameEvent::Error(e) => {
+                                last_network_log = format!("Error: {}", e);
+                                println!("❌ {}", last_network_log);
                             }
                             GameEvent::PlayerUpdate(update) => {
                                 if let Some(pos) = update.position {
@@ -524,7 +535,6 @@ async fn main() {
                                     }
                                 }
                             }
-                            _ => {}
                         }
                     }
                 }
@@ -575,6 +585,9 @@ async fn main() {
                     draw_text("WAITING FOR HOST TO START...", SCREEN_WIDTH - 450.0, SCREEN_HEIGHT - 100.0, 24.0, LIGHTGRAY);
                 }
 
+                // Debug Network Log
+                draw_text(&format!("Last Event: {}", last_network_log), 50.0, SCREEN_HEIGHT - 30.0, 20.0, YELLOW);
+
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::SessionList;
                     // Disconnect relay
@@ -583,6 +596,7 @@ async fn main() {
                     }
                     game_client = None;
                     other_players.clear();
+                    last_network_log = "Disconnected".to_string();
                 }
             }
 

@@ -110,10 +110,13 @@ class AetherStrikeManager {
         lobby.isStarted = true;
         logger.info(`[Aether Strike] Game started: ${lobby.id}`);
 
-        // Broadcast start
+        // Broadcast start manually to ensure everyone gets it
         const msg = JSON.stringify({ type: 'aether-strike:game-started', data: {} });
-        ws.publish(`aether-strike:${lobby.id}`, msg);
-        ws.send(msg);
+
+        for (const p of lobby.players.values()) {
+          p.socket.send(msg);
+        }
+        logger.info(`[Aether Strike] Broadcasted start-game to ${lobby.players.size} players`);
       }
       return;
     }
