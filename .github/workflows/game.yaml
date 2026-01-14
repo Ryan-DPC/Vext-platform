@@ -72,9 +72,10 @@ jobs:
           Copy-Item "target/release/${{ env.GAME_NAME }}.exe" -Destination "dist/"
           
           # Créer le fichier de métadonnées pour VEXT
+          $short_sha = "${{ github.sha }}".Substring(0, 7)
           $metadata = @{
             name = "Aether Strike"
-            version = "0.1.0"
+            version = "0.1.0-$short_sha"
             executable = "${{ env.GAME_NAME }}.exe"
             description = "RPG Stick War - Turn-based combat game"
             author = "Ether Platform"
