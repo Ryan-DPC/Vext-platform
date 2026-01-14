@@ -17,6 +17,15 @@ impl PlayerClass {
         }
     }
 
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name.to_lowercase().as_str() {
+            "warrior" => Some(PlayerClass::Warrior),
+            "mage" => Some(PlayerClass::Mage),
+            "archer" => Some(PlayerClass::Archer),
+            _ => None,
+        }
+    }
+
     pub fn base_hp(&self) -> f32 {
         match self {
             PlayerClass::Warrior => 150.0,

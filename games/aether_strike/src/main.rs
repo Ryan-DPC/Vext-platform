@@ -294,7 +294,7 @@ async fn main() {
                                 &ws_url,
                                 &vext_token,
                                 lobby_id.clone(),
-                                selected_class.unwrap_or(PlayerClass::Warrior).name().to_string(),
+                                selected_class.unwrap_or(PlayerClass::Warrior).name().to_lowercase(),
                                 false // is_host = false
                             ) {
                                 Ok(client) => {
@@ -412,7 +412,7 @@ async fn main() {
                             &ws_url,
                             &vext_token,
                             lobby_id.clone(),
-                            selected_class.unwrap_or(PlayerClass::Warrior).name().to_string(),
+                            selected_class.unwrap_or(PlayerClass::Warrior).name().to_lowercase(),
                             true // is_host = true
                         ) {
                             Ok(client) => {
@@ -485,13 +485,18 @@ async fn main() {
                     for event in client.poll_updates() {
                         match event {
                             GameEvent::GameState { players, host_id } => {
-                                let msg = format!("Received game state: {} players", players.len());
+                                let msg = format!("Syncing state: {} players", players.len());
                                 println!("📋 {}", msg);
                                 last_network_log = msg;
                                 other_players.clear();
                                 for p in players {
                                     if p.username != player_profile.vext_username {
                                         other_players.insert(p.userId.clone(), p);
+                                    } else {
+                                        // Sync our own local selected_class with server record
+                                        if let Some(cls) = PlayerClass::from_name(&p.class) {
+                                            selected_class = Some(cls);
+                                        }
                                     }
                                 }
                                 _lobby_host_id = host_id;
@@ -500,12 +505,14 @@ async fn main() {
                                 let msg = format!("{} joined!", username);
                                 println!("👋 {}", msg);
                                 last_network_log = msg;
-                                other_players.insert(player_id.clone(), network_client::RemotePlayer {
-                                    userId: player_id,
-                                    username: username,
-                                    class: class,
-                                    position: (400.0, 300.0),
-                                });
+                                if username != player_profile.vext_username {
+                                    other_players.insert(player_id.clone(), network_client::RemotePlayer {
+                                        userId: player_id,
+                                        username: username,
+                                        class: class,
+                                        position: (400.0, 300.0),
+                                    });
+                                }
                             }
                             GameEvent::PlayerLeft { player_id } => {
                                 let msg = format!("Player {} left", &player_id[..6]);
@@ -514,9 +521,10 @@ async fn main() {
                                 other_players.remove(&player_id);
                             }
                             GameEvent::PlayerUpdated { player_id, class } => {
-                                let msg = format!("Player {} changed class to {}", player_id.chars().take(4).collect::<String>(), class);
+                                let msg = format!("Player update: {} to {}", player_id.chars().take(4).collect::<String>(), class);
                                 println!("✏️ {}", msg);
                                 last_network_log = msg;
+                                // If it's another player, update them
                                 if let Some(player) = other_players.get_mut(&player_id) {
                                     player.class = class;
                                 }

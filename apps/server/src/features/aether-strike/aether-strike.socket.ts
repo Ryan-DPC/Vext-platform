@@ -89,14 +89,15 @@ class AetherStrikeManager {
       ws.subscribe(`aether-strike:${gameId}`);
       logger.info(`[Aether Strike] ${username} joined ${gameId}`);
 
-      // Notify others
-      ws.publish(
-        `aether-strike:${gameId}`,
-        JSON.stringify({
-          type: 'aether-strike:player-joined',
-          data: { playerId: userId, username, class: playerClass },
-        })
-      );
+      // Notify others (Manual loop for reliability)
+      const joinMsg = JSON.stringify({
+        type: 'aether-strike:player-joined',
+        data: { playerId: userId, username, class: playerClass },
+      });
+
+      for (const p of lobby.players.values()) {
+        p.socket.send(joinMsg);
+      }
 
       this.broadcastGameState(lobby);
       return;
@@ -196,11 +197,14 @@ class AetherStrikeManager {
         ws.unsubscribe(`aether-strike:${lobby.id}`);
 
         // Notify others
-        const msg = JSON.stringify({
+        const leftMsg = JSON.stringify({
           type: 'aether-strike:player-left',
           data: { playerId: player.userId },
         });
-        ws.publish(`aether-strike:${lobby.id}`, msg);
+
+        for (const p of lobby.players.values()) {
+          p.socket.send(leftMsg);
+        }
 
         // Clean up if empty
         if (lobby.players.size === 0) {
