@@ -8,10 +8,10 @@ services:
     env: node
     plan: free # Change to starter/standard for production
     rootDir: . # Root context for Monorepo
-    # Build: Install all dependencies, then build backend
-    buildCommand: bun install && cd apps/backend && bun run build
-    # Start: Run the compiled JS code
-    startCommand: cd apps/backend && bun run start
+    # Build: Use npm for native modules stability, manually install bun for Elysia
+    buildCommand: npm install && (curl -fsSL https://bun.sh/install | bash) && cd apps/backend && ~/.bun/bin/bun run build
+    # Start: Run with the manually installed bun
+    startCommand: cd apps/backend && ~/.bun/bin/bun run start
     envVars:
       - key: NODE_ENV
         value: production
@@ -40,8 +40,8 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: bun install
-    startCommand: cd apps/server && bun run src/index.ts
+    buildCommand: npm install && (curl -fsSL https://bun.sh/install | bash)
+    startCommand: cd apps/server && ~/.bun/bin/bun run src/index.ts
     envVars:
       - key: NODE_ENV
         value: production
@@ -63,8 +63,8 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: bun install
-    startCommand: cd apps/game-server && bun run src/index.ts
+    buildCommand: npm install && (curl -fsSL https://bun.sh/install | bash)
+    startCommand: cd apps/game-server && ~/.bun/bin/bun run src/index.ts
     envVars:
       - key: NODE_ENV
         value: production
