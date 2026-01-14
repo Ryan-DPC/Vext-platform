@@ -26,6 +26,7 @@ import { installationRoutes } from './features/installation/installation.routes'
 import { setWebSocketServer } from './services/websocket.service';
 import { logger } from './utils/logger';
 import { handleStickArenaMessage, handleStickArenaDisconnect } from './features/stick-arena/stick-arena.socket';
+import { handleAetherStrikeMessage, handleAetherStrikeDisconnect } from './features/aether-strike/aether-strike.socket';
 import { FriendsService } from './features/friends/friends.service';
 import { jwt } from '@elysiajs/jwt';
 
@@ -249,6 +250,12 @@ const app = new Elysia()
           return;
         }
 
+        // Handle Aether Strike messages
+        if (type?.startsWith('aether-strike:')) {
+          await handleAetherStrikeMessage(ws, type, data);
+          return;
+        }
+
         // Handle other message types...
         logger.warn(`[WebSocket] Unhandled message type: ${type}`);
 
@@ -263,6 +270,11 @@ const app = new Elysia()
       // Clean up Stick Arena if needed
       if (ws.data.stickArenaRoomId) {
         handleStickArenaDisconnect(ws);
+      }
+
+      // Clean up Aether Strike if needed
+      if (ws.data.aetherGameId) {
+        handleAetherStrikeDisconnect(ws);
       }
     }
   })
