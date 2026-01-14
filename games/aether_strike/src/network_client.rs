@@ -19,6 +19,7 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 use tungstenite::{connect, Message};
 use url::Url;
+use tungstenite::client::IntoClientRequest;
 
 // Messages envoyés par le serveur
 #[derive(Debug, Clone, Serialize, Deserialize)]
