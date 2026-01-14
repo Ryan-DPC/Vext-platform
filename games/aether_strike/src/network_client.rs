@@ -154,6 +154,7 @@ fn ws_thread_loop(
     };
 
     let url_parsed = Url::parse(&clean_url).map_err(|e| format!("Invalid URL: {}", e))?;
+    println!("🔌 Attempting to connect to WS: {}", clean_url);
     let (mut socket, _response) = connect(url_parsed)
         .map_err(|e| format!("Connection failed: {}", e))?;
 
