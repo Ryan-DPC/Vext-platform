@@ -30,6 +30,15 @@ const getSocketUrl = () => {
     return '';
   }
 
+  // Strip trailing slash
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1);
+  }
+  // Strip /api if present, as WS is usually root/ws
+  if (baseUrl.endsWith('/api')) {
+    baseUrl = baseUrl.slice(0, -4);
+  }
+
   // Convert http/https to ws/wss
   const wsUrl = baseUrl.replace('http', 'ws');
   return `${wsUrl}/ws`; // Append /ws path defined in backend
