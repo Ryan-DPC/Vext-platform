@@ -114,40 +114,8 @@ async fn main() {
     let mut server_password_active = false;
     
     // Sessions mock (normalement viendraient du serveur)
-    let mut sessions: Vec<SessionButton> = vec![
-        SessionButton::new(
-            GameSession::new("Epic Battle Arena", "MaxGamer42", 4, false, None),
-            20.0, 140.0, SCREEN_WIDTH - 360.0, 60.0,
-        ),
-        SessionButton::new(
-            GameSession {
-                name: "Pro Players Only".to_string(),
-                host: "DragonSlayer".to_string(),
-                current_players: 3,
-                max_players: 4,
-                average_level: 15,
-                ping: 25,
-                is_private: true,
-                password: Some("secret".to_string()),
-                map: "TheNexus".to_string(),
-            },
-            20.0, 210.0, SCREEN_WIDTH - 360.0, 60.0,
-        ),
-        SessionButton::new(
-            GameSession {
-                name: "Chill Farming".to_string(),
-                host: "SwiftArcher".to_string(),
-                current_players: 2,
-                max_players: 6,
-                average_level: 8,
-                ping: 45,
-                is_private: false,
-                password: None,
-                map: "TheNexus".to_string(),
-            },
-            20.0, 280.0, SCREEN_WIDTH - 360.0, 60.0,
-        ),
-    ];
+    // Sessions mock (normalement viendraient du serveur - vide maintenant)
+    let mut sessions: Vec<SessionButton> = Vec::new();
     
     // Dialogue de mot de passe
     let mut show_password_dialog = false;
