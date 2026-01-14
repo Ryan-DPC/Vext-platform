@@ -155,7 +155,15 @@ fn ws_thread_loop(
 
     let url_parsed = Url::parse(&clean_url).map_err(|e| format!("Invalid URL: {}", e))?;
     println!("🔌 Attempting to connect to WS: {}", clean_url);
-    let (mut socket, _response) = connect(url_parsed)
+
+    // Build request with headers to mimic browser/frontend
+    let mut request = url_parsed.into_client_request()
+        .map_err(|e| format!("Failed to build request: {}", e))?;
+    
+    // Some servers/middlewares (like CORS) require Origin header
+    request.headers_mut().insert("Origin", "https://vext-frontend.onrender.com".parse().unwrap());
+    
+    let (mut socket, _response) = connect(request)
         .map_err(|e| format!("Connection failed: {}", e))?;
 
     println!("✅ WebSocket connected");
