@@ -8,12 +8,14 @@ mod class_system;
 mod inventory;
 mod menu_system;
 mod menu_ui;
+mod assets;
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
 use class_system::PlayerClass;
 use menu_system::{GameScreen, PlayerProfile, MenuButton, ClassButton, GameSession, SessionButton};
 use menu_ui::{draw_main_menu, draw_play_menu, draw_character_creation, draw_session_list, draw_create_server, draw_password_dialog};
+use assets::GameAssets;
 
 const SCREEN_WIDTH: f32 = 1024.0;
 const SCREEN_HEIGHT: f32 = 768.0;
@@ -36,6 +38,11 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // Charger les assets
+    println!("🎨 Loading assets...");
+    let assets = GameAssets::load().await;
+    println!("✅ Assets loaded!");
+
     // Gestion des arguments de lancement (VEXT Integration)
     let args: Vec<String> = std::env::args().collect();
     let mut vext_username = "GuestPlayer".to_string();
@@ -60,8 +67,8 @@ async fn main() {
             for friend_entry in friends_list {
                 let parts: Vec<&str> = friend_entry.split(':').collect();
                 if parts.len() == 2 {
-                    let name = parts[0];
-                    let is_online = parts[1] == "online";
+                    let _name = parts[0];
+                    let _is_online = parts[1] == "online";
                     // Only add if we manage to parse it
                     // Hacky way to access private method or just reuse `add_friend` if public
                     // PlayerProfile::add_friend is public? Yes line 59 calls it.
@@ -406,26 +413,48 @@ async fn main() {
             }
 
             GameScreen::InGame => {
-                // TODO: Intégrer tout le code du jeu ici
                 clear_background(Color::from_rgba(40, 40, 60, 255));
                 
+                // Dessiner les entités
+                // Dessiner les entités
+                if let Some(player) = &mut _player {
+                    // Sélectionner la texture et le rect en fonction de la classe
+                    // Utiliser frame 0 (idle) pour l'instant. On pourrait animer ça plus tard.
+                    let (tex, rect) = if let Some(cls) = selected_class {
+                         match cls {
+                            PlayerClass::Warrior => (Some(&assets.sprite_sheet), Some(assets.get_warrior_rect(0))),
+                            PlayerClass::Mage => (Some(&assets.sprite_sheet), Some(assets.get_mage_rect(0))),
+                            PlayerClass::Archer => (Some(&assets.sprite_sheet), Some(assets.get_archer_rect(0))),
+                        }
+                    } else {
+                        (None, None) 
+                    };
+                    
+                    player.draw(tex, rect);
+                }
+                
+                if let Some(enemy) = &mut _enemy {
+                    enemy.draw(Some(&assets.sprite_sheet), Some(assets.get_enemy_rect(0)));
+                }
+
                 let text = if selected_class.is_some() {
-                    format!("Welcome {}, playing as {:?}!", 
-                        player_profile.character_name,
-                        selected_class.unwrap()
+                    format!("Playing as {:?} - {}", 
+                        selected_class.unwrap(),
+                        player_profile.character_name
                     )
                 } else {
                     "In Game (Online mode)".to_string()
                 };
                 
-                draw_text(&text, 100.0, 100.0, 30.0, WHITE);
-                draw_text("Press ESC to return to menu", 100.0, 150.0, 20.0, LIGHTGRAY);
+                draw_text(&text, 20.0, 40.0, 30.0, WHITE);
+                draw_text("Sorts et combat à venir...", 20.0, 80.0, 20.0, LIGHTGRAY);
+                draw_text("Press ESC to return to menu", 20.0, SCREEN_HEIGHT - 30.0, 20.0, LIGHTGRAY);
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::MainMenu;
                 }
             }
-
+                
             GameScreen::Options => {
                 clear_background(Color::from_rgba(20, 20, 40, 255));
                 draw_text("OPTIONS", 100.0, 100.0, 40.0, GOLD);

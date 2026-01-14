@@ -47,56 +47,76 @@ impl Enemy {
         self.attack_timer = self.attack_cooldown;
     }
 
-    pub fn draw(&self) {
-        // Corps (rectangle vertical)
-        let body_height = 30.0;
-        let body_width = 6.0;
-        draw_rectangle(
-            self.position.x - body_width / 2.0,
-            self.position.y - body_height / 2.0,
-            body_width,
-            body_height,
-            self.color,
-        );
+    pub fn draw(&self, texture: Option<&Texture2D>, source_rect: Option<Rect>) {
+        if let Some(tex) = texture {
+            let scale = 2.0; // Scale up for pixel art visibility
+            
+            let dest_w = if let Some(rect) = source_rect { rect.w * scale } else { tex.width() * scale };
+            let dest_h = if let Some(rect) = source_rect { rect.h * scale } else { tex.height() * scale };
 
-        // Tête (cercle)
-        let head_radius = 8.0;
-        draw_circle(
-            self.position.x,
-            self.position.y - body_height / 2.0 - head_radius,
-            head_radius,
-            self.color,
-        );
-
-        // Bras (ligne horizontale)
-        let arm_width = 20.0;
-        draw_line(
-            self.position.x - arm_width / 2.0,
-            self.position.y - body_height / 4.0,
-            self.position.x + arm_width / 2.0,
-            self.position.y - body_height / 4.0,
-            3.0,
-            self.color,
-        );
-
-        // Jambes (2 lignes)
-        let leg_length = 15.0;
-        draw_line(
-            self.position.x - 5.0,
-            self.position.y + body_height / 2.0,
-            self.position.x - 5.0,
-            self.position.y + body_height / 2.0 + leg_length,
-            3.0,
-            self.color,
-        );
-        draw_line(
-            self.position.x + 5.0,
-            self.position.y + body_height / 2.0,
-            self.position.x + 5.0,
-            self.position.y + body_height / 2.0 + leg_length,
-            3.0,
-            self.color,
-        );
+            draw_texture_ex(
+                *tex,
+                self.position.x - dest_w / 2.0,
+                self.position.y - dest_h / 2.0,
+                WHITE, // Can tint red if hit, etc.
+                DrawTextureParams {
+                    dest_size: Some(vec2(dest_w, dest_h)),
+                    source: source_rect,
+                    flip_x: true, // Enemies on the right face left typically
+                    ..Default::default()
+                },
+            );
+        } else {
+            // Corps (rectangle vertical)
+            let body_height = 30.0;
+            let body_width = 6.0;
+            draw_rectangle(
+                self.position.x - body_width / 2.0,
+                self.position.y - body_height / 2.0,
+                body_width,
+                body_height,
+                self.color,
+            );
+    
+            // Tête (cercle)
+            let head_radius = 8.0;
+            draw_circle(
+                self.position.x,
+                self.position.y - body_height / 2.0 - head_radius,
+                head_radius,
+                self.color,
+            );
+    
+            // Bras (ligne horizontale)
+            let arm_width = 20.0;
+            draw_line(
+                self.position.x - arm_width / 2.0,
+                self.position.y - body_height / 4.0,
+                self.position.x + arm_width / 2.0,
+                self.position.y - body_height / 4.0,
+                3.0,
+                self.color,
+            );
+    
+            // Jambes (2 lignes)
+            let leg_length = 15.0;
+            draw_line(
+                self.position.x - 5.0,
+                self.position.y + body_height / 2.0,
+                self.position.x - 5.0,
+                self.position.y + body_height / 2.0 + leg_length,
+                3.0,
+                self.color,
+            );
+            draw_line(
+                self.position.x + 5.0,
+                self.position.y + body_height / 2.0,
+                self.position.x + 5.0,
+                self.position.y + body_height / 2.0 + leg_length,
+                3.0,
+                self.color,
+            );
+        }
 
         // Barre de vie
         let health_bar_width = 40.0;
