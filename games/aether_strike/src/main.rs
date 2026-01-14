@@ -29,7 +29,7 @@ const ENEMY_Y: f32 = 450.0;
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "Aether Strike - RPG Stick War".to_owned(),
+        window_title: "Aether Strike - Dev Build".to_owned(),
         window_width: SCREEN_WIDTH as i32,
         window_height: SCREEN_HEIGHT as i32,
         window_resizable: false,
