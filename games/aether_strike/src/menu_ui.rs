@@ -249,7 +249,7 @@ pub fn draw_session_list(
     }
 
     // Boutons en bas
-    let button_y = screen_height() - 80.0;
+    let _button_y = screen_height() - 80.0;
     draw_text(
         "Press ESC to go back | Double-click to join | CREATE SERVER",
         20.0,
@@ -267,7 +267,7 @@ pub fn draw_create_server(
     max_players: u32,
     name_input_active: bool,
     password_input_active: bool,
-    mouse_pos: Vec2,
+    _mouse_pos: Vec2,
 ) {
     // Background
     clear_background(Color::from_rgba(20, 20, 40, 255));

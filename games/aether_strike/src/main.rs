@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use macroquad::prelude::*;
 
 mod game;
@@ -46,7 +47,7 @@ async fn main() {
     // Gestion des arguments de lancement (VEXT Integration)
     let args: Vec<String> = std::env::args().collect();
     let mut vext_username = "GuestPlayer".to_string();
-    let mut vext_token = String::new();
+    let mut _vext_token = String::new();
     
     // Parser les arguments
     for i in 0..args.len() {
@@ -55,7 +56,7 @@ async fn main() {
             println!("✅ VEXT Integration: Logged in as {}", vext_username);
         }
         if args[i] == "--vext-token" && i + 1 < args.len() {
-            vext_token = args[i + 1].clone();
+            _vext_token = args[i + 1].clone();
             println!("🔐 VEXT Integration: Token received");
         }
         if args[i] == "--vext-friends" && i + 1 < args.len() {
