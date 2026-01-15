@@ -136,6 +136,7 @@ async fn main() {
     
     let mut is_solo_mode = true;
     let mut is_player_turn = true;
+    let mut lobby_entry_time = 0.0;
 
 
     // ==== MENU PRINCIPAL ====
@@ -359,6 +360,7 @@ async fn main() {
                                     eprintln!("❌ Failed to connect to relay: {}", e);
                                     // On peut quand même aller au lobby en mode "offline"
                                     current_screen = GameScreen::Lobby;
+                                    lobby_entry_time = get_time();
                                 }
                             }
                             break;
@@ -482,6 +484,7 @@ async fn main() {
 
                         selected_session = Some(sessions.len() - 1);
                         current_screen = GameScreen::Lobby;
+                        lobby_entry_time = get_time();
                     }
                 }
 
@@ -574,8 +577,8 @@ async fn main() {
 
                 if _lobby_host_id == player_profile.vext_username || is_host {
 
-                    // Check if START is clicked
-                    if start_btn.is_clicked(mouse_pos) {
+                    // Check if START is clicked (with cooldown)
+                    if start_btn.is_clicked(mouse_pos) && get_time() - lobby_entry_time > 1.0 {
                         println!("Host starting game...");
                         if let Some(client) = &network_manager.client {
                             // Generate Wave 1 Enemies
