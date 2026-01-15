@@ -24,24 +24,41 @@ class StatsService {
     });
   }
 
+  // Game ID to display name mapping
+  private getGameDisplayName(gameId: string): string {
+    const gameNames: Record<string, string> = {
+      aether_strike: 'Aether Strike',
+      stick_arena: 'Stick Arena',
+      // Add more games as needed
+    };
+    return gameNames[gameId] || gameId;
+  }
+
   async startSession(gameId: string): Promise<string | null> {
     try {
-      this.sessionStartTime = Date.now(); // Track start time
+      this.sessionStartTime = Date.now();
       const response = await axios.post('/stats/session/start', { gameId });
       this.currentSessionId = response.data.sessionId;
       this.currentGameId = gameId;
 
-      // Update Socket Status
-      socketService.updateStatus('in-game', this.currentSessionId || undefined);
+      // Update Socket Status with rich activity
+      const activity = {
+        game: this.getGameDisplayName(gameId),
+        startedAt: new Date().toISOString(),
+      };
+      socketService.updateStatus('in-game', this.currentSessionId || undefined, activity);
 
       return this.currentSessionId;
     } catch (error) {
       console.error('Failed to start session:', error);
-      // Even if server session fails, we track locally
       this.currentGameId = gameId;
 
-      // Still update status locally/socket
-      socketService.updateStatus('in-game');
+      // Still update status with activity
+      const activity = {
+        game: this.getGameDisplayName(gameId),
+        startedAt: new Date().toISOString(),
+      };
+      socketService.updateStatus('in-game', undefined, activity);
       return null;
     }
   }
@@ -72,7 +89,6 @@ class StatsService {
 
       // Reset Status
       socketService.updateStatus('online');
-
     } catch (error) {
       console.error('Failed to end session/playtime:', error);
       socketService.updateStatus('online'); // Reset anyway

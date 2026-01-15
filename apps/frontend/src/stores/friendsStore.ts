@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
+export interface FriendActivity {
+  game?: string; // e.g., "Aether Strike"
+  details?: string; // e.g., "Wave 10 - Boss Fight"
+  startedAt?: string; // ISO timestamp
+}
+
 export interface Friend {
   id: string;
   username: string;
@@ -8,6 +14,7 @@ export interface Friend {
   elo: number;
   status: 'online' | 'offline' | 'in-game';
   currentLobby?: string;
+  activity?: FriendActivity;
 }
 
 export interface FriendRequest {
@@ -32,7 +39,7 @@ export const useFriendsStore = defineStore('friends', {
       try {
         const response = await axios.get('/friends/list');
         const data = response.data;
-        this.friends = Array.isArray(data) ? data : (data.friends || []);
+        this.friends = Array.isArray(data) ? data : data.friends || [];
       } catch (error) {
         console.error('Failed to fetch friends:', error);
       } finally {
@@ -44,7 +51,7 @@ export const useFriendsStore = defineStore('friends', {
       try {
         const response = await axios.get('/friends/requests');
         const data = response.data;
-        this.friendRequests = Array.isArray(data) ? data : (data.requests || []);
+        this.friendRequests = Array.isArray(data) ? data : data.requests || [];
       } catch (error) {
         console.error('Failed to fetch friend requests:', error);
       }
@@ -53,12 +60,10 @@ export const useFriendsStore = defineStore('friends', {
     async sendFriendRequest(username: string) {
       try {
         // First, search for the user by username to get their ID
-        const searchResponse = await axios.get(
-          `/users/search?q=${encodeURIComponent(username)}`
-        );
+        const searchResponse = await axios.get(`/users/search?q=${encodeURIComponent(username)}`);
 
         const data = searchResponse.data;
-        const users = Array.isArray(data) ? data : (data.users || []);
+        const users = Array.isArray(data) ? data : data.users || [];
 
         if (!users || users.length === 0) {
           throw new Error('Utilisateur introuvable');
@@ -108,11 +113,17 @@ export const useFriendsStore = defineStore('friends', {
       }
     },
 
-    updateFriendStatus(userId: string, status: 'online' | 'offline' | 'in-game', lobbyId?: string) {
+    updateFriendStatus(
+      userId: string,
+      status: 'online' | 'offline' | 'in-game',
+      lobbyId?: string,
+      activity?: FriendActivity
+    ) {
       const friend = this.friends.find((f) => f.id === userId);
       if (friend) {
         friend.status = status;
         friend.currentLobby = lobbyId;
+        friend.activity = activity;
       }
     },
 

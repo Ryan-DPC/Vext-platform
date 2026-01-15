@@ -55,7 +55,16 @@ onUnmounted(() => {
 });
 
 const handleFriendStatusChange = (data: any) => {
-  friendsStore.updateFriendStatus(data.userId, data.status, data.lobbyId);
+  const activity = data.activity || undefined;
+  friendsStore.updateFriendStatus(data.userId, data.status, data.lobbyId, activity);
+
+  // Show notification when a friend starts playing
+  if (data.status === 'in-game' && activity?.game) {
+    const friend = friendsStore.friends.find((f: any) => f.id === data.userId);
+    if (friend) {
+      toastStore.info(`${friend.username} is now playing ${activity.game}`);
+    }
+  }
 };
 
 const handleAccept = async (requestId: string) => {
@@ -331,7 +340,22 @@ const handlePrivateMessage = (event: CustomEvent) => {
               </div>
               <div class="item-info">
                 <div class="item-name">{{ friend.username }}</div>
-                <div class="item-status">{{ friend.status }}</div>
+                <div class="item-status" :class="friend.status">
+                  <template v-if="friend.status === 'in-game' && friend.activity?.game">
+                    <i class="fas fa-gamepad"></i>
+                    {{ friend.activity.game }}
+                    <span v-if="friend.activity.details" class="activity-details">
+                      - {{ friend.activity.details }}
+                    </span>
+                  </template>
+                  <template v-else-if="friend.status === 'in-game'">
+                    <i class="fas fa-gamepad"></i> In Game
+                  </template>
+                  <template v-else-if="friend.status === 'online'">
+                    <span class="online-dot"></span> Online
+                  </template>
+                  <template v-else> Offline </template>
+                </div>
               </div>
               <div class="item-actions">
                 <button class="btn-icon" title="Message" @click.stop="openChat(friend.id)">
@@ -1002,6 +1026,35 @@ const handlePrivateMessage = (event: CustomEvent) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item-status.in-game {
+  color: var(--neon-pink);
+  font-weight: 500;
+}
+
+.item-status.in-game i {
+  font-size: 0.7rem;
+}
+
+.item-status.online {
+  color: #00ff88;
+}
+
+.online-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ff88;
+  display: inline-block;
+}
+
+.activity-details {
+  opacity: 0.7;
+  font-size: 0.75rem;
 }
 
 .item-actions {

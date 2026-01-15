@@ -89,7 +89,7 @@ class SocketService {
     this.socket.on('friend:status-changed', (data: any) => {
       console.log('📡 Friend status changed:', data);
       const friendsStore = useFriendsStore();
-      friendsStore.updateFriendStatus(data.userId, data.status, data.lobbyId);
+      friendsStore.updateFriendStatus(data.userId, data.status, data.lobbyId, data.activity);
     });
 
     // Friend request notifications
@@ -267,8 +267,12 @@ class SocketService {
     this.emit('lobby:invite', { friendId, lobbyId });
   }
 
-  updateStatus(status: 'online' | 'offline' | 'in-game', lobbyId?: string) {
-    this.emit('user:status-update', { status, lobbyId });
+  updateStatus(
+    status: 'online' | 'offline' | 'in-game',
+    lobbyId?: string,
+    activity?: { game?: string; details?: string; startedAt?: string }
+  ) {
+    this.emit('status:update', { status, lobbyId, activity });
   }
 
   sendChatMessage(toUserId: string, content: string) {
