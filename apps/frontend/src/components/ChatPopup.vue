@@ -107,7 +107,9 @@ const loadMessages = async () => {
 
     // 2. Fetch from server to get new messages
     const response = await axios.get(`/chat/conversation/${props.friend.id}`);
-    const remoteMessages = response.data.messages || [];
+    const remoteMessages = Array.isArray(response.data)
+      ? response.data
+      : response.data.messages || [];
 
     // 3. Save remote messages to local DB and update UI
     for (const msg of remoteMessages) {
