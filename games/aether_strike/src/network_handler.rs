@@ -47,11 +47,14 @@ impl NetworkHandler {
                     }
                     *lobby_host_id = host_id;
                 }
-                GameEvent::PlayerJoined { player_id, username, class } => {
+                GameEvent::PlayerJoined { player_id, username, class, hp, max_hp, speed } => {
                     let msg = online::handle_player_joined(
                         &username,
                         &player_id,
                         &class,
+                        hp,
+                        max_hp,
+                        speed,
                         &player_profile.vext_username,
                         other_players
                     );
@@ -135,8 +138,13 @@ impl NetworkHandler {
                     };
                     combat_logs.push(format!("Turn: {}", id_display));
                 }
-                GameEvent::WaveStarted { enemies: server_enemies } => {
-                     combat_logs.push(">>> WAVE STARTED <<<".to_string());
+                GameEvent::WaveStarted { enemies: server_enemies, gold, exp } => {
+                     if gold > 0 || exp > 0 {
+                        combat_logs.push(format!("💰 Wave Cleared! +{} Gold, +{} XP", gold, exp));
+                     } else {
+                        combat_logs.push(">>> WAVE STARTED <<<".to_string());
+                     }
+                     
                      enemies.clear();
                      *enemy_boss = None;
                      let (synced_enemies, boss_ref) = enemy_model::from_server_data(&server_enemies, screen_width, screen_height);
@@ -144,6 +152,7 @@ impl NetworkHandler {
                      *enemy_boss = boss_ref;
                      
                      if let Some(gs) = game_state {
+                         gs.add_session_reward(gold, exp);
                          turn_system.init_queue(
                              &player_profile.vext_username,
                              gs.resources.speed as u32,
@@ -157,6 +166,7 @@ impl NetworkHandler {
                 GameEvent::GameEnded { victory } => {
                      let res = if victory { "VICTORY!" } else { "DEFEAT..." };
                      combat_logs.push(format!(">>> {} <<<", res));
+                     next_screen = Some("Summary".to_string());
                 }
                 GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost, .. } => {
                     let actor_name = if actor_id == player_profile.vext_username { 
@@ -179,6 +189,9 @@ impl NetworkHandler {
                                  gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
                              }
                         } 
+                        else if let Some(p) = other_players.get_mut(&tid) {
+                             p.hp = (p.hp - damage).max(0.0);
+                        }
                         else if let Some(enemy) = enemies.iter_mut().find(|e| e.id == tid) {
                             enemy.take_damage(damage);
                         }

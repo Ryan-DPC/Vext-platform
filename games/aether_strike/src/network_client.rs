@@ -35,6 +35,9 @@ pub struct RemotePlayer {
     pub userId: String,
     pub username: String,
     pub class: String,
+    pub hp: f32,
+    pub max_hp: f32,
+    pub speed: f32,
     pub position: (f32, f32),
 }
 
@@ -53,7 +56,7 @@ pub struct EnemyData {
 
 
 pub enum GameEvent {
-    PlayerJoined { player_id: String, username: String, class: String },
+    PlayerJoined { player_id: String, username: String, class: String, hp: f32, max_hp: f32, speed: f32 },
     PlayerLeft { player_id: String },
     PlayerUpdated { player_id: String, class: String },
     PlayerUpdate(PlayerUpdate),
@@ -66,10 +69,11 @@ pub enum GameEvent {
         action_name: String, 
         damage: f32, 
         mana_cost: u32,
-        is_area: bool 
+        is_area: bool,
+        target_new_hp: Option<f32>
     },
     TurnChanged { current_turn_id: String },
-    WaveStarted { enemies: Vec<EnemyData> },
+    WaveStarted { enemies: Vec<EnemyData>, gold: u32, exp: u32 },
     GameEnded { victory: bool },
     Error(String),
 }
@@ -93,7 +97,7 @@ pub enum WsCommand {
     Flee,
     ChangeClass { new_class: String },
     StartGame { enemies: Vec<EnemyData> },
-    NextWave { enemies: Vec<EnemyData> },
+    NextWave { enemies: Vec<EnemyData>, gold: u32, exp: u32 },
     GameOver { victory: bool },
 }
 
@@ -107,7 +111,7 @@ impl GameClient {
     /// * `game_id` - ID de la partie
     /// * `player_class` - Classe du joueur
     /// * `is_host` - Si on crée la partie ou on la rejoint
-    pub fn connect(ws_url: &str, token: &str, game_id: String, player_class: String, is_host: bool, username: String, user_id: String) -> Result<Self, String> {
+    pub fn connect(ws_url: &str, token: &str, game_id: String, player_class: String, is_host: bool, username: String, user_id: String, hp: f32, max_hp: f32, speed: f32) -> Result<Self, String> {
         // Channels bi-directionnels
         let (tx_to_ws, rx_in_ws) = channel::<WsCommand>();
         let (tx_from_ws, rx_from_ws) = channel::<GameEvent>();
@@ -128,7 +132,7 @@ impl GameClient {
 
         // Lancer le thread WebSocket
         thread::spawn(move || {
-            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws, token_clone, username_clone, user_id_clone) {
+            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws, token_clone, username_clone, user_id_clone, (hp, max_hp, speed)) {
                 eprintln!("❌ WebSocket thread error: {}", e);
             }
         });
@@ -174,8 +178,8 @@ impl GameClient {
         let _ = self.tx_to_ws.send(WsCommand::StartGame { enemies });
     }
 
-    pub fn start_next_wave(&self, enemies: Vec<EnemyData>) {
-        let _ = self.tx_to_ws.send(WsCommand::NextWave { enemies });
+    pub fn start_next_wave(&self, enemies: Vec<EnemyData>, gold: u32, exp: u32) {
+        let _ = self.tx_to_ws.send(WsCommand::NextWave { enemies, gold, exp });
     }
 
     pub fn trigger_game_over(&self, victory: bool) {
@@ -211,6 +215,7 @@ fn ws_thread_loop(
     token: String,
     username: String,
     user_id: String,
+    initial_stats: (f32, f32, f32), // (hp, max_hp, speed)
 ) -> Result<(), String> {
     // Connexion WebSocket
     // Connexion WebSocket
@@ -281,7 +286,10 @@ fn ws_thread_loop(
                         "playerClass": player_class,
                         "maxPlayers": 4,
                         "username": username,
-                        "userId": user_id
+                        "userId": user_id,
+                        "hp": initial_stats.0,
+                        "maxHp": initial_stats.1,
+                        "speed": initial_stats.2
                     }
                 });
                 
@@ -386,10 +394,14 @@ fn ws_thread_loop(
                                 });
                                 let _ = socket.send(Message::Text(msg.to_string()));
                             }
-                            WsCommand::NextWave { enemies } => {
+                            WsCommand::NextWave { enemies, gold, exp } => {
                                 let msg = serde_json::json!({
                                     "type": "aether-strike:next-wave",
-                                    "data": { "enemies": enemies }
+                                    "data": { 
+                                        "enemies": enemies,
+                                        "gold": gold,
+                                        "exp": exp
+                                    }
                                 });
                                 let _ = socket.send(Message::Text(msg.to_string()));
                             }
@@ -426,6 +438,9 @@ fn ws_thread_loop(
                                                         player_id: data["playerId"].as_str().unwrap_or("").to_string(),
                                                         username: data["username"].as_str().unwrap_or("Unknown").to_string(),
                                                         class: data["class"].as_str().unwrap_or("warrior").to_string(),
+                                                        hp: data["hp"].as_f64().unwrap_or(100.0) as f32,
+                                                        max_hp: data["maxHp"].as_f64().unwrap_or(100.0) as f32,
+                                                        speed: data["speed"].as_f64().unwrap_or(100.0) as f32,
                                                     })
                                                 }
                                                 "aether-strike:game-created" => {
@@ -441,6 +456,9 @@ fn ws_thread_loop(
                                                                 userId: p["userId"].as_str().unwrap_or("").to_string(),
                                                                 username: p["username"].as_str().unwrap_or("Unknown").to_string(),
                                                                 class: p["class"].as_str().unwrap_or("warrior").to_string(),
+                                                                hp: p["hp"].as_f64().unwrap_or(100.0) as f32,
+                                                                max_hp: p["maxHp"].as_f64().unwrap_or(100.0) as f32,
+                                                                speed: p["speed"].as_f64().unwrap_or(100.0) as f32,
                                                                 position: (
                                                                     p["position"]["x"].as_f64().unwrap_or(0.0) as f32,
                                                                     p["position"]["y"].as_f64().unwrap_or(0.0) as f32,
@@ -495,11 +513,30 @@ fn ws_thread_loop(
                                                         damage: data["damage"].as_f64().unwrap_or(0.0) as f32,
                                                         mana_cost: data["manaCost"].as_u64().unwrap_or(0) as u32,
                                                         is_area: data["isArea"].as_bool().unwrap_or(false),
+                                                        target_new_hp: data["targetNewHp"].as_f64().map(|v| v as f32),
                                                     })
                                                 }
                                                 "aether-strike:turn-changed" => {
                                                     Some(GameEvent::TurnChanged {
                                                         current_turn_id: data["currentTurnId"].as_str().unwrap_or("").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:wave-started" => {
+                                                    let enemies_json = data["enemies"].as_array();
+                                                    let mut enemies_list = Vec::new();
+                                                    if let Some(arr) = enemies_json {
+                                                        for val in arr {
+                                                            if let Ok(enemy) = serde_json::from_value::<EnemyData>(val.clone()) {
+                                                                enemies_list.push(enemy);
+                                                            }
+                                                        }
+                                                    }
+                                                    let gold = data["gold"].as_u64().unwrap_or(0) as u32;
+                                                    let exp = data["exp"].as_u64().unwrap_or(0) as u32;
+                                                    Some(GameEvent::WaveStarted { 
+                                                        enemies: enemies_list,
+                                                        gold,
+                                                        exp
                                                     })
                                                 }
                                                 "aether-strike:game-started" => {

@@ -30,6 +30,8 @@ struct Room {
 struct Player {
     username: String,
     class: String,
+    hp: f32,
+    max_hp: f32,
     position: (f32, f32),
 }
 
@@ -107,7 +109,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             // Add Host to players immediately
                                             players_map.insert(user_id.clone(), Player {
                                                 username: username_val.clone(),
-                                                class: data["playerClass"].as_str().unwrap_or("warrior").to_string(), // Capture class too
+                                                class: data["playerClass"].as_str().unwrap_or("warrior").to_string(),
+                                                hp: data["hp"].as_f64().unwrap_or(100.0) as f32,
+                                                max_hp: data["maxHp"].as_f64().unwrap_or(100.0) as f32,
                                                 position: (0.0, 0.0),
                                             });
                                             
@@ -144,6 +148,8 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                 room.players.insert(user_id.clone(), Player {
                                                     username: username_val.clone(),
                                                     class: player_class.clone(),
+                                                    hp: data["hp"].as_f64().unwrap_or(100.0) as f32,
+                                                    max_hp: data["maxHp"].as_f64().unwrap_or(100.0) as f32,
                                                     position: (0.0, 0.0),
                                                 });
                                                 
@@ -153,6 +159,8 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                         "userId": id,
                                                         "username": p.username,
                                                         "class": p.class,
+                                                        "hp": p.hp,
+                                                        "maxHp": p.max_hp,
                                                         "position": {"x": p.position.0, "y": p.position.1}
                                                     })
                                                 }).collect();
@@ -184,7 +192,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                 "data": {
                                                     "playerId": user_id,
                                                     "username": username_val,
-                                                    "class": player_class
+                                                    "class": player_class,
+                                                    "hp": data["hp"].as_f64().unwrap_or(100.0),
+                                                    "maxHp": data["maxHp"].as_f64().unwrap_or(100.0)
                                                 }
                                             }).to_string();
                                             let _ = tx.send(broadcast_msg);
@@ -246,35 +256,71 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     "aether-strike:use-attack" => {
-                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
-                                            let broadcast = serde_json::json!({
-                                                "type": "aether-strike:combat-action",
-                                                "data": {
-                                                    "actorId": user_id,
-                                                    "targetId": data["targetId"],
-                                                    "actionName": data["attackName"],
-                                                    "damage": data["damage"].as_f64().unwrap_or(0.0),
-                                                    "manaCost": data["manaCost"].as_u64().unwrap_or(0),
-                                                    "isArea": data["isArea"].as_bool().unwrap_or(false)
+                                        let room_tx = {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                                let target_id = data["targetId"].as_str().unwrap_or("");
+                                                let damage = data["damage"].as_f64().unwrap_or(0.0) as f32;
+                                                
+                                                let mut new_hp = None;
+                                                if let Some(target) = room.players.get_mut(target_id) {
+                                                    target.hp -= damage;
+                                                    if target.hp < 0.0 { target.hp = 0.0; }
+                                                    new_hp = Some(target.hp);
                                                 }
-                                            }).to_string();
-                                            let _ = room.tx.send(broadcast);
+                                                
+                                                let broadcast = serde_json::json!({
+                                                    "type": "aether-strike:combat-action",
+                                                    "data": {
+                                                        "actorId": user_id,
+                                                        "targetId": target_id,
+                                                        "actionName": data["attackName"],
+                                                        "damage": damage,
+                                                        "manaCost": data["manaCost"].as_u64().unwrap_or(0),
+                                                        "isArea": data["isArea"].as_bool().unwrap_or(false),
+                                                        "targetNewHp": new_hp
+                                                    }
+                                                }).to_string();
+                                                Some((room.tx.clone(), broadcast))
+                                            } else { None }
+                                        };
+                                        
+                                        if let Some((tx, msg)) = room_tx {
+                                            let _ = tx.send(msg);
                                         }
                                     }
                                     "aether-strike:admin-attack" => {
-                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
-                                            let broadcast = serde_json::json!({
-                                                "type": "aether-strike:combat-action",
-                                                "data": {
-                                                    "actorId": data["actorId"],
-                                                    "targetId": data["targetId"],
-                                                    "actionName": data["attackName"],
-                                                    "damage": data["damage"].as_f64().unwrap_or(0.0),
-                                                    "manaCost": 0,
-                                                    "isArea": false
+                                        let room_tx = {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                                let target_id = data["targetId"].as_str().unwrap_or("");
+                                                let damage = data["damage"].as_f64().unwrap_or(0.0) as f32;
+                                                
+                                                let mut new_hp = None;
+                                                if let Some(target) = room.players.get_mut(target_id) {
+                                                    target.hp -= damage;
+                                                    if target.hp < 0.0 { target.hp = 0.0; }
+                                                    new_hp = Some(target.hp);
                                                 }
-                                            }).to_string();
-                                            let _ = room.tx.send(broadcast);
+
+                                                let broadcast = serde_json::json!({
+                                                    "type": "aether-strike:combat-action",
+                                                    "data": {
+                                                        "actorId": data["actorId"],
+                                                        "targetId": target_id,
+                                                        "actionName": data["attackName"],
+                                                        "damage": damage,
+                                                        "manaCost": 0,
+                                                        "isArea": false,
+                                                        "targetNewHp": new_hp
+                                                    }
+                                                }).to_string();
+                                                Some((room.tx.clone(), broadcast))
+                                            } else { None }
+                                        };
+
+                                        if let Some((tx, msg)) = room_tx {
+                                            let _ = tx.send(msg);
                                         }
                                     }
                                     "aether-strike:end-turn" => {
@@ -287,13 +333,19 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                              let _ = room.tx.send(broadcast);
                                         }
                                     }
-                                    }
                                     "aether-strike:next-wave" => {
                                         if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
                                             let enemies_val = &data["enemies"];
+                                            let gold = data["gold"].as_u64().unwrap_or(0);
+                                            let exp = data["exp"].as_u64().unwrap_or(0);
+                                            
                                             let broadcast = serde_json::json!({
                                                 "type": "aether-strike:wave-started",
-                                                "data": { "enemies": enemies_val }
+                                                "data": { 
+                                                    "enemies": enemies_val,
+                                                    "gold": gold,
+                                                    "exp": exp
+                                                }
                                             }).to_string();
                                             let _ = room.tx.send(broadcast);
                                         }

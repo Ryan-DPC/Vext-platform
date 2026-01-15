@@ -7,6 +7,9 @@ pub fn handle_player_joined(
     username: &str,
     player_id: &str, 
     class: &str,
+    hp: f32,
+    max_hp: f32,
+    speed: f32,
     local_username: &str,
     other_players: &mut HashMap<String, RemotePlayer>
 ) -> String {
@@ -24,6 +27,9 @@ pub fn handle_player_joined(
             userId: player_id.to_string(),
             username: username.to_string(),
             class: display_class,
+            hp,
+            max_hp,
+            speed,
             position: (pos.x, pos.y),
         });
     }

@@ -61,20 +61,9 @@ impl Resources {
 }
 
 /// État du jeu
-pub struct GameState {
-    pub resources: Resources,
-    pub inventory: Inventory,
-    pub character_class: CharacterClass,
-    pub active_passives: Vec<Passive>,
-    pub auto_attack_enabled: bool,
-    pub auto_attack_timer: f32,
-    pub auto_attack_cooldown: f32,
-    pub current_wave: u32,
-    pub enemies_killed: u32,
-    pub score: u32,
-    pub level: u32,
-    pub exp: u32,
     pub exp_to_next_level: u32,
+    pub session_gold: u32, // Gold gained this run
+    pub session_exp: u32,  // XP gained this run
 }
 
 impl GameState {
@@ -83,20 +72,10 @@ impl GameState {
         let max_hp = character_class.hp;
         let speed = character_class.speed;
         
-        GameState {
-            resources: Resources::new(max_mana, max_hp, speed),
-            inventory: Inventory::new(),
-            character_class,
-            active_passives: Vec::new(), // Initial empty passives
-            auto_attack_enabled: false,
-            auto_attack_timer: 0.0,
-            auto_attack_cooldown: 1.5, // 1.5 seconde entre chaque auto-attack
-            current_wave: 1,
-            enemies_killed: 0,
-            score: 0,
-            level: 1,
             exp: 0,
             exp_to_next_level: 10, // 10 EXP pour level 2
+            session_gold: 0,
+            session_exp: 0,
         }
     }
 
@@ -213,6 +192,14 @@ impl GameState {
             should_restore = self.level_up() || should_restore;
         }
         should_restore
+    }
+
+    pub fn add_session_reward(&mut self, gold: u32, exp: u32) {
+        self.resources.gold += gold;
+        self.exp += exp;
+        self.session_gold += gold;
+        self.session_exp += exp;
+        self.check_level_up();
     }
 
     /// Calculer les dégâts de l'attaque de base

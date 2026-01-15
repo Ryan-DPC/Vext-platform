@@ -32,14 +32,7 @@ impl TurnSystem {
 
         // 2. Add Remote Players
         for rp in other_players.values() {
-             // Estimate speed based on class string
-             let rp_speed = match rp.class.to_lowercase().as_str() {
-                "archer" => 120,
-                "mage" => 100,
-                "warrior" => 80,
-                _ => 80,
-            };
-            participants.push((rp.userId.clone(), rp_speed));
+            participants.push((rp.userId.clone(), rp.speed as u32));
         }
 
         // 3. Add Enemies

@@ -185,6 +185,7 @@ async fn main() {
     let confirm_create_button = MenuButton::new("CREATE", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0);
     let refresh_button = MenuButton::new("REFRESH", SCREEN_WIDTH - 170.0, 40.0, 150.0, 40.0);
     let start_btn = MenuButton::new("START", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0); // For lobby
+    let summary_back_btn = MenuButton::new("BACK TO MENU", SCREEN_WIDTH / 2.0 - 150.0, SCREEN_HEIGHT - 150.0, 300.0, 60.0);
 
 
     loop {
@@ -360,7 +361,10 @@ async fn main() {
                                 selected_class.as_ref().map(|c| c.name.to_lowercase()).unwrap_or_else(|| "warrior".to_string()),
                                 false, // is_host = false
                                 player_profile.vext_username.clone(),
-                                player_profile.vext_username.clone() // UserID
+                                player_profile.vext_username.clone(), // UserID
+                                selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
+                                selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
+                                selected_class.as_ref().map(|c| c.speed).unwrap_or(100.0)
                             ) {
                                 Ok(client) => {
                                     network_manager.client = Some(client);
@@ -463,7 +467,10 @@ async fn main() {
                             selected_class.as_ref().map(|c| c.name.clone()).unwrap_or_else(|| "warrior".to_string()).to_lowercase(),
                             true, // is_host = true
                             player_profile.vext_username.clone(),
-                            player_profile.vext_username.clone() // UserID
+                            player_profile.vext_username.clone(), // UserID
+                            selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
+                            selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
+                            selected_class.as_ref().map(|c| c.speed).unwrap_or(100.0)
                         ) {
                             Ok(client) => {
                                 network_manager.client = Some(client);
@@ -767,12 +774,16 @@ async fn main() {
 
                 // ===== RELAY MULTIPLAYER: Poll for updates in-game =====
                 if let Some(client) = &network_manager.client {
-                    network_handler::NetworkHandler::handle_events(
+                    let maybe_next = network_handler::NetworkHandler::handle_events(
                         client, &player_profile, &all_classes, &mut other_players, &mut _game_state,
                         &mut _enemies, &mut _enemy, &mut turn_system, &mut current_turn_id,
                         &mut combat_logs, &mut last_network_log, &mut _lobby_host_id, &mut selected_class,
                         SCREEN_WIDTH, SCREEN_HEIGHT, &mut enemy_hp
                     );
+                    if let Some(next) = maybe_next {
+                        if next == "Summary" { current_screen = GameScreen::Summary; }
+                        else if next == "MainMenu" { current_screen = GameScreen::MainMenu; }
+                    }
 
                     // Envoyer notre position (mock movement for now)
                     if let Some(player) = &_player {
@@ -839,7 +850,7 @@ async fn main() {
                                 current_screen = GameScreen::PlayMenu;
                                 is_solo_mode = false;
                             }
-
+                        } else {
                             // Multiplayer mode: send to server
                             if let Some(client) = &network_manager.client {
                                 match action {
@@ -881,17 +892,22 @@ async fn main() {
                              // Minion Turn
                              if let Some(enemy) = _enemies.iter().find(|e| &e.id == current_id) {
                                   enemy_attack_timer += get_frame_time() as f64;
-                                  if enemy_attack_timer > 2.0 {
+                                  if enemy_attack_timer > 1.5 {
                                       enemy_attack_timer = 0.0;
-                                      // Pick Target (Simple: Host or Random)
-                                      let target = if !other_players.is_empty() {
-                                            // Simple round robin or first
-                                            other_players.keys().next().unwrap().clone()
-                                      } else {
-                                            player_profile.vext_username.clone()
-                                      };
                                       
-                                      println!("Host AI: Minion {} attacks {}", enemy.id, target);
+                                      // --- SMART TARGET SELECTION ---
+                                      let mut targets: Vec<(String, f32)> = Vec::new();
+                                      if let Some(gs) = &_game_state {
+                                          targets.push((player_profile.vext_username.clone(), gs.resources.current_hp));
+                                      }
+                                      for rp in other_players.values() {
+                                          targets.push((rp.userId.clone(), rp.hp));
+                                      }
+                                      targets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+                                      
+                                      let target = if !targets.is_empty() { targets[0].0.clone() } else { player_profile.vext_username.clone() };
+                                      
+                                      println!("Host AI: Minion {} SMART-attacks {}", enemy.id, target);
                                       client.admin_attack(enemy.id.clone(), "Attack".to_string(), Some(target), enemy.attack_damage);
                                       
                                       let next = turn_system.peek_next_id();
@@ -904,8 +920,20 @@ async fn main() {
                                       enemy_attack_timer += get_frame_time() as f64;
                                       if enemy_attack_timer > 2.0 {
                                           enemy_attack_timer = 0.0;
-                                          let target = player_profile.vext_username.clone();
-                                          println!("Host AI: Boss {} attacks {}", boss.id, target);
+                                          
+                                          // --- SMART TARGET SELECTION ---
+                                          let mut targets: Vec<(String, f32)> = Vec::new();
+                                          if let Some(gs) = &_game_state {
+                                              targets.push((player_profile.vext_username.clone(), gs.resources.current_hp));
+                                          }
+                                          for rp in other_players.values() {
+                                              targets.push((rp.userId.clone(), rp.hp));
+                                          }
+                                          targets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+                                          
+                                          let target = if !targets.is_empty() { targets[0].0.clone() } else { player_profile.vext_username.clone() };
+
+                                          println!("Host AI: Boss {} SMART-attacks {}", boss.id, target);
                                           client.admin_attack(boss.id.clone(), "Smash".to_string(), Some(target), boss.attack_damage);
                                           let next = turn_system.peek_next_id();
                                           client.end_turn(next);
@@ -918,11 +946,25 @@ async fn main() {
                      // === MULTIPLAYER HOST WAVE MANAGEMENT ===
                      if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
                           // Update Wave Manager state (Host Only)
+                          let old_wave_index = wave_manager.current_wave_index;
                           wave_manager.update(get_frame_time(), _enemies.len(), _enemy.is_some());
                           
                           if let Some(client) = &network_manager.client {
+                              // --- LOOT & PROGRESSION: Award rewards on wave clear ---
+                              if wave_manager.current_wave_index > old_wave_index {
+                                   let gold_reward = 50 * wave_manager.current_wave_index as u32;
+                                   let exp_reward = 20 * wave_manager.current_wave_index as u32;
+                                   
+                                   if let Some(gs) = &mut _game_state {
+                                       gs.resources.gold += gold_reward;
+                                       gs.exp += exp_reward;
+                                       combat_logs.push(format!("💰 Wave Cleared! +{} Gold, +{} XP", gold_reward, exp_reward));
+                                       gs.check_level_up();
+                                   }
+                              }
+
                               // Check if we need to spawn
-                                   if wave_manager.state == waves::WaveState::Spawning {
+                              if wave_manager.state == waves::WaveState::Spawning {
                                         // 1. Get Wave Enemies
                                         let mut new_enemies_data = Vec::new();
                                         if let Some(wave) = wave_manager.get_current_wave() {
@@ -941,7 +983,8 @@ async fn main() {
                                         // 2. Send Start Wave
                                         if !new_enemies_data.is_empty() {
                                             println!("HOST: Starting Wave {} with {} enemies", wave_manager.current_wave_index, new_enemies_data.len());
-                                            client.start_next_wave(new_enemies_data);
+                                            let (g, e) = (50 * wave_manager.current_wave_index as u32, 20 * wave_manager.current_wave_index as u32);
+                                            client.start_next_wave(new_enemies_data, g, e);
                                         }
 
                                         // 3. Advance State (Manual force to Active)
@@ -1011,6 +1054,43 @@ async fn main() {
                 draw_text("OPTIONS", 100.0, 100.0, 40.0, GOLD);
                 draw_text("Coming soon...", 100.0, 150.0, 24.0, WHITE);
                 draw_text("Press ESC to go back", 20.0, SCREEN_HEIGHT - 20.0, 20.0, LIGHTGRAY);
+
+                if is_key_pressed(KeyCode::Escape) {
+                    current_screen = GameScreen::MainMenu;
+                }
+            }
+                
+            GameScreen::Summary => {
+                clear_background(Color::from_rgba(10, 10, 25, 255));
+                
+                let title = if let Some(logs) = combat_logs.last() {
+                    if logs.contains("VICTORY") { "VICTORY!" } else { "DEFEAT" }
+                } else { "GAME OVER" };
+                
+                let title_color = if title == "VICTORY!" { GOLD } else { RED };
+                draw_text(title, SCREEN_WIDTH / 2.0 - measure_text(title, None, 60, 1.0).width / 2.0, 150.0, 60.0, title_color);
+                
+                if let Some(gs) = &_game_state {
+                    let text = format!("Gold Gained: {}", gs.session_gold);
+                    draw_text(&text, SCREEN_WIDTH / 2.0 - measure_text(&text, None, 30, 1.0).width / 2.0, 250.0, 30.0, WHITE);
+                    
+                    let text = format!("XP Gained: {}", gs.session_exp);
+                    draw_text(&text, SCREEN_WIDTH / 2.0 - measure_text(&text, None, 30, 1.0).width / 2.0, 300.0, 30.0, WHITE);
+                    
+                    let text = format!("Final Level: {}", gs.level);
+                    draw_text(&text, SCREEN_WIDTH / 2.0 - measure_text(&text, None, 30, 1.0).width / 2.0, 350.0, 30.0, YELLOW);
+                }
+                
+                summary_back_btn.draw(mouse_pos);
+                if is_mouse_button_pressed(MouseButton::Left) && summary_back_btn.is_clicked(mouse_pos) {
+                    current_screen = GameScreen::MainMenu;
+                    // Reset game
+                    _game_state = None;
+                    _enemies.clear();
+                    _enemy = None;
+                    if let Some(client) = &network_manager.client { client.disconnect(); }
+                    network_manager.client = None;
+                }
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::MainMenu;

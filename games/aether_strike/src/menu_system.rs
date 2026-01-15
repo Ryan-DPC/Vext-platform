@@ -11,6 +11,7 @@ pub enum GameScreen {
     Lobby,              // Salle d'attente (NOUVEAU)
     InGame,
     Options,
+    Summary, // End of run summary
 }
 
 /// Données du joueur
