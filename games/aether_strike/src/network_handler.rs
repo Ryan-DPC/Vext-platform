@@ -65,6 +65,7 @@ impl NetworkHandler {
                     *last_network_log = format!("New Host: {}", host_id);
                 }
                 GameEvent::PlayerUpdated { player_id, class } => {
+                    println!("NET-RX: Player Updated {} -> {}", player_id, class);
                     let display_class = class.clone();
                     *last_network_log = format!("Update: {} -> {}", &player_id[..4], display_class);
                     if let Some(player) = other_players.get_mut(&player_id) {

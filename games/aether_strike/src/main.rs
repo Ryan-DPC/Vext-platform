@@ -659,6 +659,9 @@ async fn main() {
                      if let Some(e) = _enemies.first() {
                          println!("  First Enemy Pos: ({}, {})", e.position.x, e.position.y);
                      }
+                     for p in other_players.values() {
+                         println!("  Remote Player {}: Class='{}'", p.username, p.class);
+                     }
                 }
 
                 world_renderer::WorldRenderer::draw_game(
