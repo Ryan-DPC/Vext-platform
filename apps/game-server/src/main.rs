@@ -146,6 +146,40 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                 }
                                             }).to_string();
                                             let _ = sender.send(Message::Text(response)).await;
+
+                                            // BROADCAST to others
+                                            let join_msg = serde_json::json!({
+                                                "type": "aether-strike:player-joined",
+                                                "data": {
+                                                    "playerId": "69674e69b08773d5cab6a58b", // TODO: Use real ID
+                                                    "username": "Player", // TODO: Use real username
+                                                    "class": "warrior"
+                                                }
+                                            }).to_string();
+                                            // Ideally we relay the Original Message? 
+                                            // The original message was "join-game".
+                                            // We need to construct "player-joined".
+                                            // We don't have the full player info in "data" (client sends class/etc?).
+                                            // Client sends: { gameId, playerClass, maxPlayers }.
+                                            // We need to extract playerClass.
+                                            
+                                            // Let's assume we extract it higher up or just reuse 'text' if we can?
+                                            // No, 'text' is 'join-game'. Clients expect 'player-joined'.
+                                            
+                                            let player_class = data["playerClass"].as_str().unwrap_or("warrior").to_string();
+                                            let p_id = "Guest"; // FIXME matches Handshake 
+                                            // If we use UserID from Auth, we put it here.
+                                            
+                                            // Fixing Broadcast:
+                                            let broadcast_msg = serde_json::json!({
+                                                "type": "aether-strike:player-joined",
+                                                "data": {
+                                                    "playerId": user_id, // Variable from outer scope
+                                                    "username": "Unknown", // user_id is set? check scope
+                                                    "class": player_class
+                                                }
+                                            }).to_string();
+                                            let _ = tx.send(broadcast_msg);
                                             
                                             tracing::info!("Player joined: {}", game_id);
                                         }
