@@ -304,11 +304,16 @@ async fn main() {
                         
                         enemy_hp = 0.0; // Reset, will be set by wave spawn
 
-                        
                         combat_logs.clear();
                         combat_logs.push("Battle started!".to_string());
                         
+                        println!("DEBUG INIT: _enemies count = {}, solo boss = {:?}", _enemies.len(), _enemy.is_some());
+                        if let Some(e) = _enemies.first() {
+                            println!("  First Enemy Pos: ({}, {})", e.position.x, e.position.y);
+                        }
+
                         current_screen = GameScreen::InGame;
+                    }
                     }
                 }
 
