@@ -847,12 +847,10 @@ async fn main() {
                                         let mut damage = 10.0;
                                         let mut mana = 0;
                                         let mut is_area = false;
-                                        if let Some(gs) = &_game_state {
-                                            if let Some(skill) = gs.character_class.skills.iter().find(|s| s.name == name) {
-                                                damage = skill.base_damage;
-                                                mana = skill.mana_cost;
-                                                is_area = skill.skill_type.to_lowercase().contains("aoe");
-                                            }
+                                        if let Some(skill) = gs.character_class.skills.iter().find(|s| s.name == name) {
+                                            damage = skill.base_damage;
+                                            mana = skill.mana_cost;
+                                            is_area = skill.skill_type.to_lowercase().contains("aoe");
                                         }
                                         client.use_attack(name, Some(target_id), damage, mana, is_area); 
                                     }
@@ -900,7 +898,6 @@ async fn main() {
                                       client.end_turn(next);
                                   }
                              } 
-                             }
                              // Boss Turn
                              else if let Some(boss) = &_enemy {
                                  if &boss.id == current_id {

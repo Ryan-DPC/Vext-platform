@@ -7,6 +7,7 @@ use crate::entities::Enemy;
 use crate::modules::online;
 use crate::modules::enemy_model;
 use crate::modules::turn::TurnSystem;
+use crate::entities::Entity;
 
 pub struct NetworkHandler;
 
