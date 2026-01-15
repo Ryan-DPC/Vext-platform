@@ -16,7 +16,8 @@ class GameLobby {
   // Combat State
   currentTurnActorId: string | null = null;
   turnOrder: string[] = []; // string of userId or enemyId
-  enemies: Map<string, { id: string; hp: number; maxHp: number; name: string; damage: number }> = new Map();
+  enemies: Map<string, { id: string; hp: number; maxHp: number; name: string; damage: number }> =
+    new Map();
 
   constructor(id: string, hostId: string) {
     this.id = id;
@@ -237,7 +238,7 @@ class AetherStrikeManager {
       const { attackName, targetId } = payload;
       let damage = 0;
       let manaCost = 0;
-      let isArea = false;
+      const isArea = false;
 
       // CALCULATE DAMAGE
       if (actorType === 'enemy') {
@@ -248,10 +249,12 @@ class AetherStrikeManager {
         damage = 20;
         manaCost = 10;
         if (attackName.toLowerCase() === 'shoot') {
-          damage = 15; manaCost = 0;
+          damage = 15;
+          manaCost = 0;
         }
         if (attackName.toLowerCase() === 'fireball') {
-          damage = 40; manaCost = 30;
+          damage = 40;
+          manaCost = 30;
         }
         // Deduct Mana (simplified, really should be in Player update)
       }
@@ -272,10 +275,10 @@ class AetherStrikeManager {
           if (p.userId === targetId) {
             // Found player, apply damage logic?
             // Server doesn't track HP for players strictly yet?
-            // Host/Client tracks HP. 
+            // Host/Client tracks HP.
             // But for "Game Over" logic, Server should track it.
             // For now, allow passthrough, Client HUD will update HP based on Combat Log / State?
-            // No, Client needs authoritative HP update. 
+            // No, Client needs authoritative HP update.
             // Let's assume clients track their own HP based on 'combat-action' events for now.
             break;
           }
@@ -302,186 +305,184 @@ class AetherStrikeManager {
       // For simplicity, let's auto-end turn after an attack for now.
       this.nextTurn(lobby);
     }
-    return;
+
+    // 7. END TURN
+    if (type === 'aether-strike:end-turn') {
+      const lobby = this.findLobbyBySocket(ws);
+      if (lobby && lobby.currentTurnActorId === ws.data.userId) {
+        this.nextTurn(lobby);
+      }
+      return;
+    }
+
+    // 8. FLEE
+    if (type === 'aether-strike:flee') {
+      const lobby = this.findLobbyBySocket(ws);
+      if (lobby && lobby.currentTurnActorId === ws.data.userId) {
+        const actionMsg = JSON.stringify({
+          type: 'aether-strike:combat-action',
+          data: {
+            actorId: ws.data.userId,
+            actionName: 'Flee',
+            damage: 0,
+            manaCost: 0,
+            isArea: false,
+          },
+        });
+        for (const p of lobby.players.values()) {
+          p.socket.send(actionMsg);
+        }
+        // Logic for flee could be disconnection or lobby exit
+        this.nextTurn(lobby);
+      }
+      return;
+    }
+
+    // 5. PLAYER INPUT (Movement/Action)
+    if (type === 'aether-strike:player-input') {
+      const lobby = this.findLobbyBySocket(ws);
+      if (lobby) {
+        const player = lobby.players.get(ws.id);
+        if (player) {
+          // Update internal state
+          player.position = { x: payload.position[0], y: payload.position[1] };
+          player.velocity = { x: payload.velocity[0], y: payload.velocity[1] };
+          player.action = payload.action;
+
+          // Broadcast update
+          ws.publish(
+            `aether-strike:${lobby.id}`,
+            JSON.stringify({
+              type: 'aether-strike:player-update',
+              data: {
+                playerId: player.userId,
+                position: payload.position,
+                velocity: payload.velocity,
+                action: payload.action,
+              },
+            })
+          );
+        }
+      }
+      return;
+    }
+
+    // 5. LEAVE GAME
+    if (type === 'aether-strike:leave-game') {
+      this.handleDisconnect(ws);
+    }
   }
 
-  // 7. END TURN
-  if(type === 'aether-strike:end-turn') {
-  const lobby = this.findLobbyBySocket(ws);
-  if (lobby && lobby.currentTurnActorId === ws.data.userId) {
-    this.nextTurn(lobby);
-  }
-  return;
-}
+  handleDisconnect(ws: any) {
+    const lobby = this.findLobbyBySocket(ws);
+    if (lobby) {
+      const player = lobby.players.get(ws);
+      if (player) {
+        lobby.players.delete(ws);
+        ws.unsubscribe(`aether-strike:${lobby.id}`);
 
-// 8. FLEE
-if (type === 'aether-strike:flee') {
-  const lobby = this.findLobbyBySocket(ws);
-  if (lobby && lobby.currentTurnActorId === ws.data.userId) {
+        // Notify others
+        const leftMsg = JSON.stringify({
+          type: 'aether-strike:player-left',
+          data: { playerId: player.userId },
+        });
+
+        for (const p of lobby.players.values()) {
+          p.socket.send(leftMsg);
+        }
+
+        // Clean up if empty
+        if (lobby.players.size === 0) {
+          this.lobbies.delete(lobby.id);
+        }
+      }
+    }
+  }
+
+  findLobbyBySocket(socket: any): GameLobby | undefined {
+    for (const lobby of this.lobbies.values()) {
+      if (lobby.players.has(socket)) return lobby;
+    }
+    return undefined;
+  }
+
+  broadcastGameState(lobby: GameLobby) {
+    const playersList = Array.from(lobby.players.values()).map((p) => ({
+      userId: p.userId,
+      username: p.username,
+      class: p.class,
+      position: p.position,
+    }));
+
+    const msg = JSON.stringify({
+      type: 'aether-strike:game-state',
+      data: {
+        players: playersList,
+        hostId: lobby.hostId,
+        isStarted: lobby.isStarted,
+      },
+    });
+
+    // Send to all in lobby
+    for (const p of lobby.players.values()) {
+      p.socket.send(msg);
+    }
+  }
+
+  private nextTurn(lobby: GameLobby) {
+    if (!lobby.turnOrder.length) return;
+
+    const currentIndex = lobby.turnOrder.indexOf(lobby.currentTurnActorId!);
+    const nextIndex = (currentIndex + 1) % lobby.turnOrder.length;
+    lobby.currentTurnActorId = lobby.turnOrder[nextIndex];
+
+    logger.info(`[Aether Strike] Turn changed to: ${lobby.currentTurnActorId}`);
+
+    const turnMsg = JSON.stringify({
+      type: 'aether-strike:turn-changed',
+      data: { currentTurnId: lobby.currentTurnActorId },
+    });
+
+    for (const p of lobby.players.values()) {
+      p.socket.send(turnMsg);
+    }
+
+    if (lobby.currentTurnActorId === 'enemy') {
+      setTimeout(() => this.executeEnemyTurn(lobby), 2000);
+    }
+  }
+
+  private executeEnemyTurn(lobby: GameLobby) {
+    if (!lobby.isStarted || lobby.currentTurnActorId !== 'enemy') return;
+
+    const players = Array.from(lobby.players.values());
+    if (!players.length) return;
+
+    // AI Logic: Alternate between area attack and single target
+    const isArea = Math.random() > 0.5;
+    const damage = isArea ? 15 : 30;
+    const actionName = isArea ? 'Earthquake (AOE)' : 'Crush';
+    const target = players[Math.floor(Math.random() * players.length)];
+
     const actionMsg = JSON.stringify({
       type: 'aether-strike:combat-action',
       data: {
-        actorId: ws.data.userId,
-        actionName: 'Flee',
-        damage: 0,
+        actorId: 'enemy',
+        targetId: isArea ? null : target.userId,
+        actionName,
+        damage,
         manaCost: 0,
-        isArea: false,
+        isArea,
       },
     });
+
     for (const p of lobby.players.values()) {
       p.socket.send(actionMsg);
     }
-    // Logic for flee could be disconnection or lobby exit
-    this.nextTurn(lobby);
+
+    // End enemy turn
+    setTimeout(() => this.nextTurn(lobby), 1500);
   }
-  return;
-}
-
-// 5. PLAYER INPUT (Movement/Action)
-if (type === 'aether-strike:player-input') {
-  const lobby = this.findLobbyBySocket(ws);
-  if (lobby) {
-    const player = lobby.players.get(ws.id);
-    if (player) {
-      // Update internal state
-      player.position = { x: payload.position[0], y: payload.position[1] };
-      player.velocity = { x: payload.velocity[0], y: payload.velocity[1] };
-      player.action = payload.action;
-
-      // Broadcast update
-      ws.publish(
-        `aether-strike:${lobby.id}`,
-        JSON.stringify({
-          type: 'aether-strike:player-update',
-          data: {
-            playerId: player.userId,
-            position: payload.position,
-            velocity: payload.velocity,
-            action: payload.action,
-          },
-        })
-      );
-    }
-  }
-  return;
-}
-
-// 5. LEAVE GAME
-if (type === 'aether-strike:leave-game') {
-  this.handleDisconnect(ws);
-}
-  }
-
-handleDisconnect(ws: any) {
-  const lobby = this.findLobbyBySocket(ws);
-  if (lobby) {
-    const player = lobby.players.get(ws);
-    if (player) {
-      lobby.players.delete(ws);
-      ws.unsubscribe(`aether-strike:${lobby.id}`);
-
-      // Notify others
-      const leftMsg = JSON.stringify({
-        type: 'aether-strike:player-left',
-        data: { playerId: player.userId },
-      });
-
-      for (const p of lobby.players.values()) {
-        p.socket.send(leftMsg);
-      }
-
-      // Clean up if empty
-      if (lobby.players.size === 0) {
-        this.lobbies.delete(lobby.id);
-      }
-    }
-  }
-}
-
-findLobbyBySocket(socket: any): GameLobby | undefined {
-  for (const lobby of this.lobbies.values()) {
-    if (lobby.players.has(socket)) return lobby;
-  }
-  return undefined;
-}
-
-broadcastGameState(lobby: GameLobby) {
-  const playersList = Array.from(lobby.players.values()).map((p) => ({
-    userId: p.userId,
-    username: p.username,
-    class: p.class,
-    position: p.position,
-  }));
-
-  const msg = JSON.stringify({
-    type: 'aether-strike:game-state',
-    data: {
-      players: playersList,
-      hostId: lobby.hostId,
-      isStarted: lobby.isStarted,
-    },
-  });
-
-  // Send to all in lobby
-  for (const p of lobby.players.values()) {
-    p.socket.send(msg);
-  }
-}
-
-  private nextTurn(lobby: GameLobby) {
-  if (!lobby.turnOrder.length) return;
-
-  const currentIndex = lobby.turnOrder.indexOf(lobby.currentTurnActorId!);
-  const nextIndex = (currentIndex + 1) % lobby.turnOrder.length;
-  lobby.currentTurnActorId = lobby.turnOrder[nextIndex];
-
-  logger.info(`[Aether Strike] Turn changed to: ${lobby.currentTurnActorId}`);
-
-  const turnMsg = JSON.stringify({
-    type: 'aether-strike:turn-changed',
-    data: { currentTurnId: lobby.currentTurnActorId },
-  });
-
-  for (const p of lobby.players.values()) {
-    p.socket.send(turnMsg);
-  }
-
-  if (lobby.currentTurnActorId === 'enemy') {
-    setTimeout(() => this.executeEnemyTurn(lobby), 2000);
-  }
-}
-
-  private executeEnemyTurn(lobby: GameLobby) {
-  if (!lobby.isStarted || lobby.currentTurnActorId !== 'enemy') return;
-
-  const players = Array.from(lobby.players.values());
-  if (!players.length) return;
-
-  // AI Logic: Alternate between area attack and single target
-  const isArea = Math.random() > 0.5;
-  const damage = isArea ? 15 : 30;
-  const actionName = isArea ? 'Earthquake (AOE)' : 'Crush';
-  const target = players[Math.floor(Math.random() * players.length)];
-
-  const actionMsg = JSON.stringify({
-    type: 'aether-strike:combat-action',
-    data: {
-      actorId: 'enemy',
-      targetId: isArea ? null : target.userId,
-      actionName,
-      damage,
-      manaCost: 0,
-      isArea,
-    },
-  });
-
-  for (const p of lobby.players.values()) {
-    p.socket.send(actionMsg);
-  }
-
-  // End enemy turn
-  setTimeout(() => this.nextTurn(lobby), 1500);
-}
 }
 
 export const aetherStrikeManager = new AetherStrikeManager();
