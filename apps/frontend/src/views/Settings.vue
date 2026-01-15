@@ -267,16 +267,16 @@ const saveLibraryPaths = () => {
         <!-- ACCOUNT TAB -->
         <div v-if="activeTab === 'Account'" class="tab-content">
             <div class="form-group">
-            <label>{{ t('settings.account.username') }}</label>
+            <label>{{ t('settings.account.email') }}</label>
             <div class="input-wrapper">
-                <input v-model="form.username" type="text" />
+                <input v-model="form.email" type="email" />
             </div>
             </div>
 
             <div class="form-group">
-            <label>{{ t('settings.account.email') }}</label>
+            <label>{{ t('settings.account.username') }}</label>
             <div class="input-wrapper">
-                <input v-model="form.email" type="email" />
+                <input v-model="form.username" type="text" />
             </div>
             </div>
 
@@ -365,6 +365,39 @@ const saveLibraryPaths = () => {
             <button class="add-library-btn" @click="addLibraryPath">
                 <i class="fas fa-plus"></i> {{ t('settings.storage.add_folder') }}
             </button>
+        </div>
+
+        <!-- NOTIFICATIONS TAB -->
+        <div v-if="activeTab === 'Notifications'" class="tab-content">
+            <div class="toggle-group">
+                <div class="toggle-item">
+                    <div class="toggle-info">
+                        <span class="toggle-label">{{ t('settings.notifications.email_updates') }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" v-model="form.notification_preferences.email_updates">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="toggle-item">
+                     <div class="toggle-info">
+                        <span class="toggle-label">{{ t('settings.notifications.push_notifications') }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" v-model="form.notification_preferences.push_notifications">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="toggle-item">
+                     <div class="toggle-info">
+                        <span class="toggle-label">{{ t('settings.notifications.marketing_emails') }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" v-model="form.notification_preferences.marketing_emails">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
         </div>
 
 

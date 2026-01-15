@@ -372,6 +372,11 @@ fn ws_thread_loop(
                                                         class: data["class"].as_str().unwrap_or("warrior").to_string(),
                                                     })
                                                 }
+                                                "aether-strike:game-created" => {
+                                                    Some(GameEvent::NewHost {
+                                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
+                                                    })
+                                                }
                                                 "aether-strike:game-state" => {
                                                     let mut players = Vec::new();
                                                     if let Some(players_val) = data["players"].as_array() {

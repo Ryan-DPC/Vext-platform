@@ -122,6 +122,7 @@ export const handleAetherStrikeMessage = async (ws: any, event: string, payload:
                     gameId: joinGameId,
                     players: currentPlayers,
                     state: targetRoom.state,
+                    hostId: targetRoom.hostId,
                 },
             }));
             break;

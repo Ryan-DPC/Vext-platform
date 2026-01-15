@@ -8,6 +8,7 @@ const messages = {
         Account: 'Account',
         Profile: 'Profile',
         Security: 'Security',
+        Storage: 'Storage',
         Notifications: 'Notifications',
         Appearance: 'Appearance',
       },
@@ -26,6 +27,15 @@ const messages = {
         new_password: 'New Password',
         confirm_password: 'Confirm Password',
         update_btn: 'UPDATE PASSWORD',
+      },
+      storage: {
+        library_folders: 'Library Folders',
+        add_folder: 'Add Folder',
+      },
+      notifications: {
+        email_updates: 'Email Updates',
+        push_notifications: 'Push Notifications',
+        marketing_emails: 'Marketing Emails',
       },
       appearance: {
         display_mode: 'Display Mode',
@@ -48,6 +58,7 @@ const messages = {
         Account: 'Compte',
         Profile: 'Profil',
         Security: 'Sécurité',
+        Storage: 'Stockage',
         Notifications: 'Notifications',
         Appearance: 'Apparence',
       },
@@ -66,6 +77,15 @@ const messages = {
         new_password: 'Nouveau mot de passe',
         confirm_password: 'Confirmer le mot de passe',
         update_btn: 'METTRE À JOUR',
+      },
+      storage: {
+        library_folders: 'Dossiers de la bibliothèque',
+        add_folder: 'Ajouter un dossier',
+      },
+      notifications: {
+        email_updates: 'Mises à jour par email',
+        push_notifications: 'Notifications Push',
+        marketing_emails: 'Emails marketing',
       },
       appearance: {
         display_mode: "Mode d'affichage",
@@ -88,6 +108,7 @@ const messages = {
         Account: 'Cuenta',
         Profile: 'Perfil',
         Security: 'Seguridad',
+        Storage: 'Almacenamiento',
         Notifications: 'Notificaciones',
         Appearance: 'Apariencia',
       },
@@ -106,6 +127,15 @@ const messages = {
         new_password: 'Nueva contraseña',
         confirm_password: 'Confirmar contraseña',
         update_btn: 'ACTUALIZAR CONTRASEÑA',
+      },
+      storage: {
+        library_folders: 'Carpetas de la biblioteca',
+        add_folder: 'Añadir carpeta',
+      },
+      notifications: {
+        email_updates: 'Actualizaciones por correo',
+        push_notifications: 'Notificaciones Push',
+        marketing_emails: 'Correos de marketing',
       },
       appearance: {
         display_mode: 'Modo de visualización',
