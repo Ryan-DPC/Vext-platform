@@ -20,6 +20,7 @@ mod input;
 mod draw;
 mod server;
 mod backend;
+mod waves;
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
@@ -113,6 +114,7 @@ async fn main() {
     let mut _teammates: Vec<StickFigure> = Vec::new();
     let mut _enemy: Option<Enemy> = None;
     let mut _enemies: Vec<Enemy> = Vec::new();
+    let mut wave_manager = waves::WaveManager::new();
     let mut last_network_log = String::from("Ready");
     let mut battle_ui_state = crate::ui::hud::BattleUIState::Main;
     let mut current_turn_id = String::new();
@@ -230,7 +232,7 @@ async fn main() {
                         _player = Some(new_player);
                         
                         // Main Boss Position (Front Right)
-                        _enemy = Some(Enemy::new(vec2(900.0, 420.0)));
+                        _enemy = None; // Will be spawned by WaveManager
                         
                         // Solo mode setup
                         is_solo_mode = true;
@@ -255,28 +257,16 @@ async fn main() {
                         t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
-                        // Create Mock Enemies (Closer)
-                        // User: "Avance encore un poil" -> Move Left by 30px
-                        
+                        // Clear Enemies - They will be spawned by WaveManager
                         _enemies.clear();
-                        // 1. Shadow Minion
-                        _enemies.push(Enemy::new(vec2(790.0, 200.0))); // 820->790
-                        // 2. Dark Spirit
-                        _enemies.push(Enemy::new(vec2(890.0, 360.0))); // 920->890
-                        // 3. Void Crawler
-                        _enemies.push(Enemy::new(vec2(790.0, 460.0))); // 820->790
+                        _enemy = None;
+                        
+                        // Initialize WaveManager
+                        wave_manager = waves::WaveManager::new();
                         
                         is_player_turn = true;
-                        enemy_hp = 500.0; 
+                        enemy_hp = 500.0; // Will be set by Boss wave if applicable, or ignored
                         
-                        // Initialize boss
-                        if let Some(e) = &mut _enemy {
-                            e.position = vec2(670.0, 320.0); // 700->670
-                            e.max_health = 500.0;
-                            e.health = 500.0;
-                            e.add_threat("teammate_0", 40.0); 
-                            e.add_threat("player", 0.0);
-                        }
                         combat_logs.clear();
                         combat_logs.push("Battle started!".to_string());
                         
@@ -550,7 +540,13 @@ async fn main() {
                                 new_player.color = p_class.color();
                                 _player = Some(new_player);
                                 
-                                _enemy = Some(Enemy::new(vec2(ENEMY_X, ENEMY_Y)));
+                                let stats = crate::entities::enemy::EnemyStats {
+                                    name: "Boss".to_string(),
+                                    hp: 800.0, damage: 40.0, speed: 30.0,
+                                    attack_range: 80.0, attack_cooldown: 2.5,
+                                    gold_reward: 500, color: RED, scale: 2.5,
+                                };
+                                _enemy = Some(Enemy::new(vec2(ENEMY_X, ENEMY_Y), crate::entities::enemy::EnemyType::Boss, stats));
                                 // ---------------------------------------------
 
                                 current_screen = GameScreen::InGame;
@@ -667,6 +663,47 @@ async fn main() {
                 
                 // Draw a "Ground" line for reference
                 draw_rectangle(0.0, 500.0, SCREEN_WIDTH, 20.0, Color::from_rgba(50, 40, 30, 255));
+
+                // ===== WAVE SYSTEM =====
+                if is_solo_mode {
+                    // Check Cleanups
+                    _enemies.retain(|e| e.health > 0.0);
+                    if let Some(e) = &_enemy {
+                         if e.health <= 0.0 { _enemy = None; }
+                    }
+
+                    wave_manager.update(get_frame_time(), _enemies.len(), _enemy.is_some());
+
+                    if wave_manager.state == waves::WaveState::Spawning {
+                        if let Some(wave) = wave_manager.get_current_wave() {
+                            combat_logs.push(format!(">>> {} <<<", wave.title));
+                            combat_logs.push(wave.description.clone());
+                            
+                            for (stats, kind, pos) in &wave.enemies {
+                                match kind {
+                                    waves::EnemyType::Boss => {
+                                        _enemy = Some(Enemy::new(*pos, kind.clone(), stats.clone()));
+                                        enemy_hp = stats.hp;
+                                        // Auto-add threat
+                                        if let Some(e) = &mut _enemy {
+                                            e.add_threat("player", 1.0);
+                                        }
+                                    },
+                                    _ => {
+                                        let mut new_enemy = Enemy::new(*pos, kind.clone(), stats.clone());
+                                        new_enemy.add_threat("player", 1.0);
+                                        _enemies.push(new_enemy);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Display Wave Title
+                    if let Some(wave) = wave_manager.get_current_wave() {
+                        draw_text(&wave.title, SCREEN_WIDTH / 2.0 - 150.0, 80.0, 30.0, WHITE);
+                    }
+                }
 
                 // ===== RELAY MULTIPLAYER: Poll for updates in-game =====
                 if let Some(client) = &network_manager.client {
@@ -804,12 +841,19 @@ async fn main() {
                                             
                                             // Deal damage to enemy
                                             let damage = atk.base_damage;
-                                            enemy_hp = (enemy_hp - damage).max(0.0);
                                             
-                                            // Update Aggro
-                                            if let Some(e) = &mut _enemy {
-                                                e.health = enemy_hp;
-                                                e.add_threat("player", damage);
+                                            // Priority Target: Boss -> First Minion
+                                            if let Some(boss) = &mut _enemy {
+                                                boss.health = (boss.health - damage).max(0.0);
+                                                boss.add_threat("player", damage);
+                                                enemy_hp = boss.health; // Sync generic var for HUD
+                                                combat_logs.push(format!("You hit Boss for {:.0}!", damage));
+                                            } else if let Some(target) = _enemies.first_mut() {
+                                                target.health = (target.health - damage).max(0.0);
+                                                target.add_threat("player", damage);
+                                                combat_logs.push(format!("You hit {} for {:.0}!", target.name, damage));
+                                            } else {
+                                                combat_logs.push("No target found!".to_string());
                                             }
                                             
                                             combat_logs.push(format!("You used {} for {:.0} damage!", name, damage));
@@ -910,22 +954,21 @@ async fn main() {
                     
                     // === SOLO MODE: ENEMY AI ===
                     if is_solo_mode && !is_player_turn && get_time() > enemy_attack_timer {
-                        // Enemy attacks player
-                        let enemy_attacks = vec![
-                            ("Slash", 25.0),
-                            ("Heavy Strike", 40.0),
-                            ("Dark Pulse", 35.0),
-                        ];
                         
-                        // Random attack
-                        let attack_idx = (get_time() * 1000.0) as usize % enemy_attacks.len();
-                        let (attack_name, base_damage) = enemy_attacks[attack_idx];
-                        
-                        // Apply damage to player
-                        let damage = base_damage;
-                        gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
-                        
-                        combat_logs.push(format!("Enemy used {} for {:.0} damage!", attack_name, damage));
+                        // 1. Minions Attack
+                        for enemy in &_enemies {
+                             // Simple Logic: Attack Player
+                             let damage = enemy.attack_damage;
+                             gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                             combat_logs.push(format!("{} hits you for {:.0}!", enemy.name, damage));
+                        }
+
+                        // 2. Boss Attack
+                        if let Some(boss) = &_enemy {
+                             let damage = boss.attack_damage;
+                             gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                             combat_logs.push(format!("BOSS hits you for {:.0}!", damage));
+                        }
                         
                         // Check if player died
                         if gs.resources.current_hp <= 0.0 {
@@ -934,15 +977,14 @@ async fn main() {
                             combat_logs.push("You have been defeated!".to_string());
                         }
 
-                        
-                        // Check if enemy died
-                        if enemy_hp <= 0.0 {
-                            combat_logs.push("Victory! Enemy defeated!".to_string());
-                            gs.resources.gold += 100;
-                        }
-                        
                         // Switch back to player turn
                         is_player_turn = true;
+                    }
+                    
+                    // Victory Check handled by WaveManager
+                    if wave_manager.state == waves::WaveState::AllWavesCleared {
+                        combat_logs.push("VICTORY COMPLETED!".to_string());
+                        // Maybe switch screen?
                     }
                 }
 

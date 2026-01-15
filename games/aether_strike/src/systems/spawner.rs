@@ -28,7 +28,13 @@ impl EnemySpawner {
             let spawn_x = screen_width - 50.0;
             let spawn_y = rand::gen_range(100.0, screen_height - 100.0);
             
-            enemies.push(Enemy::new(vec2(spawn_x, spawn_y)));
+            let stats = crate::entities::enemy::EnemyStats {
+                name: "Minion".to_string(),
+                hp: 50.0, damage: 10.0, speed: 60.0,
+                attack_range: 50.0, attack_cooldown: 1.5,
+                gold_reward: 5, color: RED, scale: 1.5,
+            };
+            enemies.push(Enemy::new(vec2(spawn_x, spawn_y), crate::entities::enemy::EnemyType::Minion, stats));
             
             self.enemies_spawned_this_wave += 1;
             self.spawn_timer = 0.0;

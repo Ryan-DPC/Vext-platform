@@ -12,8 +12,8 @@
 
 ## 📊 Base Stats (Level 1)
 
-- **HP**: 200
-- **Mana**: 0 (Energy)
+- **HP**: 300
+- **Mana**: 100 (Energy)
 - **Speed**: 0.8 (Very Slow)
 - **Def**: 15
 - **Crit Rate**: 2%
@@ -24,7 +24,7 @@
 
 | ID  | Name                | Type               | Unlock | Cost | Base Dmg | Description                             |
 | :-- | :------------------ | :----------------- | :----: | :--: | :------: | :-------------------------------------- |
-| 1   | **Smash**           | Melee              |   1    |  0   |    15    | Heavy melee hit.                        |
+| 1   | **Smash**           | Melee              |   1    |  0   |    30    | Heavy melee hit.                        |
 | 2   | **Harden**          | Defense            |   1    |  0   |    0     | +5 Def for 1 turn.                      |
 | 3   | **Earthquake**      | AoE                |   10   |  30  |    20    | Dmg and Slow to all enemies.            |
 | 4   | **Stone Wall**      | Defense            |   15   |  20  |    0     | Absorb 50 incoming damage.              |

@@ -11,8 +11,8 @@
 
 ## 📊 Base Stats (Level 1)
 
-- **HP**: 130
-- **Mana**: 60 (Rage)
+- **HP**: 160
+- **Mana**: 120 (Rage)
 - **Speed**: 1.1 (Fast)
 - **Def**: 6
 - **Crit Rate**: 12%
@@ -23,7 +23,7 @@
 
 | ID  | Name                 | Type               | Unlock | Cost | Base Dmg | Description                                 |
 | :-- | :------------------- | :----------------- | :----: | :--: | :------: | :------------------------------------------ |
-| 1   | **Savage Strike**    | Basic              |   1    |  0   |    12    | Basic axe swing. High damage variation.     |
+| 1   | **Savage Strike**    | Basic              |   1    |  0   |    45    | Basic axe swing. High damage variation.     |
 | 2   | **Bloodthirst**      | Self-Heal          |   1    |  15  |    8     | Deal damage and heal for 50%.               |
 | 3   | **Enrage**           | Buff               |   5    |  20  |    0     | +20% Dmg taken, +40% Dmg dealt for 2 turns. |
 | 4   | **Axethrow**         | Ranged             |   8    |  15  |    10    | Ranged damage.                              |

@@ -10,8 +10,8 @@
 
 ## 📊 Base Stats (Level 1)
 
-- **HP**: 120
-- **Mana**: 80 (Focus)
+- **HP**: 140
+- **Mana**: 150 (Focus)
 - **Speed**: 1.2 (Fast)
 - **Def**: 7
 - **Crit Rate**: 15%
@@ -22,7 +22,7 @@
 
 | ID  | Name                | Type               | Unlock | Cost | Base Dmg | Description                                        |
 | :-- | :------------------ | :----------------- | :----: | :--: | :------: | :------------------------------------------------- |
-| 1   | **Quick Shot**      | Basic              |   1    |  0   |    9     | Fast arrow shot. Low cooldown.                     |
+| 1   | **Quick Shot**      | Basic              |   1    |  0   |    35    | Fast arrow shot. Low cooldown.                     |
 | 2   | **Poison Tip**      | DoT                |   1    |  10  |    4     | Apply Poison (4 dmg/turn for 3 turns).             |
 | 3   | **Disengage**       | Mobility           |   5    |  15  |    5     | Jump back and deal small damage.                   |
 | 4   | **Multishot**       | AoE                |   8    |  20  |    12    | Fire 3 arrows at random targets.                   |

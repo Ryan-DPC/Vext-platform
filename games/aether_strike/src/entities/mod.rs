@@ -2,7 +2,7 @@ pub mod stick_figure;
 pub mod enemy;
 
 pub use stick_figure::StickFigure;
-pub use enemy::Enemy;
+pub use enemy::{Enemy, EnemyType, EnemyStats};
 
 /// Type d'entité
 #[derive(Debug, Clone, Copy, PartialEq)]

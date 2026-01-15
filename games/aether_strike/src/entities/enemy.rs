@@ -3,6 +3,27 @@ use std::collections::HashMap;
 use super::{Entity, EntityType};
 
 /// Ennemi (stick figure ennemi)
+#[derive(Debug, Clone, PartialEq)]
+pub enum EnemyType {
+    Minion,
+    Elite,
+    Boss,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnemyStats {
+    pub name: String,
+    pub hp: f32,
+    pub damage: f32,
+    pub speed: f32,
+    pub attack_range: f32,
+    pub attack_cooldown: f32,
+    pub gold_reward: u32,
+    pub color: Color,
+    pub scale: f32,
+}
+
+/// Ennemi (stick figure ennemi)
 #[derive(Debug, Clone)]
 pub struct Enemy {
     pub position: Vec2,
@@ -15,23 +36,29 @@ pub struct Enemy {
     pub attack_timer: f32,
     pub gold_reward: u32,
     pub color: Color,
+    pub kind: EnemyType,
+    pub name: String,
+    pub scale: f32,
     // [AGGRO SYSTEM]
     pub threat_table: HashMap<String, f32>,
 }
 
 impl Enemy {
-    pub fn new(position: Vec2) -> Self {
+    pub fn new(position: Vec2, kind: EnemyType, stats: EnemyStats) -> Self {
         Enemy {
             position,
-            health: 50.0,
-            max_health: 50.0,
-            speed: 60.0,
-            attack_damage: 10.0,
-            attack_range: 50.0,
-            attack_cooldown: 1.5,
+            health: stats.hp,
+            max_health: stats.hp,
+            speed: stats.speed,
+            attack_damage: stats.damage,
+            attack_range: stats.attack_range,
+            attack_cooldown: stats.attack_cooldown,
             attack_timer: 0.0,
-            gold_reward: 5,
-            color: RED,
+            gold_reward: stats.gold_reward,
+            color: stats.color,
+            kind,
+            name: stats.name,
+            scale: stats.scale,
             threat_table: HashMap::new(),
         }
     }
@@ -70,7 +97,7 @@ impl Enemy {
 
     pub fn draw(&self, texture: Option<&Texture2D>, source_rect: Option<Rect>) {
         if let Some(tex) = texture {
-            let scale = 2.0; 
+            let scale = self.scale; 
             
             let dest_w = if let Some(rect) = source_rect { rect.w * scale } else { tex.width() * scale };
             let dest_h = if let Some(rect) = source_rect { rect.h * scale } else { tex.height() * scale };
