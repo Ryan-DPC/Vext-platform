@@ -10,7 +10,8 @@ pub fn handle_player_joined(
     local_username: &str,
     other_players: &mut HashMap<String, RemotePlayer>
 ) -> String {
-    let msg = format!("{} joined! ({})", username, &player_id[..4]);
+    let id_short = if player_id.len() >= 4 { &player_id[..4] } else { player_id };
+    let msg = format!("{} joined! ({})", username, id_short);
     
     if username != local_username {
         let display_class = class.to_string();
@@ -31,7 +32,8 @@ pub fn handle_player_joined(
 
 pub fn handle_player_left(player_id: &str, other_players: &mut HashMap<String, RemotePlayer>) -> String {
     other_players.remove(player_id);
-    format!("Player {} left", &player_id[..6])
+    let id_short = if player_id.len() >= 6 { &player_id[..6] } else { player_id };
+    format!("Player {} left", id_short)
 }
 
 // Logic for GameState sync event
