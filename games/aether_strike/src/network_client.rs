@@ -266,6 +266,8 @@ fn ws_thread_loop(
                     }
                 });
                 
+                println!("📤 Sending Join Payload: {}", join_msg);
+
                 if let Err(e) = socket.send(Message::Text(join_msg.to_string())) {
                      eprintln!("Failed to initiate game: {}", e);
                      // If we can't send join, socket is dead.
