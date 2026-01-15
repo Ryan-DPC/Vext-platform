@@ -192,6 +192,35 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             tracing::info!("Player joined: {} ({})", game_id, user_id);
                                         }
                                     }
+                                    "aether-strike:change-class" => {
+                                        let new_class = data["class"].as_str().unwrap_or("warrior").to_string();
+                                        
+                                        // Update Room State
+                                        let room_tx = {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                                if let Some(player) = room.players.get_mut(&user_id) {
+                                                    player.class = new_class.clone();
+                                                }
+                                                Some(room.tx.clone())
+                                            } else {
+                                                None
+                                            }
+                                        }; // DROP LOCK
+
+                                        // Broadcast Update
+                                        if let Some(tx) = room_tx {
+                                            let update_msg = serde_json::json!({
+                                                "type": "aether-strike:player-updated",
+                                                "data": {
+                                                    "playerId": user_id,
+                                                    "class": new_class
+                                                }
+                                            }).to_string();
+                                            let _ = tx.send(update_msg);
+                                            tracing::info!("Player {} changed class to {}", user_id, new_class);
+                                        }
+                                    }
                                     _ => {
                                         // Relay Logic
                                         if !current_room_id.is_empty() {

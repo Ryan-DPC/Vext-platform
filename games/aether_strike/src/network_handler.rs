@@ -67,7 +67,8 @@ impl NetworkHandler {
                 GameEvent::PlayerUpdated { player_id, class } => {
                     println!("NET-RX: Player Updated {} -> {}", player_id, class);
                     let display_class = class.clone();
-                    *last_network_log = format!("Update: {} -> {}", &player_id[..4], display_class);
+                    let id_short = if player_id.len() >= 4 { &player_id[..4] } else { &player_id };
+                    *last_network_log = format!("Update: {} -> {}", id_short, display_class);
                     if let Some(player) = other_players.get_mut(&player_id) {
                         player.class = display_class;
                     }
@@ -124,13 +125,22 @@ impl NetworkHandler {
                 }
                 GameEvent::TurnChanged { current_turn_id: next_id } => {
                     *current_turn_id = next_id;
-                    combat_logs.push(format!("Turn: {}", if *current_turn_id == "enemy" { "ENEMY" } else if current_turn_id == &player_profile.vext_username { "YOU" } else { &current_turn_id[..4] }));
+                    let id_display = if *current_turn_id == "enemy" { 
+                        "ENEMY" 
+                    } else if current_turn_id == &player_profile.vext_username { 
+                        "YOU" 
+                    } else { 
+                        if current_turn_id.len() >= 4 { &current_turn_id[..4] } else { &current_turn_id } 
+                    };
+                    combat_logs.push(format!("Turn: {}", id_display));
                 }
                 GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost, .. } => {
                     let actor_name = if actor_id == "enemy" { "ENEMY" } else { 
                         if actor_id == player_profile.vext_username { "YOU" } else { 
                            // Find in other players
-                           other_players.get(&actor_id).map(|p| p.username.as_str()).unwrap_or(&actor_id[..4])
+                           other_players.get(&actor_id).map(|p| p.username.as_str()).unwrap_or_else(|| {
+                               if actor_id.len() >= 4 { &actor_id[..4] } else { &actor_id }
+                           })
                         }
                     };
                     combat_logs.push(format!("{} used {} ({} dmg)", actor_name, action_name, damage));
