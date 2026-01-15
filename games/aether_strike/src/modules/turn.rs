@@ -53,8 +53,8 @@ impl TurnSystem {
         }
 
 
-        // 4. Sort by Speed (Desc)
-        participants.sort_by(|a, b| b.1.cmp(&a.1));
+        // 4. Sort by Speed (Desc), then by ID (Asc) for determinism
+        participants.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
         self.turn_queue = participants;
         self.current_turn_index = 0;
@@ -114,7 +114,7 @@ impl TurnSystem {
             if self.current_turn_index + 1 < self.turn_queue.len() {
                 let start_sort = self.current_turn_index + 1;
                 let future_slice = &mut self.turn_queue[start_sort..];
-                future_slice.sort_by(|a, b| b.1.cmp(&a.1));
+                future_slice.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
             }
             
             // Note: If the updated entity was at `idx` and `idx > current_turn_index`, 
