@@ -47,3 +47,13 @@ export const getMessagesByFriendId = async (friendId: string, myUserId: string) 
     is_from_me: row.is_from_me === 1 || row.is_from_me === true,
   }));
 };
+
+export const deleteMessagesByFriendId = async (friendId: string, myUserId: string) => {
+  const database = await initDB();
+  await database.execute(
+    `DELETE FROM messages 
+         WHERE (from_user_id = $1 AND to_user_id = $2) 
+            OR (from_user_id = $2 AND to_user_id = $1)`,
+    [friendId, myUserId]
+  );
+};

@@ -6,7 +6,7 @@ import { useToastStore } from '../stores/toastStore';
 import { useGroupStore } from '../stores/groupStore';
 import { socketService } from '../services/socket';
 import { useUserStore } from '../stores/userStore';
-import { getMessagesByFriendId, saveMessage } from '../services/db';
+import { getMessagesByFriendId, saveMessage, deleteMessagesByFriendId } from '../services/db';
 import UserAutocomplete from '../components/UserAutocomplete.vue';
 
 const friendsStore = useFriendsStore();
@@ -140,11 +140,41 @@ const openChat = async (friendId: string) => {
   activeFriend.value = friendsStore.friends.find((f: any) => f.id === friendId);
   if (!activeFriend.value) return;
 
-  activeTab.value = 'friends'; // Ensure tab is selected
+  activeTab.value = 'friends';
   privateChatLoading.value = true;
   await loadPrivateMessages(friendId);
   privateChatLoading.value = false;
-  scrollToPrivateBottom();
+  nextTick(() => scrollToPrivateBottom());
+};
+
+const handleClearChat = async () => {
+  if (!activeFriend.value) return;
+  const friendId = activeFriend.value.id;
+  if (
+    !confirm(
+      `Effacer toute la conversation avec ${activeFriend.value.username} ? Cette action est irréversible.`
+    )
+  )
+    return;
+
+  try {
+    // 1. Delete on Backend
+    await axios.delete(`/chat/conversation/${friendId}`);
+
+    // 2. Delete on Local DB
+    const userStore = useUserStore();
+    const myUserId = userStore.user?.id;
+    if (myUserId) {
+      await deleteMessagesByFriendId(friendId, myUserId);
+    }
+
+    // 3. Update UI
+    privateMessages.value = [];
+    toastStore.success('Conversation effacée');
+  } catch (error) {
+    console.error('Failed to clear chat:', error);
+    toastStore.error('Erreur lors de la suppression');
+  }
 };
 
 const loadPrivateMessages = async (friendId: string) => {
@@ -179,19 +209,18 @@ const loadPrivateMessages = async (friendId: string) => {
       }).catch((err) => console.error('Failed to sync to local DB:', err));
     }
 
-    // 3. Final refresh
+    // 3. Final refresh & Sync
     if (remoteMessages.length > 0) {
       try {
         privateMessages.value = await getMessagesByFriendId(friendId, myUserId);
       } catch (e) {
         privateMessages.value = remoteMessages;
       }
-    } else {
-      try {
-        privateMessages.value = await getMessagesByFriendId(friendId, myUserId);
-      } catch (e) {
-        /* ignore */
-      }
+    } else if (response.status === 200) {
+      // If server explicitly returns 0 messages, clear local cache for this friend
+      // as it means the conversation was likely deleted or is truly empty
+      await deleteMessagesByFriendId(friendId, myUserId);
+      privateMessages.value = [];
     }
     nextTick(scrollToPrivateBottom);
   } catch (e: any) {
@@ -223,19 +252,11 @@ const sendPrivateMessage = async () => {
   await nextTick();
   scrollToPrivateBottom();
 
-  // Save to local DB
+  // Save to local DB for offline support
   saveMessage(tempMsg).catch((err) => console.error('Failed to save sent message local:', err));
 
+  // Send via WebSocket ONLY (backend will persist it)
   socketService.sendChatMessage(activeFriend.value.id, content);
-
-  try {
-    await axios.post(`/chat/send`, {
-      toUserId: activeFriend.value.id,
-      content,
-    });
-  } catch (e) {
-    console.error('Failed to save msg', e);
-  }
 };
 
 const scrollToPrivateBottom = () => {
@@ -429,27 +450,32 @@ const handlePrivateMessage = (event: CustomEvent) => {
         <div class="main-content-wrapper">
           <!-- Private Chat (Friends) -->
           <div v-if="activeTab === 'friends' && activeFriend" class="group-chat-panel">
-            <div class="chat-header">
-              <div class="chat-header-info">
-                <div style="display: flex; align-items: center; gap: 10px">
-                  <img
-                    :src="activeFriend.profile_pic || '/default-avatar.svg'"
-                    style="width: 32px; height: 32px; border-radius: 50%"
-                  />
-                  <div>
-                    <h3>{{ activeFriend.username }}</h3>
-                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem">
-                      <div class="status-dot" :class="activeFriend.status"></div>
-                      <span style="text-transform: capitalize; color: #888">{{
-                        activeFriend.status
-                      }}</span>
-                    </div>
+            <div class="chat-header-modern">
+              <div class="chat-header-left">
+                <img
+                  :src="activeFriend.profile_pic || '/default-avatar.svg'"
+                  class="header-avatar"
+                />
+                <div class="header-info">
+                  <h3>{{ activeFriend.username }}</h3>
+                  <div class="header-status">
+                    <div class="status-dot" :class="activeFriend.status"></div>
+                    <span>{{ activeFriend.status }}</span>
                   </div>
                 </div>
               </div>
-              <button class="btn-icon" @click="activeFriend = null" title="Close Chat">
-                <i class="fas fa-times"></i>
-              </button>
+              <div class="chat-header-actions">
+                <button
+                  class="btn-action-ghost"
+                  @click="handleClearChat"
+                  title="Effacer l'historique"
+                >
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+                <button class="btn-action-ghost" @click="activeFriend = null" title="Fermer">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
             </div>
 
             <div class="chat-messages" ref="privateMessagesContainer">
@@ -522,8 +548,8 @@ const handlePrivateMessage = (event: CustomEvent) => {
           <div v-if="activeTab === 'groups' && groupStore.activeGroup" class="group-chat-panel">
             <div class="chat-header">
               <div class="chat-header-info">
-                <h3>{{ groupStore.activeGroup.name }}</h3>
-                <p>{{ groupStore.activeGroup.members.length }} members</p>
+                <h3>{{ groupStore.activeGroup?.name }}</h3>
+                <p>{{ groupStore.activeGroup?.members?.length }} members</p>
               </div>
               <button class="btn-icon" @click="showGroupSidebar = !showGroupSidebar">
                 <i class="fas fa-users"></i>
@@ -537,15 +563,19 @@ const handlePrivateMessage = (event: CustomEvent) => {
                 :class="{
                   mine: msg.user?.id === myUserId,
                   'group-start':
-                    index === 0 || groupStore.activeMessages[index - 1].user?.id !== msg.user?.id,
+                    index === 0 ||
+                    !groupStore.activeMessages[index - 1]?.user ||
+                    groupStore.activeMessages[index - 1].user?.id !== msg.user?.id,
                 }"
               >
-                <div v-if="msg.user?.id !== myUserId" class="avatar-col">
+                <div v-if="msg.user && msg.user.id !== myUserId" class="avatar-col">
                   <img
                     v-if="
-                      index === 0 || groupStore.activeMessages[index - 1].user?.id !== msg.user?.id
+                      index === 0 ||
+                      !groupStore.activeMessages[index - 1]?.user ||
+                      groupStore.activeMessages[index - 1].user?.id !== msg.user.id
                     "
-                    :src="msg.user?.profile_pic || '/default-avatar.svg'"
+                    :src="msg.user.profile_pic || '/default-avatar.svg'"
                     class="msg-avatar"
                   />
                 </div>
@@ -554,12 +584,14 @@ const handlePrivateMessage = (event: CustomEvent) => {
                   <div
                     class="msg-header"
                     v-if="
-                      msg.user?.id !== myUserId &&
+                      msg.user &&
+                      msg.user.id !== myUserId &&
                       (index === 0 ||
-                        groupStore.activeMessages[index - 1].user?.id !== msg.user?.id)
+                        !groupStore.activeMessages[index - 1]?.user ||
+                        groupStore.activeMessages[index - 1].user?.id !== msg.user.id)
                     "
                   >
-                    <span class="msg-username">{{ msg.user?.username }}</span>
+                    <span class="msg-username">{{ msg.user.username }}</span>
                   </div>
                   <div class="msg-bubble" :class="{ 'my-bubble': msg.user?.id === myUserId }">
                     <div class="msg-text">{{ msg.content }}</div>
@@ -593,10 +625,38 @@ const handlePrivateMessage = (event: CustomEvent) => {
                 </div>
               </div>
             </div>
+
+            <div class="chat-input-area">
+              <div class="input-glass-wrapper">
+                <input
+                  v-model="groupMessage"
+                  @keyup.enter="sendGroupMessage"
+                  placeholder="Type a message to group..."
+                  maxlength="500"
+                />
+                <div class="input-footer">
+                  <button
+                    @click="sendGroupMessage"
+                    class="btn-send-neon"
+                    :disabled="!groupMessage.trim()"
+                  >
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Empty State -->
-          <div v-else class="empty-chat-state">
+          <!-- Empty State - Only show when NO chat is active -->
+          <div
+            v-if="
+              !(
+                (activeTab === 'friends' && activeFriend) ||
+                (activeTab === 'groups' && groupStore.activeGroup)
+              )
+            "
+            class="empty-chat-state"
+          >
             <div class="empty-state-card">
               <div class="icon-glow">
                 <i class="fas fa-comments"></i>
@@ -717,24 +777,26 @@ const handlePrivateMessage = (event: CustomEvent) => {
 }
 
 .social-container {
-  height: 100%;
+  height: calc(100vh - 110px);
   width: 100%;
   position: relative;
   overflow: hidden;
-  background-color: transparent; /* Use global background */
+  background-color: transparent;
   color: var(--text-primary);
-  padding: 20px;
+  padding: 0px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* Local glows removed in favor of global MainLayout glows */
 
 .social-layout {
-  display: flex; /* Changed to flex to support dynamic sidebar */
+  display: flex;
   gap: 24px;
   flex: 1;
-  min-height: 0; /* Important for nested flex scrolling */
+  min-height: 0;
+  height: 100%; /* Explicit height */
   position: relative;
   z-index: 1;
 }
@@ -752,6 +814,8 @@ const handlePrivateMessage = (event: CustomEvent) => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%; /* Take full height of parent */
+  min-height: 0;
 }
 
 /* Sidebar */
@@ -1021,11 +1085,23 @@ const handlePrivateMessage = (event: CustomEvent) => {
 .main-panel {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: row;
   overflow: hidden;
   align-items: stretch;
-  background: rgba(0, 0, 0, 0.15); /* Slightly darker for better contrast */
+  background: rgba(0, 0, 0, 0.15);
+  height: 100%;
+}
+
+.group-chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative; /* For absolute positioned input */
 }
 
 .main-content-wrapper {
@@ -1033,9 +1109,11 @@ const handlePrivateMessage = (event: CustomEvent) => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0; /* Critical for flex child scrolling */
   width: 100%;
+  height: 100%;
   position: relative;
-  align-items: stretch;
+  overflow: hidden;
 }
 
 /* Ensure empty state centers properly */
@@ -1190,51 +1268,56 @@ const handlePrivateMessage = (event: CustomEvent) => {
 }
 
 .msg-content {
-  max-width: 80%;
+  max-width: 85%; /* Wider bubbles */
 }
 
 .msg-header {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   margin-left: 12px;
 }
 
 .msg-username {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--neon-pink);
-  opacity: 0.9;
+  text-transform: capitalize;
 }
 
 .msg-bubble {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 10px 14px;
-  border-radius: 16px;
-  border-top-left-radius: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 16px;
+  border-radius: 20px;
+  border-top-left-radius: 4px; /* Distinct corner for start */
   position: relative;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.message-row.mine .msg-bubble {
+  border-top-left-radius: 20px;
+  border-top-right-radius: 4px;
 }
 
 .my-bubble {
-  background: linear-gradient(135deg, rgba(255, 126, 179, 0.2) 0%, rgba(255, 90, 158, 0.1) 100%);
-  border: 1px solid rgba(255, 126, 179, 0.2);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 2px;
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.15) 0%, rgba(255, 90, 158, 0.08) 100%);
+  border: 1px solid rgba(255, 126, 179, 0.3);
 }
 
 .msg-text {
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: 0.95rem;
+  line-height: 1.5;
   word-break: break-word;
-  color: #eee;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .msg-time-inline {
-  font-size: 0.65rem;
-  opacity: 0.5;
-  margin-top: 4px;
+  font-size: 0.7rem;
+  opacity: 0.4;
+  margin-top: 6px;
+  font-weight: 500;
   align-self: flex-end;
 }
 
@@ -1247,9 +1330,17 @@ const handlePrivateMessage = (event: CustomEvent) => {
   color: #666;
 }
 
-/* Chat Input Glassmorphism */
+/* Chat Input Glassmorphism - Sticky at bottom */
 .chat-input-area {
-  padding: 16px 20px 24px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px 20px;
+  background: rgba(15, 10, 21, 0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 10;
 }
 
 .input-glass-wrapper {
@@ -1723,5 +1814,97 @@ const handlePrivateMessage = (event: CustomEvent) => {
   color: #7afcff;
   font-size: 0.7rem;
   font-weight: 500;
+}
+
+/* Modern Chat Header */
+.chat-header-modern {
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.chat-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  object-fit: cover;
+}
+
+.header-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: capitalize;
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-action-ghost {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-action-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--neon-pink);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 24px 24px 140px 24px; /* Extra bottom padding for input area */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overscroll-behavior: contain;
+}
+
+/* Custom Scrollbar for Chat */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.chat-messages:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 126, 179, 0.4);
 }
 </style>
