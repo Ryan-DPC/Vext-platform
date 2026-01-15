@@ -154,6 +154,16 @@ export function useGameLauncher() {
       const backendUrl =
         import.meta.env.VITE_API_URL || 'https://vext-backend-gur7.onrender.com/api';
 
+      // Debug: Log all parameters
+      console.log('🎮 Installing game with params:', {
+        zipUrl,
+        installPath,
+        folderName,
+        gameId,
+        gameName: game.game_name || game.gameName,
+        backendUrl,
+      });
+
       await tauriAPI.installGame(
         zipUrl,
         installPath,
@@ -167,9 +177,22 @@ export function useGameLauncher() {
 
       return { success: true, gameId: gameId, installPath };
     } catch (error: any) {
+      console.error('Installation Error Details:', {
+        error,
+        errorMessage: error?.message,
+        errorString: String(error),
+        game: game,
+      });
+
+      const errorMessage =
+        error?.message ||
+        (typeof error === 'string'
+          ? error
+          : 'Unknown installation error. Check console for details.');
+
       alertStore.showAlert({
         title: 'Installation Error',
-        message: error.message || 'Unknown installation error',
+        message: errorMessage,
         type: 'error',
       });
       return { success: false, error };

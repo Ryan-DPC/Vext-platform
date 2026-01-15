@@ -30,31 +30,64 @@ pub async fn install_game(
     game_name: String,
     backend_url: String,
 ) -> Result<String, String> {
+    println!("🎮 [Rust] install_game called with:");
+    println!("  download_url: {}", download_url);
+    println!("  install_path: {}", install_path);
+    println!("  folder_name: {}", folder_name);
+    println!("  game_id: {}", game_id);
+    println!("  game_name: {}", game_name);
+    println!("  backend_url: {}", backend_url);
+
     let client = Client::new();
     let game_dir = Path::new(&install_path).join("Vext").join(&folder_name);
     
+    println!("  game_dir: {:?}", game_dir);
+
     // Create directory
-    fs::create_dir_all(&game_dir).map_err(|e| e.to_string())?;
+    println!("📁 Creating directory...");
+    fs::create_dir_all(&game_dir).map_err(|e| {
+        println!("❌ Failed to create directory: {}", e);
+        e.to_string()
+    })?;
+    println!("✅ Directory created");
 
     let is_zip = download_url.ends_with(".zip");
     let file_name = if is_zip { "game.zip" } else { "Game.exe" };
     let file_path = game_dir.join(file_name);
+    
+    println!("  file_path: {:?}", file_path);
 
     // 1. Download
+    println!("📥 Starting download from: {}", download_url);
     let res = client
         .get(&download_url)
         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            println!("❌ Download request failed: {}", e);
+            e.to_string()
+        })?;
+
+    println!("📡 Response status: {}", res.status());
 
     if !res.status().is_success() {
+        println!("❌ Download failed with status: {}", res.status());
         return Err(format!("Download failed with status: {}", res.status()));
     }
 
     let total_size = res.content_length().unwrap_or(0);
+    println!("📊 Total size: {} bytes", total_size);
+    
     let mut stream = res.bytes_stream();
-    let mut file = fs::File::create(&file_path).map_err(|e| e.to_string())?;
+    
+    println!("📄 Creating file: {:?}", file_path);
+    let mut file = fs::File::create(&file_path).map_err(|e| {
+        println!("❌ Failed to create file: {}", e);
+        e.to_string()
+    })?;
+    println!("✅ File created successfully");
+    
     let mut downloaded: u64 = 0;
 
     let _ = window.emit("install:progress", ProgressPayload {
@@ -64,9 +97,16 @@ pub async fn install_game(
         status: "downloading".to_string(),
     });
 
+    println!("⬇️ Starting download stream...");
     while let Some(item) = stream.next().await {
-        let chunk = item.map_err(|e| e.to_string())?;
-        file.write_all(&chunk).map_err(|e| e.to_string())?;
+        let chunk = item.map_err(|e| {
+            println!("❌ Error reading chunk: {}", e);
+            e.to_string()
+        })?;
+        file.write_all(&chunk).map_err(|e| {
+            println!("❌ Error writing chunk: {}", e);
+            e.to_string()
+        })?;
         downloaded += chunk.len() as u64;
 
         if total_size > 0 {
@@ -79,9 +119,11 @@ pub async fn install_game(
             });
         }
     }
+    println!("✅ Download complete: {} bytes", downloaded);
 
     // 2. Extract (Only if Zip)
     if is_zip {
+        println!("📦 Starting extraction...");
         let _ = window.emit("install:progress", ProgressPayload {
             game_id: game_id.clone(),
             game_name: game_name.clone(),
@@ -89,31 +131,65 @@ pub async fn install_game(
             status: "extracting".to_string(),
         });
 
-        let file = fs::File::open(&file_path).map_err(|e| e.to_string())?;
-        let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
+        let file = fs::File::open(&file_path).map_err(|e| {
+            println!("❌ Failed to open zip: {}", e);
+            e.to_string()
+        })?;
+        let mut archive = ZipArchive::new(file).map_err(|e| {
+            println!("❌ Failed to parse zip: {}", e);
+            e.to_string()
+        })?;
 
+        println!("📁 Extracting {} files...", archive.len());
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+            let mut file = archive.by_index(i).map_err(|e| {
+                println!("❌ Error reading archive entry {}: {}", i, e);
+                e.to_string()
+            })?;
             let outpath = match file.enclosed_name() {
                 Some(path) => game_dir.join(path),
                 None => continue,
             };
 
-            if (*file.name()).ends_with('/') {
-                fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
+            // Check if this is a directory entry (use is_dir() which is more reliable)
+            let is_directory = file.is_dir() || 
+                               file.name().ends_with('/') || 
+                               file.name().ends_with('\\');
+
+            if is_directory {
+                fs::create_dir_all(&outpath).map_err(|e| {
+                    println!("❌ Failed to create dir {:?}: {}", outpath, e);
+                    e.to_string()
+                })?;
             } else {
+                // Ensure parent directory exists
                 if let Some(p) = outpath.parent() {
                     if !p.exists() {
-                        fs::create_dir_all(&p).map_err(|e| e.to_string())?;
+                        fs::create_dir_all(&p).map_err(|e| {
+                            println!("❌ Failed to create parent dir {:?}: {}", p, e);
+                            e.to_string()
+                        })?;
                     }
                 }
-                let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
-                copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+                let mut outfile = fs::File::create(&outpath).map_err(|e| {
+                    println!("❌ Failed to create file {:?}: {}", outpath, e);
+                    e.to_string()
+                })?;
+                copy(&mut file, &mut outfile).map_err(|e| {
+                    println!("❌ Failed to copy to {:?}: {}", outpath, e);
+                    e.to_string()
+                })?;
             }
         }
+        println!("✅ Extraction complete");
         
         // Cleanup Zip
-        fs::remove_file(&file_path).map_err(|e| e.to_string())?;
+        println!("🗑️ Cleaning up zip file...");
+        fs::remove_file(&file_path).map_err(|e| {
+            println!("❌ Failed to remove zip: {}", e);
+            e.to_string()
+        })?;
+        println!("✅ Zip removed");
     } else {
         // It's an executable, we already saved it as Game.exe
         // No extraction needed.
