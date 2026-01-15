@@ -1,1 +1,1 @@
-wss://vext-ws-server-3jrc.onrender.com
+https://vext-backend-yj77.onrender.com
