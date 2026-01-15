@@ -14,7 +14,13 @@ export class ChatService {
       to_user: toUserId,
       content: content.trim(),
     });
-    return { id: doc._id.toString(), content: doc.content };
+    return {
+      id: doc._id.toString(),
+      content: doc.content,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      created_at: doc.created_at,
+    };
   }
 
   static async getInbox(userId: string, limit: number = 50) {
@@ -55,8 +61,8 @@ export class ChatService {
         id: r._id.toString(),
         from_user_id: r.from_user?._id?.toString(),
         to_user_id: r.to_user?._id?.toString(),
-        from_username: r.from_user?.username,
-        to_username: r.to_user?.username,
+        from_username: r.from_user?.username || 'Utilisateur',
+        to_username: r.to_user?.username || 'Utilisateur',
         content: r.content,
         created_at: r.created_at,
         read_at: r.read_at,

@@ -144,9 +144,9 @@ const loadMessages = async () => {
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim()) return;
-
   const messageContent = newMessage.value.trim();
+  if (!messageContent || messageContent.length > 500) return;
+
   newMessage.value = '';
 
   // Add optimistic message
@@ -228,9 +228,13 @@ const formatTime = (date: string) => {
       </div>
       <div v-else class="messages-list">
         <div
-          v-for="message in messages"
+          v-for="(message, index) in messages"
           :key="message.id"
-          :class="['message', message.is_from_me ? 'message-mine' : 'message-theirs']"
+          :class="[
+            'message',
+            message.is_from_me ? 'message-mine' : 'message-theirs',
+            { 'group-start': index === 0 || messages[index - 1].is_from_me !== message.is_from_me },
+          ]"
         >
           <div class="message-content">
             <p>{{ message.content }}</p>
@@ -248,15 +252,32 @@ const formatTime = (date: string) => {
     <!-- Message Input -->
     <div class="message-input-container">
       <form @submit.prevent="sendMessage" class="message-form">
-        <input
-          v-model="newMessage"
-          @input="onInput"
-          type="text"
-          placeholder="Écrivez votre message..."
-          class="message-input"
-          maxlength="500"
-        />
-        <button type="submit" class="send-button" :disabled="!newMessage.trim()">Envoyer</button>
+        <div class="input-wrapper">
+          <input
+            v-model="newMessage"
+            @input="onInput"
+            type="text"
+            placeholder="Écrivez votre message..."
+            class="message-input"
+            maxlength="500"
+          />
+          <div class="input-actions">
+            <span
+              v-if="newMessage.length > 400"
+              class="char-count"
+              :class="{ limit: newMessage.length >= 500 }"
+            >
+              {{ 500 - newMessage.length }}
+            </span>
+            <button
+              type="submit"
+              class="send-button"
+              :disabled="!newMessage.trim() || newMessage.length > 500"
+            >
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   </div>
@@ -366,15 +387,21 @@ const formatTime = (date: string) => {
 }
 
 .message-mine .message-content {
-  background: #4a9eff;
-  color: #fff;
+  background: linear-gradient(135deg, #7afcff 0%, #4a9eff 100%);
+  color: #120c18;
   border-bottom-right-radius: 4px;
 }
 
 .message-theirs .message-content {
-  background: #2a2a2a;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   color: #fff;
   border-bottom-left-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.group-start {
+  margin-top: 16px;
 }
 
 .message-content p {
@@ -405,56 +432,73 @@ const formatTime = (date: string) => {
 }
 
 .message-input-container {
-  padding: 16px 24px;
-  background: #2a2a2a;
-  border-top: 1px solid #3a3a3a;
-  flex-shrink: 0;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.message-form {
+.input-wrapper {
+  flex: 1;
   display: flex;
-  gap: 12px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+  border-color: #7afcff;
+  box-shadow: 0 0 15px rgba(122, 252, 255, 0.1);
 }
 
 .message-input {
   flex: 1;
-  padding: 12px 16px;
-  background: #1a1a1a;
-  border: 1px solid #444;
-  border-radius: 8px;
+  background: none;
+  border: none;
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
-  transition: border-color 0.2s;
 }
 
-.message-input:focus {
-  border-color: #4a9eff;
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.message-input::placeholder {
+.char-count {
+  font-size: 12px;
   color: #666;
 }
 
+.char-count.limit {
+  color: #ff5a9e;
+}
+
 .send-button {
-  padding: 12px 24px;
-  background: #4a9eff;
+  background: #7afcff;
+  color: #120c18;
   border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-weight: 600;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .send-button:hover:not(:disabled) {
-  background: #3a8eef;
+  transform: scale(1.1);
+  background: #a0ffff;
 }
 
 .send-button:disabled {
-  background: #333;
-  cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.3;
+  background: #444;
 }
 
 /* Scrollbar styling */

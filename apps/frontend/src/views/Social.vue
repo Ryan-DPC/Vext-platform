@@ -456,40 +456,72 @@ const handlePrivateMessage = (event: CustomEvent) => {
               </div>
 
               <div
-                v-for="msg in privateMessages"
+                v-for="(msg, index) in privateMessages"
                 :key="msg.id"
                 class="message-item"
-                :class="{ mine: msg.is_from_me }"
+                :class="{
+                  mine: msg.is_from_me,
+                  'group-start':
+                    index === 0 || privateMessages[index - 1].is_from_me !== msg.is_from_me,
+                }"
               >
                 <img
-                  v-if="!msg.is_from_me"
+                  v-if="
+                    !msg.is_from_me &&
+                    (index === 0 ||
+                      privateMessages[index - 1].is_from_me ||
+                      privateMessages[index - 1].from_user_id !== msg.from_user_id)
+                  "
                   :src="activeFriend.profile_pic || '/default-avatar.svg'"
                   class="msg-avatar"
                 />
+                <div v-else-if="!msg.is_from_me" class="msg-avatar-placeholder"></div>
                 <div class="msg-content">
-                  <div class="msg-header" v-if="!msg.is_from_me">
+                  <div
+                    class="msg-header"
+                    v-if="
+                      !msg.is_from_me &&
+                      (index === 0 ||
+                        privateMessages[index - 1].is_from_me ||
+                        privateMessages[index - 1].from_user_id !== msg.from_user_id)
+                    "
+                  >
                     <span class="msg-username">{{ activeFriend.username }}</span>
-                    <span class="msg-time">{{
-                      new Date(msg.created_at).toLocaleTimeString()
-                    }}</span>
                   </div>
-                  <!-- For my messages, show time simply -->
                   <div class="msg-text" :class="{ 'my-text': msg.is_from_me }">
                     {{ msg.content }}
+                    <span class="msg-time-inline">{{
+                      new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    }}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="chat-input-box">
-              <input
-                v-model="privateMessageInput"
-                @keyup.enter="sendPrivateMessage"
-                placeholder="Type a message..."
-              />
-              <button @click="sendPrivateMessage" class="btn-send">
-                <i class="fas fa-paper-plane"></i>
-              </button>
+              <div class="input-container-modern">
+                <input
+                  v-model="privateMessageInput"
+                  @keyup.enter="sendPrivateMessage"
+                  placeholder="Type a message..."
+                  maxlength="500"
+                />
+                <div class="input-actions-modern">
+                  <span v-if="privateMessageInput.length > 400" class="char-count">
+                    {{ 500 - privateMessageInput.length }}
+                  </span>
+                  <button
+                    @click="sendPrivateMessage"
+                    class="btn-send-modern"
+                    :disabled="!privateMessageInput.trim() || privateMessageInput.length > 500"
+                  >
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1116,10 +1148,90 @@ const handlePrivateMessage = (event: CustomEvent) => {
   max-width: 100%;
 }
 .msg-text.my-text {
+  background: linear-gradient(135deg, #ff7eb3 0%, #ff5a9e 100%);
+  color: white;
+  border-color: transparent;
+  border-bottom-right-radius: 4px;
+}
+
+.msg-time-inline {
+  display: block;
+  font-size: 0.65rem;
+  opacity: 0.7;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.my-text .msg-time-inline {
+  color: white;
+}
+
+.group-start {
+  margin-top: 15px;
+}
+
+.msg-avatar-placeholder {
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.input-container-modern {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 4px 6px 4px 16px;
+  transition: all 0.2s;
+}
+
+.input-container-modern:focus-within {
+  border-color: #ff7eb3;
+  box-shadow: 0 0 10px rgba(255, 126, 179, 0.1);
+}
+
+.input-container-modern input {
+  flex: 1;
+  background: none !important;
+  border: none !important;
+  padding: 8px 0 !important;
+  outline: none !important;
+}
+
+.input-actions-modern {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-send-modern {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: #ff7eb3;
   color: white;
-  border-color: #ff7eb3;
-  border-bottom-right-radius: 4px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-send-modern:hover:not(:disabled) {
+  transform: scale(1.05);
+  background: #ff5a9e;
+}
+
+.btn-send-modern:disabled {
+  opacity: 0.3;
+  background: #444;
+}
+
+.char-count {
+  font-size: 0.7rem;
+  color: #666;
 }
 
 /* My Messages Alignment */

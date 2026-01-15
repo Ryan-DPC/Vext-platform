@@ -149,9 +149,12 @@ const loadMessages = async () => {
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim()) return;
-
   const messageContent = newMessage.value.trim();
+  if (!messageContent || messageContent.length > 500) {
+    // Add validation feedback if needed
+    return;
+  }
+
   newMessage.value = '';
 
   // Optimistic update
@@ -222,11 +225,23 @@ watch(
 
       <div v-else class="messages-list">
         <div
-          v-for="msg in messages"
+          v-for="(msg, index) in messages"
           :key="msg.id"
-          :class="['message', msg.is_from_me ? 'mine' : 'theirs']"
+          :class="[
+            'message-row',
+            msg.is_from_me ? 'mine' : 'theirs',
+            { 'group-start': index === 0 || messages[index - 1].is_from_me !== msg.is_from_me },
+          ]"
         >
-          <div class="bubble">{{ msg.content }}</div>
+          <div class="bubble">
+            <span class="text">{{ msg.content }}</span>
+            <span class="time">{{
+              new Date(msg.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            }}</span>
+          </div>
         </div>
       </div>
 
@@ -235,13 +250,31 @@ watch(
 
     <div class="popup-footer">
       <form @submit.prevent="sendMessage">
-        <input
-          v-model="newMessage"
-          @input="onInput"
-          placeholder="Type a message..."
-          class="chat-input"
-        />
-        <button type="submit" class="btn-send"><i class="fas fa-paper-plane"></i></button>
+        <div class="input-wrapper">
+          <input
+            v-model="newMessage"
+            @input="onInput"
+            placeholder="Type a message..."
+            class="chat-input"
+            maxlength="500"
+          />
+          <div class="input-actions">
+            <span
+              v-if="newMessage.length > 400"
+              class="char-count"
+              :class="{ limit: newMessage.length >= 500 }"
+            >
+              {{ 500 - newMessage.length }}
+            </span>
+            <button
+              type="submit"
+              class="btn-send"
+              :disabled="!newMessage.trim() || newMessage.length > 500"
+            >
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   </div>
@@ -342,44 +375,8 @@ watch(
   border-radius: 2px;
 }
 
-.messages-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.message {
-  display: flex;
-  max-width: 85%;
-}
-.message.mine {
-  align-self: flex-end;
-}
-.message.theirs {
-  align-self: flex-start;
-}
-
-.bubble {
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  word-wrap: break-word;
-}
-
-.message.mine .bubble {
-  background: #7afcff;
-  color: #120c18;
-  border-bottom-right-radius: 2px;
-}
-
-.message.theirs .bubble {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-bottom-left-radius: 2px;
-}
-
 .typing {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #888;
   font-style: italic;
   margin-left: 10px;
@@ -389,48 +386,142 @@ watch(
   text-align: center;
   color: #666;
   margin-top: 20px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* Tighter gap for grouping */
+}
+
+.message-row {
+  display: flex;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.message-row.mine {
+  justify-content: flex-end;
+}
+
+.message-row.theirs {
+  justify-content: flex-start;
+}
+
+.message-row.group-start {
+  margin-top: 10px;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-row.mine .bubble {
+  background: linear-gradient(135deg, #7afcff 0%, #4a9eff 100%);
+  color: #120c18;
+  border-top-right-radius: 4px;
+}
+
+.message-row.theirs .bubble {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  color: white;
+  border-top-left-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bubble .time {
+  font-size: 0.65rem;
+  opacity: 0.6;
+  margin-top: 4px;
+  align-self: flex-end;
+}
+
+.message-row.mine .time {
+  color: #120c18;
+}
+
+.message-row.theirs .time {
+  color: #aaa;
 }
 
 .popup-footer {
-  padding: 10px;
+  padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.02);
 }
 
-.popup-footer form {
+.input-wrapper {
   display: flex;
+  align-items: center;
   gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 4px 4px 4px 12px;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.input-wrapper:focus-within {
+  border-color: #7afcff;
 }
 
 .chat-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 8px 12px;
+  background: none;
+  border: none;
   color: white;
   font-size: 0.9rem;
   outline: none;
+  padding: 6px 0;
 }
-.chat-input:focus {
-  border-color: #7afcff;
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.char-count {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.char-count.limit {
+  color: #ff5a9e;
 }
 
 .btn-send {
   background: #7afcff;
   color: #120c18;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.2s;
 }
-.btn-send:hover {
+
+.btn-send:hover:not(:disabled) {
   transform: scale(1.1);
+  background: #a0ffff;
+}
+
+.btn-send:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: #444;
 }
 </style>
