@@ -69,7 +69,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: BACKEND_URL
-        value: https://vext-backend-gur7.onrender.com/api
+        value: https://vext-backend-yj77.onrender.com/api
       - key: PORT
         sync: false
       - key: JWT_SECRET
