@@ -102,7 +102,7 @@ async fn main() {
     // Renderer (Refactored)
     let renderer = draw::Renderer::new(&assets, &all_classes);
     let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
-    let mut _is_host = false;
+    let mut is_host = false;
     let mut _lobby_host_id = String::new();
     // let vext_token = _vext_token.clone(); // Duplicate removed
     
@@ -135,7 +135,7 @@ async fn main() {
     let _last_enemy_action_time = 0.0;
     
     let mut is_solo_mode = true;
-    let mut _is_player_turn = true;
+    let mut is_player_turn = true;
 
 
     // ==== MENU PRINCIPAL ====
