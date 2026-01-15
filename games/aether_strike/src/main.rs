@@ -527,6 +527,15 @@ async fn main() {
                         if next == "InGame" {
                             current_screen = GameScreen::InGame;
                             is_solo_mode = false;
+
+                            // Init visual player entity (CRITICAL FIX)
+                            if let Some(cls) = selected_class.as_ref() {
+                                let mut new_player = StickFigure::new(vec2(250.0, 450.0), "You".to_string());
+                                new_player.max_health = cls.hp;
+                                new_player.health = new_player.max_health;
+                                new_player.color = cls.color();
+                                _player = Some(new_player);
+                            }
                         }
                     }
                 }
