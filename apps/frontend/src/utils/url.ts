@@ -1,13 +1,3 @@
 export const getApiUrl = () => {
-  const url = import.meta.env.VITE_API_URL;
-  const isTauri = !!(window as any).__TAURI__;
-
-  if (isTauri) {
-    if (!url) {
-      return 'https://vext-backend-gur7.onrender.com';
-    }
-  }
-
-  if (url) return url;
-  return 'https://vext-backend-gur7.onrender.com'; // Default to production instead of relative/empty
+  return 'https://vext-backend-yj77.onrender.com';
 };

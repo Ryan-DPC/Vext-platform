@@ -1,22 +1,9 @@
 import axios from 'axios';
 
-const isTauri = !!(window as any).__TAURI__;
+// isTauri removed as unused
 
 const getBaseURL = () => {
-  // If VITE_API_URL is explicitly set, use it
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-
-  const prodUrl = 'https://vext-backend-gur7.onrender.com/api';
-
-  // Hardcoded production fallback for Desktop App or Production Mode
-  if (import.meta.env.PROD || isTauri) {
-    return prodUrl;
-  }
-
-  // In dev mode (with Vite proxy), use relative path
-  return '/api';
+  return 'https://vext-backend-yj77.onrender.com/api';
 };
 
 axios.defaults.baseURL = getBaseURL();

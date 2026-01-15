@@ -19,7 +19,7 @@ pub fn get_api_url() -> String {
              return format!("{}/api/lobby/multiplayer", trimmed);
         }
     }
-    "https://vext-backend-gur7.onrender.com/api/lobby/multiplayer".to_string()
+    "https://vext-backend-yj77.onrender.com/api/lobby/multiplayer".to_string()
 }
 
 // Get WebSocket URL based on config
