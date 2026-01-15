@@ -5,7 +5,7 @@ services:
   - type: web
     name: vext-backend
     region: frankfurt
-    env: bun
+    env: node
     plan: free # Change to starter/standard for production
     rootDir: . # Root context for Monorepo
     # Build: Install dependencies with Bun (respecting workspaces/lockfile), then build
@@ -37,7 +37,7 @@ services:
   - type: web
     name: vext-ws-server
     region: frankfurt
-    env: bun
+    env: node
     plan: free
     rootDir: .
     buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install
@@ -60,7 +60,7 @@ services:
   - type: web
     name: vext-game-server
     region: frankfurt
-    env: bun
+    env: node
     plan: free
     rootDir: .
     buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install
