@@ -147,6 +147,29 @@ export const handleAetherStrikeMessage = async (ws: any, event: string, payload:
             }));
             break;
 
+        case 'aether-strike:change-class':
+            const classGameId = ws.data.aetherGameId;
+            const classRoom = gameRooms.get(classGameId);
+            if (!classRoom) return;
+
+            const player = classRoom.players.get(userId);
+            if (player) {
+                player.class = payload.newClass || payload.class || 'warrior';
+
+                // Broadcast update to all players
+                ws.publish(`aether-game:${classGameId}`, JSON.stringify({
+                    type: 'aether-strike:player-updated',
+                    data: {
+                        playerId: userId,
+                        class: player.class,
+                        username: player.username
+                    }
+                }));
+
+                console.log(`[Aether Strike] Player ${username} changed class to ${player.class}`);
+            }
+            break;
+
         case 'aether-strike:player-input':
             const inputGameId = ws.data.aetherGameId;
             if (!inputGameId) return;

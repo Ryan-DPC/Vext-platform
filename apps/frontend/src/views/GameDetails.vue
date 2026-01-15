@@ -138,13 +138,6 @@ const setupInstallListeners = () => {
 };
 
 const installGame = async () => {
-  let targetPath = null;
-
-  // Logic to capture selected path
-  const capturePath = (path: string) => {
-    targetPath = path;
-  };
-
   // We wrap launcherInstall to perform install but we need to know the path used.
   // launcherInstall returns { success, installPath }
 
@@ -322,10 +315,7 @@ onMounted(async () => {
         game.value = {
           ...rawGame,
           gameName: rawGame.gameName || rawGame.game_name,
-          imageUrl:
-            rawGame.slug === 'aether_strike' || rawGame.folder_name === 'aether_strike'
-              ? aetherLogo
-              : rawGame.imageUrl || rawGame.image_url,
+          imageUrl: rawGame.imageUrl || rawGame.image_url,
           slug: rawGame.slug || rawGame.folder_name,
           isMultiplayer: rawGame.isMultiplayer || rawGame.is_multiplayer,
           maxPlayers: rawGame.maxPlayers || rawGame.max_players,

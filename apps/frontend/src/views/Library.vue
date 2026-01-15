@@ -598,16 +598,16 @@ const handleAddFriendFromGroup = async (username: string) => {
                   </button>
                 </div>
                 <div
-                  v-for="memberId in group.members.slice(0, 8)"
-                  :key="memberId"
+                  v-for="member in group.members.slice(0, 8)"
+                  :key="member.id"
                   class="group-member-mini"
                 >
                   <div class="member-mini-avatar">
                     <div class="status-dot online"></div>
                   </div>
-                  <span class="member-mini-name">User {{ memberId.slice(0, 6) }}</span>
+                  <span class="member-mini-name">{{ member.username }}</span>
                   <button
-                    @click="handleAddFriendFromGroup('user' + memberId.slice(0, 6))"
+                    @click="handleAddFriendFromGroup(member.username)"
                     class="btn-add-mini"
                     title="Add Friend"
                   >
