@@ -358,7 +358,9 @@ async fn main() {
                                 &vext_token,
                                 lobby_id.clone(),
                                 selected_class.as_ref().map(|c| c.name.to_lowercase()).unwrap_or_else(|| "warrior".to_string()),
-                                false // is_host = false
+                                false, // is_host = false
+                                player_profile.vext_username.clone(),
+                                player_profile.vext_username.clone() // UserID
                             ) {
                                 Ok(client) => {
                                     network_manager.client = Some(client);
@@ -459,7 +461,9 @@ async fn main() {
                             &vext_token,
                             lobby_id.clone(),
                             selected_class.as_ref().map(|c| c.name.clone()).unwrap_or_else(|| "warrior".to_string()).to_lowercase(),
-                            true // is_host = true
+                            true, // is_host = true
+                            player_profile.vext_username.clone(),
+                            player_profile.vext_username.clone() // UserID
                         ) {
                             Ok(client) => {
                                 network_manager.client = Some(client);

@@ -101,7 +101,7 @@ impl GameClient {
     /// * `game_id` - ID de la partie
     /// * `player_class` - Classe du joueur
     /// * `is_host` - Si on crée la partie ou on la rejoint
-    pub fn connect(ws_url: &str, token: &str, game_id: String, player_class: String, is_host: bool) -> Result<Self, String> {
+    pub fn connect(ws_url: &str, token: &str, game_id: String, player_class: String, is_host: bool, username: String, user_id: String) -> Result<Self, String> {
         // Channels bi-directionnels
         let (tx_to_ws, rx_in_ws) = channel::<WsCommand>();
         let (tx_from_ws, rx_from_ws) = channel::<GameEvent>();
@@ -117,10 +117,12 @@ impl GameClient {
         let game_id_clone = game_id.clone();
         let player_class_clone = player_class.clone();
         let token_clone = token.to_string();
+        let username_clone = username.clone();
+        let user_id_clone = user_id.clone();
 
         // Lancer le thread WebSocket
         thread::spawn(move || {
-            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws, token_clone) {
+            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws, token_clone, username_clone, user_id_clone) {
                 eprintln!("❌ WebSocket thread error: {}", e);
             }
         });

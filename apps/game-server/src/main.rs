@@ -95,15 +95,25 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                     }
                                     "aether-strike:create-game" => {
                                         let game_id = data["gameId"].as_str().unwrap_or("default").to_string();
+                                        // Use userId from payload if available, else default
                                         user_id = data["userId"].as_str().unwrap_or("Host").to_string();
+                                        let username_val = data["username"].as_str().unwrap_or("Host").to_string();
                                         
                                         let (tx, _rx) = broadcast::channel(100);
                                         
                                         {
                                             let mut rooms = state.rooms.write().unwrap();
+                                            let mut players_map = HashMap::new();
+                                            // Add Host to players immediately
+                                            players_map.insert(user_id.clone(), Player {
+                                                username: username_val.clone(),
+                                                class: data["playerClass"].as_str().unwrap_or("warrior").to_string(), // Capture class too
+                                                position: (0.0, 0.0),
+                                            });
+                                            
                                             rooms.insert(game_id.clone(), Room {
                                                 tx: tx.clone(),
-                                                players: HashMap::new(),
+                                                players: players_map,
                                                 host_id: user_id.clone(),
                                                 state: "waiting".to_string(),
                                             });
@@ -118,18 +128,38 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }).to_string();
                                         let _ = sender.send(Message::Text(response)).await;
                                         
-                                        tracing::info!("Game Created: {}", game_id);
+                                        tracing::info!("Game Created: {} by {}", game_id, username_val);
                                     }
                                     "aether-strike:join-game" => {
                                         let game_id = data["gameId"].as_str().unwrap_or("").to_string();
-                                        // TODO: Grab userId from auth or payload
-                                        
-                                        let (room_tx, room_state, room_host) = {
+                                        // Read Identity from Payload
+                                        if let Some(uid) = data["userId"].as_str() { user_id = uid.to_string(); }
+                                        let username_val = data["username"].as_str().unwrap_or("Unknown").to_string();
+                                        let player_class = data["playerClass"].as_str().unwrap_or("warrior").to_string();
+
+                                        let (room_tx, room_state, room_host, current_players) = {
                                             let mut rooms = state.rooms.write().unwrap();
                                             if let Some(room) = rooms.get_mut(&game_id) {
-                                                (Some(room.tx.clone()), Some(room.state.clone()), Some(room.host_id.clone()))
+                                                // Add Player to Room State
+                                                room.players.insert(user_id.clone(), Player {
+                                                    username: username_val.clone(),
+                                                    class: player_class.clone(),
+                                                    position: (0.0, 0.0),
+                                                });
+                                                
+                                                // Clone players list for Initial State Sync
+                                                let players_list: Vec<Value> = room.players.iter().map(|(id, p)| {
+                                                    serde_json::json!({
+                                                        "userId": id,
+                                                        "username": p.username,
+                                                        "class": p.class,
+                                                        "position": {"x": p.position.0, "y": p.position.1}
+                                                    })
+                                                }).collect();
+
+                                                (Some(room.tx.clone()), Some(room.state.clone()), Some(room.host_id.clone()), Some(players_list))
                                             } else {
-                                                (None, None, None)
+                                                (None, None, None, None)
                                             }
                                         }; // DROP LOCK
                                         
@@ -137,51 +167,29 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             current_room_id = game_id.clone();
                                             rx_room = Some(tx.subscribe());
                                             
+                                            // Send Game State (Snapshot) to Joiner
                                             let response = serde_json::json!({
                                                 "type": "aether-strike:game-state",
                                                 "data": { 
-                                                    "players": [], 
+                                                    "players": current_players.unwrap_or_default(), 
                                                     "state": room_state.unwrap_or_default(),
                                                     "hostId": room_host.unwrap_or_default()
                                                 }
                                             }).to_string();
                                             let _ = sender.send(Message::Text(response)).await;
 
-                                            // BROADCAST to others
-                                            let join_msg = serde_json::json!({
-                                                "type": "aether-strike:player-joined",
-                                                "data": {
-                                                    "playerId": "69674e69b08773d5cab6a58b", // TODO: Use real ID
-                                                    "username": "Player", // TODO: Use real username
-                                                    "class": "warrior"
-                                                }
-                                            }).to_string();
-                                            // Ideally we relay the Original Message? 
-                                            // The original message was "join-game".
-                                            // We need to construct "player-joined".
-                                            // We don't have the full player info in "data" (client sends class/etc?).
-                                            // Client sends: { gameId, playerClass, maxPlayers }.
-                                            // We need to extract playerClass.
-                                            
-                                            // Let's assume we extract it higher up or just reuse 'text' if we can?
-                                            // No, 'text' is 'join-game'. Clients expect 'player-joined'.
-                                            
-                                            let player_class = data["playerClass"].as_str().unwrap_or("warrior").to_string();
-                                            let p_id = "Guest"; // FIXME matches Handshake 
-                                            // If we use UserID from Auth, we put it here.
-                                            
-                                            // Fixing Broadcast:
+                                            // BROADCAST "Player Joined" to others
                                             let broadcast_msg = serde_json::json!({
                                                 "type": "aether-strike:player-joined",
                                                 "data": {
-                                                    "playerId": user_id, // Variable from outer scope
-                                                    "username": "Unknown", // user_id is set? check scope
+                                                    "playerId": user_id,
+                                                    "username": username_val,
                                                     "class": player_class
                                                 }
                                             }).to_string();
                                             let _ = tx.send(broadcast_msg);
                                             
-                                            tracing::info!("Player joined: {}", game_id);
+                                            tracing::info!("Player joined: {} ({})", game_id, user_id);
                                         }
                                     }
                                     _ => {
