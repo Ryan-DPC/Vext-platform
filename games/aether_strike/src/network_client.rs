@@ -345,6 +345,7 @@ fn ws_thread_loop(
             Ok(msg) => {
                 match msg {
                     Message::Text(text) => {
+                        println!("WS-RAW: {}", text); // DEBUG: LOG EVERYTHING
                         if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
                             if let Some(event_type) = parsed["type"].as_str() {
                                 let data = &parsed["data"];
