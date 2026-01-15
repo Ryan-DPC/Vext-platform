@@ -13,7 +13,7 @@
 
 - **HP**: 160
 - **Mana**: 120 (Rage)
-- **Speed**: 1.1 (Fast)
+- **Speed**: 110 (Fast)
 - **Def**: 6
 - **Crit Rate**: 12%
 - **Precision**: 5

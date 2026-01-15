@@ -13,7 +13,7 @@
 
 - **HP**: 100
 - **Mana**: 160
-- **Speed**: 1.0
+- **Speed**: 100
 - **Def**: 5
 - **Crit Rate**: 5%
 - **Precision**: 15

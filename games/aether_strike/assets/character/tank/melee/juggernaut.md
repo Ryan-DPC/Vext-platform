@@ -13,7 +13,7 @@
 
 - **HP**: 180
 - **Mana**: 50 (Fuel)
-- **Speed**: 0.8
+- **Speed**: 50
 - **Def**: 14
 - **Crit Rate**: 5%
 - **Precision**: 5

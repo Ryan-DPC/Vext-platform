@@ -13,7 +13,7 @@
 
 - **HP**: 120
 - **Mana**: 100 (Blood)
-- **Speed**: 1.2
+- **Speed**: 120
 - **Def**: 6
 - **Crit Rate**: 20%
 - **Precision**: 20

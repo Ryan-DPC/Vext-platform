@@ -26,6 +26,7 @@ pub struct EnemyStats {
 /// Ennemi (stick figure ennemi)
 #[derive(Debug, Clone)]
 pub struct Enemy {
+    pub id: String, // Unique ID for turn system
     pub position: Vec2,
     pub health: f32,
     pub max_health: f32,
@@ -46,6 +47,7 @@ pub struct Enemy {
 impl Enemy {
     pub fn new(position: Vec2, kind: EnemyType, stats: EnemyStats) -> Self {
         Enemy {
+            id: format!("{}-{}", stats.name, rand::rand() as u32), // Simple unique ID
             position,
             health: stats.hp,
             max_health: stats.hp,

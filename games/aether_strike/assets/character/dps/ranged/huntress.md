@@ -13,7 +13,7 @@
 
 - **HP**: 110
 - **Mana**: 80 (Focus)
-- **Speed**: 1.3 (Very Fast)
+- **Speed**: 130 (Very Fast)
 - **Def**: 6
 - **Crit Rate**: 15%
 - **Precision**: 30

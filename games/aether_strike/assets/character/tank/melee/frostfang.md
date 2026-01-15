@@ -13,7 +13,7 @@
 
 - **HP**: 170
 - **Mana**: 50
-- **Speed**: 1.0
+- **Speed**: 75
 - **Def**: 12 (Thick Fur)
 - **Crit Rate**: 5%
 - **Precision**: 10

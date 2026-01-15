@@ -38,7 +38,17 @@ pub struct RemotePlayer {
     pub position: (f32, f32),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnemyData {
+    pub id: String,
+    pub name: String,
+    pub hp: f32,
+    pub max_hp: f32,
+    pub speed: f32,
+}
+
 #[derive(Debug, Clone)]
+
 
 pub enum GameEvent {
     PlayerJoined { player_id: String, username: String, class: String },
@@ -46,7 +56,7 @@ pub enum GameEvent {
     PlayerUpdated { player_id: String, class: String },
     PlayerUpdate(PlayerUpdate),
     GameState { players: Vec<RemotePlayer>, host_id: String },
-    GameStarted,
+    GameStarted { enemies: Vec<EnemyData> },
     NewHost { host_id: String },
     CombatAction { 
         actor_id: String, 
@@ -68,15 +78,16 @@ pub struct GameClient {
     rx_from_ws: Receiver<GameEvent>,
 }
 
-// Commandes que le jeu peut envoyer au thread WS
-enum WsCommand {
+#[derive(Debug)]
+pub enum WsCommand {
+    Connect,
+    Disconnect,
     SendInput { position: (f32, f32), velocity: (f32, f32), action: String },
     UseAttack { attack_name: String, target_id: Option<String> },
-    ChangeClass { new_class: String },
-    StartGame,
     EndTurn,
     Flee,
-    Disconnect,
+    ChangeClass { new_class: String },
+    StartGame { enemies: Vec<EnemyData> },
 }
 
 
@@ -144,9 +155,9 @@ impl GameClient {
         let _ = self.tx_to_ws.send(WsCommand::ChangeClass { new_class });
     }
 
-    /// Démarre la partie (Hôte uniquement)
-    pub fn start_game(&self) {
-        let _ = self.tx_to_ws.send(WsCommand::StartGame);
+    /// Démarre la partie (Hôte uniquement) avec les ennemis initiaux
+    pub fn start_game(&self, enemies: Vec<EnemyData>) {
+        let _ = self.tx_to_ws.send(WsCommand::StartGame { enemies });
     }
 
     /// Récupère tous les événements disponibles (non-bloquant)
@@ -257,7 +268,11 @@ fn ws_thread_loop(
         // 1. Traiter les commandes du jeu (non-bloquant)
         while let Ok(cmd) = rx_commands.try_recv() {
             match cmd {
+                WsCommand::Connect => {
+                     // Handled in main connect logic, no-op here if sent
+                }
                 WsCommand::SendInput { position, velocity, action } => {
+
                     let msg = serde_json::json!({
                         "type": "aether-strike:player-input",
                         "data": {
@@ -269,12 +284,16 @@ fn ws_thread_loop(
                     // Ignorer WouldBlock sur l'écriture pour l'instant (rare sur des petits paquets)
                     let _ = socket.send(Message::Text(msg.to_string()));
                 }
-                WsCommand::StartGame => {
-                    let msg = serde_json::json!({
-                        "type": "aether-strike:start-game",
-                        "data": {}
-                    });
-                    let _ = socket.send(Message::Text(msg.to_string()));
+                WsCommand::StartGame { enemies } => {
+                     let msg = serde_json::json!({
+                         "type": "aether-strike:start-game",
+                         "payload": {
+                             "enemies": enemies
+                         }
+                     });
+                     if let Err(e) = socket.send(Message::Text(msg.to_string())) {
+                         eprintln!("WS send error: {}", e);
+                     }
                 }
                 WsCommand::UseAttack { attack_name, target_id } => {
                     let msg = serde_json::json!({
@@ -407,7 +426,17 @@ fn ws_thread_loop(
                                         })
                                     }
                                     "aether-strike:game-started" => {
-                                        Some(GameEvent::GameStarted)
+                                        // Deserialize enemies
+                                        let enemies_json = data["data"]["enemies"].as_array();
+                                        let mut enemies_list = Vec::new();
+                                        if let Some(arr) = enemies_json {
+                                            for val in arr {
+                                                if let Ok(enemy) = serde_json::from_value::<EnemyData>(val.clone()) {
+                                                    enemies_list.push(enemy);
+                                                }
+                                            }
+                                        }
+                                        Some(GameEvent::GameStarted { enemies: enemies_list })
                                     }
                                     _ => None
                                 };

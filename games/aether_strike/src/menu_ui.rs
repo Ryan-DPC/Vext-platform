@@ -1,5 +1,7 @@
 use macroquad::prelude::*;
-pub use crate::menu_system::{PlayerProfile, MenuButton, ClassButton, Friend, SessionButton, GameSession, GameScreen};
+pub use crate::menu_system::{PlayerProfile, Friend, GameSession, GameScreen};
+pub use crate::modules::button::{MenuButton, ClassButton, SessionButton};
+
 
 /// Dessiner le menu principal
 pub fn draw_main_menu(profile: &PlayerProfile, buttons: &[MenuButton], mouse_pos: Vec2) {

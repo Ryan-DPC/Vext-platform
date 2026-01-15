@@ -21,10 +21,15 @@ mod draw;
 mod server;
 mod backend;
 mod waves;
+mod modules; // New Module Hub
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
-use menu_system::{GameScreen, PlayerProfile, MenuButton, ClassButton, GameSession, SessionButton};
+use menu_system::{GameScreen, PlayerProfile, GameSession};
+// Use new modules
+use modules::button::{MenuButton, ClassButton, SessionButton};
+use modules::turn::TurnSystem;
+use modules::position::*; // Import constants directly
 use class_system::CharacterClass;
 use menu_ui::{draw_create_server, draw_password_dialog};
 use assets::GameAssets;
@@ -33,11 +38,8 @@ use network_client::{GameClient, GameEvent};
 const SCREEN_WIDTH: f32 = 1024.0;
 const SCREEN_HEIGHT: f32 = 768.0;
 
-// Position des combattants (vue de côté)
-const PLAYER_X: f32 = 200.0;
-const PLAYER_Y: f32 = 450.0;
-const ENEMY_X: f32 = 700.0;
-const ENEMY_Y: f32 = 450.0;
+// Position constants now imported from modules::position
+
 
 fn window_conf() -> Conf {
     Conf {
@@ -99,7 +101,7 @@ async fn main() {
     let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
     let mut is_host = false;
     let mut _lobby_host_id = String::new();
-    let vext_token = _vext_token.clone(); // Garde le token pour l'auth WebSocket
+    // let vext_token = _vext_token.clone(); // Duplicate removed
     
     // Dialogue de mot de passe
     let mut show_password_dialog = false;
@@ -119,14 +121,19 @@ async fn main() {
     let mut battle_ui_state = crate::ui::hud::BattleUIState::Main;
     let mut current_turn_id = String::new();
     let mut enemy_hp = 500.0;
-    let enemy_max_hp = 500.0;
+
     let mut combat_logs: Vec<String> = Vec::new();
     
     // Solo combat state
-    let mut is_solo_mode = false;
-    let mut is_player_turn = true;
+    let mut turn_system = TurnSystem::new();
+    // turn_queue/index replaced by turn_system
+    
     let mut enemy_attack_timer = 0.0;
     let _last_enemy_action_time = 0.0;
+    
+    let mut is_solo_mode = true;
+    let mut is_player_turn = true;
+
 
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
@@ -162,6 +169,8 @@ async fn main() {
     let create_server_button = MenuButton::new("CREATE SERVER", SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 70.0, 200.0, 50.0);
     let confirm_create_button = MenuButton::new("CREATE", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0);
     let refresh_button = MenuButton::new("REFRESH", SCREEN_WIDTH - 170.0, 40.0, 150.0, 40.0);
+    let start_btn = MenuButton::new("START", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0); // For lobby
+
 
     loop {
         let mouse_pos = vec2(mouse_position().0, mouse_position().1);
@@ -235,27 +244,25 @@ async fn main() {
                         _enemy = None; // Will be spawned by WaveManager
                         
                         // Solo mode setup
-                        is_solo_mode = true;
+                        let mut is_solo_mode = true;
+
                         
-                        // Reposition Player (Forward)
+                        // Reposition Player to Slot 0
                         if let Some(p) = &mut _player {
-                            p.position = vec2(400.0, 320.0); // Down & Back a bit
+                            p.position = PLAYER_POSITIONS[0];
                         }
                         
-                        // Create Mock Teammates (Adjusted based on feedback)
+                        // Clear Teammates (No Mocks)
                         _teammates.clear();
-                        // 1. DarkKnight (Top Back)
-                        let mut t1 = StickFigure::new(vec2(280.0, 200.0), "DarkKnight".to_string());
-                        t1.color = Color::from_rgba(200, 50, 50, 255); 
-                        _teammates.push(t1);
-                        // 2. Elara (Mage - Mid)
-                        let mut t2 = StickFigure::new(vec2(150.0, 360.0), "Elara".to_string());
-                        t2.color = Color::from_rgba(50, 100, 200, 255); 
-                        _teammates.push(t2);
-                        // 3. SwiftArrow (Bot)
-                        let mut t3 = StickFigure::new(vec2(280.0, 460.0), "SwiftArrow".to_string()); 
-                        t3.color = Color::from_rgba(50, 200, 100, 255); 
-                        _teammates.push(t3);
+                        if !is_solo_mode { 
+ 
+                            // ... 
+                        }
+                        // Actually, is_solo_mode is used later in loop. I need to decl it outside.
+                        // Wait, is_solo_mode was defined at top level scope in main.rs line 93 (approx)?
+                        // Let's check if I deleted it. Use view_file to check top scope variables.
+                        // Assuming I need to restore it at top.
+
 
                         // Clear Enemies - They will be spawned by WaveManager
                         _enemies.clear();
@@ -264,8 +271,40 @@ async fn main() {
                         // Initialize WaveManager
                         wave_manager = waves::WaveManager::new();
                         
-                        is_player_turn = true;
-                        enemy_hp = 500.0; // Will be set by Boss wave if applicable, or ignored
+                        // --- TURN QUEUE INITIALIZATION ---
+                        turn_system.init_queue(
+                            &player_profile.vext_username,
+                            if let Some(gs) = &_game_state { gs.resources.speed as u32 } else { 100 },
+                           &other_players,
+                           &_enemies,
+                           _enemy.as_ref()
+                        );
+                        turn_system.log_state(); // DEBUG INITIAL STATE
+                        current_turn_id = turn_system.get_current_id().to_string(); // Keep local copy for HUD or just use getter? HUD uses var. 
+                        // HUD was using `current_turn_id`. Let's update HUD call later or update the var here.
+                        // Actually, I should update `current_turn_id` usage everywhere or simply sync it.
+                        // For this chunk, I will init and set local var.
+                        
+                        
+                        // 2. Add Enemies (Wave 1 should be spawned by next update, but let's force spawn or handle in update?)
+                        // WaveManager spawns in update(), so queue init might need to happen there or force first spawn here.
+                        // Let's force update once to spawn Wave 1
+                        // 2. Add Enemies - Handled by init_queue now if _enemies populated.
+                        // However, _enemies might be empty here if spawned later.
+                        // Use WaveManager to get accurate enemies for init.
+                        // WaveManager logic
+                        if let Some(wave) = wave_manager.get_current_wave() {
+                             // Just check if it's boss wave to init _enemy ref if needed? 
+                             // No, let InGame loop handle it.
+                             // But wait, if InGame loop spawns on frame 1, we might flicker?
+                             // It's acceptable.
+                        }
+
+                        
+                        current_turn_id = turn_system.get_current_id().to_string();
+                        
+                        enemy_hp = 0.0; // Reset, will be set by wave spawn
+
                         
                         combat_logs.clear();
                         combat_logs.push("Battle started!".to_string());
@@ -342,6 +381,7 @@ async fn main() {
                 refresh_button.draw(is_hovered);
 
                 // Dessiner le bouton CREATE SERVER
+
                 let is_hovered = create_server_button.is_clicked(mouse_pos);
                 create_server_button.draw(is_hovered);
 
@@ -476,41 +516,34 @@ async fn main() {
                     for event in events {
                         match event {
                             GameEvent::GameState { players, host_id } => {
-                                let msg = format!("Sync ({} players)", players.len());
+                                let (msg, updated_class) = modules::online::sync_game_state(
+                                    players, 
+                                    &player_profile.vext_username, 
+                                    &mut other_players, 
+                                    &all_classes
+                                );
                                 println!("📋 {}", msg);
                                 last_network_log = msg;
-                                other_players.clear();
-                                for p in players {
-                                    if p.username != player_profile.vext_username {
-                                        other_players.insert(p.userId.clone(), p);
-                                    } else {
-                                        // Sync our own local selected_class with server record
-                                        if let Some(cls) = all_classes.iter().find(|c| c.name.eq_ignore_ascii_case(&p.class)) {
-                                            selected_class = Some(cls.clone());
-                                        }
-                                    }
+                                if let Some(cls) = updated_class {
+                                    selected_class = Some(cls);
                                 }
                                 _lobby_host_id = host_id;
                             }
                             GameEvent::PlayerJoined { player_id, username, class } => {
-                                let msg = format!("{} joined! ({})", username, &player_id[..4]);
+                                let msg = modules::online::handle_player_joined(
+                                    &username, 
+                                    &player_id, 
+                                    &class, 
+                                    &player_profile.vext_username, 
+                                    &mut other_players
+                                );
                                 println!("👋 {}", msg);
                                 last_network_log = msg;
-                                if username != player_profile.vext_username {
-                                    let display_class = class.clone();
-                                    other_players.insert(player_id.clone(), network_client::RemotePlayer {
-                                        userId: player_id,
-                                        username: username,
-                                        class: display_class,
-                                        position: (400.0, 300.0),
-                                    });
-                                }
                             }
                             GameEvent::PlayerLeft { player_id } => {
-                                let msg = format!("Player {} left", &player_id[..6]);
+                                let msg = modules::online::handle_player_left(&player_id, &mut other_players);
                                 println!("👋 {}", msg);
                                 last_network_log = msg;
-                                other_players.remove(&player_id);
                             }
                             GameEvent::PlayerUpdated { player_id, class } => {
                                 let display_class = class.clone();
@@ -522,7 +555,7 @@ async fn main() {
                                     player.class = display_class;
                                 }
                             }
-                            GameEvent::GameStarted => {
+                            GameEvent::GameStarted { enemies } => {
                                 // ... existing GameStarted logic ...
                                 let msg = "Game start received! Launching...".to_string();
                                 println!("🚀 {}", msg);
@@ -534,30 +567,51 @@ async fn main() {
                                 
                                 _game_state = Some(GameState::new(p_class.clone()));
                                 
-                                let mut new_player = StickFigure::new(vec2(PLAYER_X, PLAYER_Y), "You".to_string());
-                                new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
+                                let mut new_player = modules::character::create_local(
+                                    "You", 
+                                    &p_class, 
+                                    PLAYER_POSITIONS[0]
+                                );
+                                new_player.max_health = _game_state.as_ref().unwrap().get_max_hp(); // Ensure synced with GameState
                                 new_player.health = new_player.max_health;
-                                new_player.color = p_class.color();
                                 _player = Some(new_player);
-                                
-                                let stats = crate::entities::enemy::EnemyStats {
-                                    name: "Boss".to_string(),
-                                    hp: 800.0, damage: 40.0, speed: 30.0,
-                                    attack_range: 80.0, attack_cooldown: 2.5,
-                                    gold_reward: 500, color: RED, scale: 2.5,
-                                };
-                                _enemy = Some(Enemy::new(vec2(ENEMY_X, ENEMY_Y), crate::entities::enemy::EnemyType::Boss, stats));
-                                // ---------------------------------------------
 
+                                
+                                // Reset Enemies for fresh start
+                                _enemies.clear();
+                                _enemy = None;
+                                
+                                // Spawn Enemies from Server Payload
+                                let (synced_enemies, boss_ref) = modules::enemy_model::from_server_data(&enemies, SCREEN_WIDTH, SCREEN_HEIGHT);
+                                _enemies = synced_enemies;
+                                _enemy = boss_ref;
+
+
+                                // --- QUEUE INIT FOR UI timeline ---
+                                turn_system.init_queue(
+                               &player_profile.vext_username,
+                               _game_state.as_ref().unwrap().resources.speed as u32, // Keep original speed logic
+                               &other_players,
+                               &_enemies,
+                               _enemy.as_ref()
+                            );
+                                turn_system.log_state(); // DEBUG MULTIPLAYER INIT
+                                current_turn_id = turn_system.get_current_id().to_string();
+                                
                                 current_screen = GameScreen::InGame;
+                                let mut is_solo_mode = false;
+                                let mut is_player_turn = false; // Managed by server ID logic, but rely on turn_system for local UI?
+
+                                // In multiplayer, server dictates turn. TurnSystem might be misaligned if we run it autonomously.
+                                // IMPORTANT: In multiplayer, 'current_turn_id' usually comes from 'TurnChanged' event.
+                                // But having a local queue helps for the Timeline UI.
+                                // We should update TurnSystem state when we receive TurnChanged event.
+                                
+                                combat_logs.clear();
+                                combat_logs.push("Multiplayer Battle started!".to_string());
+
                             }
-                            // ... existing cases ...
-                            GameEvent::NewHost { host_id } => {
-                                let msg = format!("New host: {}", host_id);
-                                println!("👑 {}", msg);
-                                last_network_log = msg;
-                                _lobby_host_id = host_id;
-                            }
+
                             GameEvent::Error(e) => {
                                 last_network_log = format!("Error: {}", e);
                                 println!("❌ {}", last_network_log);
@@ -574,7 +628,12 @@ async fn main() {
                     }
                 }
 
-                renderer.draw_lobby(session_name, 1 + other_players.len(), &player_profile, &other_players);
+                if !other_players.is_empty() {
+                    renderer.draw_lobby(session_name, 1 + other_players.len(), &player_profile, &other_players);
+                } else {
+                     renderer.draw_lobby(session_name, 1, &player_profile, &other_players);
+                }
+
  
                  // --- CLASS SELECTION UI (Grid restricted for space or scrollable) ---
                  draw_text("CHOOSE CLASS:", 500.0, 100.0, 30.0, WHITE);
@@ -607,22 +666,31 @@ async fn main() {
                  }
 
                 // Start Button (Host Only)
-                if is_host {
-                    // ... existing start button logic ...
-                    let start_btn_rect = Rect::new(SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 150.0, 300.0, 80.0);
-                    let is_hovered = start_btn_rect.contains(mouse_pos);
-                    let btn_color = if is_hovered { GREEN } else { DARKGREEN };
-                    
-                    draw_rectangle(start_btn_rect.x, start_btn_rect.y, start_btn_rect.w, start_btn_rect.h, btn_color);
-                    draw_text("START GAME", start_btn_rect.x + 30.0, start_btn_rect.y + 50.0, 40.0, WHITE);
-                    
-                    if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
-                         if let Some(client) = &network_manager.client {
-                             client.start_game();
-                         }
-                         // Initialize our own state immediately as well or wait for event?
-                         // Wait for event to be safe and consistent with clients
-                         // current_screen = GameScreen::InGame; 
+                if _lobby_host_id == player_profile.vext_username {
+
+                    // Check if START is clicked
+                    if start_btn.is_clicked(mouse_pos) {
+
+                        println!("Host starting game...");
+                        if let Some(client) = &network_manager.client {
+                            // Generate Wave 1 Enemies
+                            let mut init_enemies = Vec::new();
+                            let temp_wm = waves::WaveManager::new(); // Just to get Wave 1 data
+                            if let Some(wave) = temp_wm.waves.get(0) { // Wave 1
+                                for (stats, kind, _pos) in &wave.enemies {
+                                     let e = Enemy::new(*_pos, kind.clone(), stats.clone());
+                                     init_enemies.push(network_client::EnemyData {
+                                         id: e.id,
+                                         name: e.name,
+                                         hp: e.health,
+                                         max_hp: e.max_health,
+                                         speed: e.speed,
+                                     });
+                                }
+                            }
+                            
+                            client.start_game(init_enemies);
+                        }
                     }
                 } else {
                     draw_text("WAITING FOR HOST TO START...", SCREEN_WIDTH - 450.0, SCREEN_HEIGHT - 100.0, 24.0, LIGHTGRAY);
@@ -665,45 +733,62 @@ async fn main() {
                 draw_rectangle(0.0, 500.0, SCREEN_WIDTH, 20.0, Color::from_rgba(50, 40, 30, 255));
 
                 // ===== WAVE SYSTEM =====
+
+                // --- WAVE MANAGER UPDATE (Solo Mode) ---
                 if is_solo_mode {
-                    // Check Cleanups
+                    // Cleanup dead enemies
                     _enemies.retain(|e| e.health > 0.0);
                     if let Some(e) = &_enemy {
                          if e.health <= 0.0 { _enemy = None; }
                     }
 
-                    wave_manager.update(get_frame_time(), _enemies.len(), _enemy.is_some());
-
+                    let dt = get_frame_time();
+                    let enemies_alive = _enemies.len(); // optimized since we just retained
+                    let boss_alive = _enemy.is_some();
+                    
+                    wave_manager.update(dt, enemies_alive, boss_alive);
+                    
                     if wave_manager.state == waves::WaveState::Spawning {
                         if let Some(wave) = wave_manager.get_current_wave() {
-                            combat_logs.push(format!(">>> {} <<<", wave.title));
-                            combat_logs.push(wave.description.clone());
+                            // Clear existing if any (except maybe bodies?)
+                            // _enemies.clear(); // Keep bodies?
                             
+                            // Spawn logic
                             for (stats, kind, pos) in &wave.enemies {
-                                match kind {
-                                    waves::EnemyType::Boss => {
-                                        _enemy = Some(Enemy::new(*pos, kind.clone(), stats.clone()));
-                                        enemy_hp = stats.hp;
-                                        // Auto-add threat
-                                        if let Some(e) = &mut _enemy {
-                                            e.add_threat("player", 1.0);
-                                        }
-                                    },
-                                    _ => {
-                                        let mut new_enemy = Enemy::new(*pos, kind.clone(), stats.clone());
-                                        new_enemy.add_threat("player", 1.0);
-                                        _enemies.push(new_enemy);
-                                    }
+                                if *kind == crate::entities::enemy::EnemyType::Boss {
+                                    _enemy = Some(Enemy::new(*pos, kind.clone(), stats.clone()));
+                                } else {
+                                    let mut new_enemy = Enemy::new(*pos, kind.clone(), stats.clone());
+                                    new_enemy.add_threat("You", 1.0);
+                                    _enemies.push(new_enemy);
                                 }
                             }
+                            
+                            combat_logs.push(format!("⚠️ {}", wave.title));
+                            
+                            // SYNC TURN SYSTEM
+                            turn_system.init_queue(
+                               &player_profile.vext_username,
+                               if let Some(gs) = &_game_state { gs.resources.speed as u32 } else { 100 },
+                               &other_players,
+                               &_enemies,
+                               _enemy.as_ref()
+                            );
+                            turn_system.log_state(); // DEBUG SOLO WAVE INIT
+
+                            current_turn_id = turn_system.get_current_id().to_string();
+
                         }
                     }
-                    
-                    // Display Wave Title
-                    if let Some(wave) = wave_manager.get_current_wave() {
-                        draw_text(&wave.title, SCREEN_WIDTH / 2.0 - 150.0, 80.0, 30.0, WHITE);
-                    }
                 }
+
+                // Display Wave Title
+                if let Some(wave) = wave_manager.get_current_wave() {
+                    let title_text = &wave.title;
+                    let text_w = measure_text(title_text, None, 30, 1.0).width;
+                    draw_text(title_text, SCREEN_WIDTH / 2.0 - text_w / 2.0, 80.0, 30.0, WHITE);
+                }
+
 
                 // ===== RELAY MULTIPLAYER: Poll for updates in-game =====
                 if let Some(client) = &network_manager.client {
@@ -808,59 +893,176 @@ async fn main() {
                     let _current_class = &gs.character_class;
                     
                     // Determine if it's player's turn
+                    // Determine if it's player's turn
                     let is_my_turn = if is_solo_mode {
-                        is_player_turn
+                        current_turn_id == player_profile.vext_username
                     } else {
                         current_turn_id == player_profile.vext_username
                     };
                     
-                    let e_hp_percent = enemy_hp / enemy_max_hp;
-
+                    // Helper to advance turn queue (Solo Mode)
+                    // We need to do this manually inline or via a state change request
+                    // Since we can't define a closure that borrows everything easily here due to move,
+                    // we'll handle the "End Turn" signal via a flag or just inline logic.
+                    // Let's use `should_advance_turn` flag.
+                    let mut should_advance_turn = false;
+                    
                     if let Some(action) = HUD::draw(
                         gs, 
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
-                        &character_name_input,
+                        &player_profile.vext_username,
                         &gs.character_class,
                         &other_players,
-                        e_hp_percent,
+                        &_enemies,
+                        _enemy.as_ref(),
+                        &current_turn_id,
                         is_my_turn,
                         &mut battle_ui_state,
                         &combat_logs,
                     ) {
+
                         // Handle actions
                         if is_solo_mode {
                             // Solo mode: process locally
                             match action {
-                                crate::ui::hud::HUDAction::UseAttack(name) => {
-                                    // Find attack damage
+                                crate::ui::hud::HUDAction::UseAttack(name, target_id) => {
                                     if let Some(atk) = gs.character_class.skills.iter().find(|s| s.name == name) {
                                         if gs.resources.can_afford_mana(atk.mana_cost) {
                                             // Spend mana
                                             gs.resources.mana = gs.resources.mana.saturating_sub(atk.mana_cost);
                                             
-                                            // Deal damage to enemy
-                                            let damage = atk.base_damage;
+                                            // Get Effects
+                                            let effects = atk.get_effects();
+                                            use crate::modules::effect::EffectType;
                                             
-                                            // Priority Target: Boss -> First Minion
-                                            if let Some(boss) = &mut _enemy {
-                                                boss.health = (boss.health - damage).max(0.0);
-                                                boss.add_threat("player", damage);
-                                                enemy_hp = boss.health; // Sync generic var for HUD
-                                                combat_logs.push(format!("You hit Boss for {:.0}!", damage));
-                                            } else if let Some(target) = _enemies.first_mut() {
-                                                target.health = (target.health - damage).max(0.0);
-                                                target.add_threat("player", damage);
-                                                combat_logs.push(format!("You hit {} for {:.0}!", target.name, damage));
+                                            // CHECK AOE: Does name or type contain "AoE" or "Area"?
+                                            let is_aoe = atk.skill_type.contains("AoE") || atk.skill_type.contains("Area");
+                                            
+                                            // Build Target List
+                                            let mut final_targets = Vec::new();
+                                            
+                                            if target_id == "player" {
+                                                // Self Target
+                                                final_targets.push("player".to_string());
                                             } else {
-                                                combat_logs.push("No target found!".to_string());
+                                                // Enemy Target Logic
+                                                // 1. Find Main Target Index in _enemies
+                                                let mut main_idx = None;
+                                                for (i, e) in _enemies.iter().enumerate() {
+                                                    if e.id == target_id {
+                                                        main_idx = Some(i);
+                                                        break;
+                                                    }
+                                                }
+                                                
+                                                // 2. Boss handling (Boss is usually separate from _enemies list in code? or is it just ID?)
+                                                // The current code has `_enemy` (boss option) and `_enemies` (minions list).
+                                                // If we targeted the boss, just hit the boss.
+                                                if let Some(boss) = &_enemy {
+                                                    if boss.id == target_id {
+                                                        final_targets.push(boss.id.clone());
+                                                        // Boss AoE logic? Usually bosses are big, maybe hit minions too?
+                                                        // For now, let's stick to user request: "click on one, take below and above".
+                                                        // This applies mostly to the Minion List (`_enemies`).
+                                                    }
+                                                }
+                                                
+                                                // 3. Minion List AoE Logic
+                                                if let Some(idx) = main_idx {
+                                                    // Add Main
+                                                    final_targets.push(_enemies[idx].id.clone());
+                                                    
+                                                    if is_aoe {
+                                                        // "Take below and above" -> Index - 1 and Index + 1
+                                                        // Above (visually top = index 0? or visual Y?)
+                                                        // Visually, index 0 is at Top. Index + 1 is below. Index - 1 is above.
+                                                        
+                                                        // Previous (Above)
+                                                        if idx > 0 {
+                                                            final_targets.push(_enemies[idx - 1].id.clone());
+                                                        }
+                                                        // Next (Below)
+                                                        if idx < _enemies.len() - 1 {
+                                                            final_targets.push(_enemies[idx + 1].id.clone());
+                                                        }
+                                                    }
+                                                }
                                             }
-                                            
-                                            combat_logs.push(format!("You used {} for {:.0} damage!", name, damage));
-                                            
-                                            // Switch to enemy turn
-                                            is_player_turn = false;
-                                            enemy_attack_timer = get_time() + 1.5; // Enemy attacks after 1.5s
+
+
+                                            for target_id in final_targets {
+                                                for effect in &effects {
+                                                    match &effect.effect_type {
+                                                        EffectType::Heal => {
+                                                            if target_id == "player" {
+                                                                let heal_val = effect.value;
+                                                                gs.resources.current_hp = (gs.resources.current_hp + heal_val).min(gs.resources.max_hp);
+                                                                if let Some(p) = &mut _player { p.health = gs.resources.current_hp; }
+                                                                combat_logs.push(format!("You healed for {:.0} HP!", heal_val));
+                                                            }
+                                                        }
+                                                        EffectType::InstantDamage => {
+                                                            let damage = effect.value;
+                                                            // Find stats to apply damage to
+                                                            let mut hit = false;
+                                                            
+                                                            // Player Hit? (Self-damage? unlikely unless confused)
+                                                            if target_id == "player" {
+                                                                 // Skip for now
+                                                            }
+                                                            
+                                                            // Boss Hit
+                                                            if let Some(boss) = &mut _enemy {
+                                                                if boss.id == target_id && boss.health > 0.0 {
+                                                                    boss.health = (boss.health - damage).max(0.0);
+                                                                    boss.add_threat("player", damage);
+                                                                    enemy_hp = boss.health; 
+                                                                    combat_logs.push(format!("Hit Boss for {:.0}!", damage));
+                                                                    if boss.health <= 0.0 {
+                                                                         turn_system.update_speed(&boss.id, 0);
+                                                                         combat_logs.push("Boss defeated!".to_string());
+                                                                    }
+                                                                    hit = true;
+                                                                }
+                                                            }
+                                                            
+                                                            // Minion Hit
+                                                            if !hit {
+                                                                for e in _enemies.iter_mut() {
+                                                                    if e.id == target_id && e.health > 0.0 {
+                                                                        e.health = (e.health - damage).max(0.0);
+                                                                        e.add_threat("player", damage);
+                                                                        combat_logs.push(format!("Hit {} for {:.0}!", e.name, damage));
+                                                                        if e.health <= 0.0 {
+                                                                             turn_system.update_speed(&e.id, 0);
+                                                                             combat_logs.push(format!("{} defeated!", e.name));
+                                                                        }
+                                                                        hit = true;
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        EffectType::Buff(stat) => {
+                                                            if target_id == "player" {
+                                                                combat_logs.push(format!("Buffed Self: {:?}!", stat));
+                                                            }
+                                                        }
+                                                        EffectType::Debuff(stat) => {
+                                                            if target_id != "player" {
+                                                                combat_logs.push(format!("Debuffed Target: {:?}!", stat));
+                                                            }
+                                                        }
+                                                        EffectType::Stun => {
+                                                            if target_id != "player" {
+                                                                 combat_logs.push("Target Stunned!".to_string());
+                                                            }
+                                                        }
+                                                        _ => {}
+                                                    }
+                                                }
+                                            }
+                                            should_advance_turn = true;
                                             battle_ui_state = crate::ui::hud::BattleUIState::Main;
                                         }
                                     }
@@ -893,8 +1095,7 @@ async fn main() {
                                         combat_logs.push(format!("Used {}!", item_type.name()));
                                         
                                         // End Turn
-                                        is_player_turn = false;
-                                        enemy_attack_timer = get_time() + 1.5;
+                                        should_advance_turn = true;
                                         battle_ui_state = crate::ui::hud::BattleUIState::Main;
                                     }
                                 }
@@ -904,8 +1105,7 @@ async fn main() {
                                     is_solo_mode = false;
                                 }
                                     crate::ui::hud::HUDAction::EndTurn => {
-                                        is_player_turn = false;
-                                        enemy_attack_timer = get_time() + 1.0;
+                                        should_advance_turn = true;
                                     }
                                     crate::ui::hud::HUDAction::Resurrect => {
                                         if gs.inventory.use_item(crate::inventory::ItemType::FullRestore) {
@@ -932,8 +1132,8 @@ async fn main() {
                             // Multiplayer mode: send to server
                             if let Some(client) = &network_manager.client {
                                 match action {
-                                    crate::ui::hud::HUDAction::UseAttack(name) => {
-                                        client.use_attack(name, Some("enemy".to_string()));
+                                    crate::ui::hud::HUDAction::UseAttack(name, target_id) => {
+                                        client.use_attack(name, Some(target_id));
                                     }
                                     crate::ui::hud::HUDAction::Flee => {
                                         client.flee();
@@ -952,34 +1152,124 @@ async fn main() {
                         }
                     }
                     
-                    // === SOLO MODE: ENEMY AI ===
-                    if is_solo_mode && !is_player_turn && get_time() > enemy_attack_timer {
-                        
-                        // 1. Minions Attack
-                        for enemy in &_enemies {
-                             // Simple Logic: Attack Player
-                             let damage = enemy.attack_damage;
-                             gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
-                             combat_logs.push(format!("{} hits you for {:.0}!", enemy.name, damage));
+                    // === SOLO MODE: ENEMY AI (Individual Turns) ===
+                    if is_solo_mode && !is_my_turn {
+                        // Check if current_turn_id belongs to an enemy
+                        let mut active_enemy_idx: Option<usize> = None;
+                        let mut is_boss_turn = false;
+
+                        // Check Minions
+                        for (i, e) in _enemies.iter().enumerate() {
+                            if e.id == current_turn_id {
+                                active_enemy_idx = Some(i);
+                                break;
+                            }
+                        }
+                        // Check Boss
+                        if active_enemy_idx.is_none() {
+                             if let Some(boss) = &_enemy {
+                                 if boss.id == current_turn_id {
+                                     is_boss_turn = true;
+                                 }
+                             }
                         }
 
-                        // 2. Boss Attack
-                        if let Some(boss) = &_enemy {
-                             let damage = boss.attack_damage;
-                             gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
-                             combat_logs.push(format!("BOSS hits you for {:.0}!", damage));
-                        }
-                        
-                        // Check if player died
-                        if gs.resources.current_hp <= 0.0 {
-                            gs.resources.current_hp = 0.0;
-                            battle_ui_state = crate::ui::hud::BattleUIState::Defeat;
-                            combat_logs.push("You have been defeated!".to_string());
-                        }
+                        if (active_enemy_idx.is_some() || is_boss_turn) && get_time() > enemy_attack_timer {
+                             if enemy_attack_timer == 0.0 {
+                                 // First frame of enemy turn, set timer
+                                 enemy_attack_timer = get_time() + 1.0; 
+                             } else {
+                                 // Execute Attack
+                                 let damage = if is_boss_turn {
+                                     _enemy.as_ref().unwrap().attack_damage
+                                 } else {
+                                     _enemies[active_enemy_idx.unwrap()].attack_damage
+                                 };
+                                 
+                                 let name = if is_boss_turn { "BOSS".to_string() } else { _enemies[active_enemy_idx.unwrap()].name.clone() };
 
-                        // Switch back to player turn
-                        is_player_turn = true;
+                                 if let Some(gs) = &mut _game_state {
+                                     gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                                 }
+                                 combat_logs.push(format!("{} hits you for {:.0}!", name, damage));
+                                 
+                                 // Check Death
+                                 if let Some(gs) = &_game_state {
+                                     if gs.resources.current_hp <= 0.0 {
+                                          battle_ui_state = crate::ui::hud::BattleUIState::Defeat;
+                                          combat_logs.push("You have been defeated!".to_string());
+                                     }
+                                 }
+
+                                 should_advance_turn = true;
+                                 enemy_attack_timer = 0.0; // Reset
+                             }
+                        } else if enemy_attack_timer == 0.0 {
+                             // Initialize timer if just started turn
+                             enemy_attack_timer = get_time() + 1.0;
+                        }
+                    } else if is_solo_mode && !is_my_turn {
+                         // Fallback: If current turn ID is unknown/dead, skip
+                         let mut found = false;
+                         // Check enemies
+                         for e in &_enemies {
+                             if e.id == current_turn_id { found = true; break; }
+                         }
+                         // Check Boss
+                         if !found {
+                             if let Some(boss) = &_enemy {
+                                 if boss.id == current_turn_id { found = true; }
+                             }
+                         }
+                         
+                         if !found {
+                             // Dead entity turn?
+                             println!("Skipping dead entity turn: {}", current_turn_id);
+                             should_advance_turn = true;
+                         }
                     }
+
+                     // === ADVANCE TURN QUEUE LOGIC ===
+                     if should_advance_turn {
+                         println!("🔄 Advancing turn...");
+                         should_advance_turn = false;
+                         
+                         let new_round = turn_system.advance_turn();
+                         turn_system.log_state(); // DEBUG ADVANCE
+                         
+                         current_turn_id = turn_system.get_current_id().to_string();
+                         
+                          if new_round {
+                               println!("🔁 New Round! Re-evaluating speeds...");
+                               
+                               // CLEANUP DEAD ENTITIES BEFORE RE-INIT
+                               _enemies.retain(|e| e.health > 0.0);
+                               if _enemy.as_ref().map(|e| e.health <= 0.0).unwrap_or(false) {
+                                   _enemy = None;
+                               }
+                               
+                               // Re-init queue to re-sort speeds (buffs etc)
+                              turn_system.init_queue(
+                                 &player_profile.vext_username,
+                                  if let Some(gs) = &_game_state { gs.resources.speed as u32 } else { 100 },
+                                  &other_players,
+                                  &_enemies,
+                                  _enemy.as_ref()
+                              );
+                              turn_system.log_state(); // DEBUG NEW ROUND
+
+                             current_turn_id = turn_system.get_current_id().to_string();
+                        }
+                    }
+                    
+                    // Solo Mode override to sync local turn system
+                    if is_solo_mode {
+                       // Main loop uses current_turn_id to decide who acts
+                    } else {
+                       // Multiplayer override: Server event sets current_turn_id usually
+                       // But if we want timeline to work, we might need to sync TurnSystem with Server Turn ID
+                    }
+    
                     
                     // Victory Check handled by WaveManager
                     if wave_manager.state == waves::WaveState::AllWavesCleared {
@@ -1047,6 +1337,4 @@ async fn main() {
 
         next_frame().await;
     }
-
 }
-

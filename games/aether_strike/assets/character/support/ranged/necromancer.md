@@ -13,7 +13,7 @@
 
 - **HP**: 130
 - **Mana**: 120 (Soul Essence)
-- **Speed**: 0.9
+- **Speed**: 90
 - **Def**: 8
 - **Crit Rate**: 5%
 - **Precision**: 10

@@ -13,7 +13,7 @@
 
 - **HP**: 160
 - **Mana**: 80 (Holy Power)
-- **Speed**: 0.9 (Slow)
+- **Speed**: 90 (Slow)
 - **Def**: 12
 - **Crit Rate**: 5%
 - **Precision**: 10

@@ -14,7 +14,7 @@
 
 - **HP**: 300
 - **Mana**: 100 (Energy)
-- **Speed**: 0.8 (Very Slow)
+- **Speed**: 50 (Very Slow)
 - **Def**: 15
 - **Crit Rate**: 2%
 - **Precision**: 5

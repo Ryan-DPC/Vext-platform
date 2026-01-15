@@ -19,6 +19,32 @@ pub enum PassiveEffect {
     CriticalChance(f32),      // Chance de coup critique X%
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum SkillCategory {
+    Damage,
+    Heal,
+    Buff,
+    Debuff,
+    Summon,
+    Utility,
+}
+
+impl SkillCategory {
+    pub fn can_target_ally(&self) -> bool {
+        match self {
+            Self::Heal | Self::Buff | Self::Utility => true,
+            _ => false,
+        }
+    }
+
+    pub fn can_target_enemy(&self) -> bool {
+         match self {
+            Self::Damage | Self::Debuff | Self::Utility => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Skill {
     pub id: u32,
@@ -28,6 +54,56 @@ pub struct Skill {
     pub mana_cost: u32,
     pub base_damage: f32,
     pub description: String,
+}
+
+impl Skill {
+    pub fn get_effects(&self) -> Vec<crate::modules::effect::Effect> {
+        use crate::modules::effect::{Effect, EffectType, StatType};
+        let mut effects = Vec::new();
+        let t = self.skill_type.to_lowercase();
+        let desc = self.description.to_lowercase();
+        let val = self.base_damage;
+
+        // HEAL
+        if t.contains("heal") || t.contains("restore") || t.contains("lifesteal") {
+             effects.push(Effect::new(EffectType::Heal, val.max(20.0), 0));
+        } 
+        
+        // BUFF
+        else if t.contains("buff") || t.contains("shield") || t.contains("stance") {
+             if desc.contains("speed") { effects.push(Effect::new(EffectType::Buff(StatType::Speed), 20.0, 3)); }
+             else if desc.contains("def") { effects.push(Effect::new(EffectType::Buff(StatType::Defense), 15.0, 3)); }
+             else {
+                 // Default Buff
+                 effects.push(Effect::new(EffectType::Buff(StatType::Attack), 10.0, 3));
+             }
+        } 
+
+        // DEBUFF / CC
+        else if t.contains("debuff") || t.contains("cc") || t.contains("slow") || t.contains("stun") {
+             if t.contains("stun") { effects.push(Effect::new(EffectType::Stun, 0.0, 1)); }
+             else if t.contains("slow") { effects.push(Effect::new(EffectType::Debuff(StatType::Speed), 30.0, 2)); }
+             else {
+                 effects.push(Effect::new(EffectType::Debuff(StatType::Defense), 10.0, 2));
+             }
+             // Most debuffs also deal some damage? Check base_damage
+             if val > 0.0 {
+                 effects.push(Effect::new(EffectType::InstantDamage, val, 0));
+             }
+        } 
+
+        // SUMMON
+        else if t.contains("summon") {
+            // No effect mapping for summon yet
+        }
+
+        // DEFAULT DAMAGE
+        else {
+             effects.push(Effect::new(EffectType::InstantDamage, val, 0));
+        }
+        
+        effects
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -62,8 +138,12 @@ impl CharacterClass {
             "character/support/ranged",
         ];
 
-        // On essaie plusieurs bases : localement, ou en remontant (si lancé depuis games/aether_strike)
-        let base_paths = [".", "..", "../.."];
+        let base_paths = [
+            "assets", 
+            "games/aether_strike/assets", 
+            "../assets",
+            "./assets"
+        ];
 
         for base in base_paths {
             for sub in sub_paths {
