@@ -51,10 +51,11 @@ async fn main() {
         .route("/ws", get(ws_handler))
         .with_state(state);
 
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));
-    tracing::info!("🚀 Aether Strike Dedicated Server listening on {}", addr);
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr_str = format!("0.0.0.0:{}", port);
+    let listener = tokio::net::TcpListener::bind(&addr_str).await.unwrap();
+    tracing::info!("🚀 Aether Strike Dedicated Server listening on {}", addr_str);
     
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -62,6 +63,7 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
+    tracing::info!("WS Connection requested");
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
