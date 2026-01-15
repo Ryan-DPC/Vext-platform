@@ -12,6 +12,8 @@ import UserAutocomplete from '../components/UserAutocomplete.vue';
 const friendsStore = useFriendsStore();
 const toastStore = useToastStore();
 const groupStore = useGroupStore();
+const userStore = useUserStore();
+const myUserId = computed(() => userStore.user?.id);
 const activeTab = ref('friends'); // 'friends', 'requests', 'groups', 'add_friend'
 const searchQuery = ref('');
 const addFriendQuery = ref('');
@@ -451,45 +453,36 @@ const handlePrivateMessage = (event: CustomEvent) => {
             </div>
 
             <div class="chat-messages" ref="privateMessagesContainer">
-              <div v-if="privateChatLoading" style="text-align: center; color: #888; padding: 20px">
-                Loading conversation...
+              <div v-if="privateChatLoading" class="chat-loading">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                <p>Loading conversation...</p>
               </div>
 
               <div
                 v-for="(msg, index) in privateMessages"
                 :key="msg.id"
-                class="message-item"
+                class="message-row"
                 :class="{
                   mine: msg.is_from_me,
                   'group-start':
                     index === 0 || privateMessages[index - 1].is_from_me !== msg.is_from_me,
                 }"
               >
-                <img
-                  v-if="
-                    !msg.is_from_me &&
-                    (index === 0 ||
-                      privateMessages[index - 1].is_from_me ||
-                      privateMessages[index - 1].from_user_id !== msg.from_user_id)
-                  "
-                  :src="activeFriend.profile_pic || '/default-avatar.svg'"
-                  class="msg-avatar"
-                />
-                <div v-else-if="!msg.is_from_me" class="msg-avatar-placeholder"></div>
-                <div class="msg-content">
-                  <div
-                    class="msg-header"
+                <div v-if="!msg.is_from_me" class="avatar-col">
+                  <img
                     v-if="
-                      !msg.is_from_me &&
-                      (index === 0 ||
-                        privateMessages[index - 1].is_from_me ||
-                        privateMessages[index - 1].from_user_id !== msg.from_user_id)
+                      index === 0 ||
+                      privateMessages[index - 1].is_from_me ||
+                      privateMessages[index - 1].from_user_id !== msg.from_user_id
                     "
-                  >
-                    <span class="msg-username">{{ activeFriend.username }}</span>
-                  </div>
-                  <div class="msg-text" :class="{ 'my-text': msg.is_from_me }">
-                    {{ msg.content }}
+                    :src="activeFriend.profile_pic || '/default-avatar.svg'"
+                    class="msg-avatar"
+                  />
+                </div>
+
+                <div class="msg-content">
+                  <div class="msg-bubble" :class="{ 'my-bubble': msg.is_from_me }">
+                    <div class="msg-text">{{ msg.content }}</div>
                     <span class="msg-time-inline">{{
                       new Date(msg.created_at).toLocaleTimeString([], {
                         hour: '2-digit',
@@ -501,21 +494,21 @@ const handlePrivateMessage = (event: CustomEvent) => {
               </div>
             </div>
 
-            <div class="chat-input-box">
-              <div class="input-container-modern">
+            <div class="chat-input-area">
+              <div class="input-glass-wrapper">
                 <input
                   v-model="privateMessageInput"
                   @keyup.enter="sendPrivateMessage"
                   placeholder="Type a message..."
                   maxlength="500"
                 />
-                <div class="input-actions-modern">
-                  <span v-if="privateMessageInput.length > 400" class="char-count">
+                <div class="input-footer">
+                  <span v-if="privateMessageInput.length > 400" class="char-counter">
                     {{ 500 - privateMessageInput.length }}
                   </span>
                   <button
                     @click="sendPrivateMessage"
-                    class="btn-send-modern"
+                    class="btn-send-neon"
                     :disabled="!privateMessageInput.trim() || privateMessageInput.length > 500"
                   >
                     <i class="fas fa-paper-plane"></i>
@@ -536,45 +529,87 @@ const handlePrivateMessage = (event: CustomEvent) => {
                 <i class="fas fa-users"></i>
               </button>
             </div>
-            <div class="chat-messages">
-              <div v-for="msg in groupStore.activeMessages" :key="msg.id" class="message-item">
-                <img :src="msg.user.profile_pic || '/default-avatar.svg'" class="msg-avatar" />
+            <div class="chat-messages" ref="groupMessagesContainer">
+              <div
+                v-for="(msg, index) in groupStore.activeMessages"
+                :key="msg.id"
+                class="message-row"
+                :class="{
+                  mine: msg.user?.id === myUserId,
+                  'group-start':
+                    index === 0 || groupStore.activeMessages[index - 1].user?.id !== msg.user?.id,
+                }"
+              >
+                <div v-if="msg.user?.id !== myUserId" class="avatar-col">
+                  <img
+                    v-if="
+                      index === 0 || groupStore.activeMessages[index - 1].user?.id !== msg.user?.id
+                    "
+                    :src="msg.user?.profile_pic || '/default-avatar.svg'"
+                    class="msg-avatar"
+                  />
+                </div>
+
                 <div class="msg-content">
-                  <div class="msg-header">
-                    <span class="msg-username">{{ msg.user.username }}</span>
-                    <span class="msg-time">{{
-                      new Date(msg.created_at).toLocaleTimeString()
+                  <div
+                    class="msg-header"
+                    v-if="
+                      msg.user?.id !== myUserId &&
+                      (index === 0 ||
+                        groupStore.activeMessages[index - 1].user?.id !== msg.user?.id)
+                    "
+                  >
+                    <span class="msg-username">{{ msg.user?.username }}</span>
+                  </div>
+                  <div class="msg-bubble" :class="{ 'my-bubble': msg.user?.id === myUserId }">
+                    <div class="msg-text">{{ msg.content }}</div>
+                    <span class="msg-time-inline">{{
+                      new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     }}</span>
                   </div>
-                  <div class="msg-text">{{ msg.content }}</div>
                 </div>
               </div>
             </div>
-            <div class="chat-input-box">
-              <input
-                v-model="groupMessage"
-                @keyup.enter="sendGroupMessage"
-                placeholder="Type a message..."
-              />
-              <button @click="sendGroupMessage" class="btn-send">
-                <i class="fas fa-paper-plane"></i>
-              </button>
+
+            <div class="chat-input-area">
+              <div class="input-glass-wrapper">
+                <input
+                  v-model="groupMessage"
+                  @keyup.enter="sendGroupMessage"
+                  placeholder="Type a message to group..."
+                  maxlength="500"
+                />
+                <div class="input-footer">
+                  <button
+                    @click="sendGroupMessage"
+                    class="btn-send-neon"
+                    :disabled="!groupMessage.trim()"
+                  >
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Empty State -->
           <div v-else class="empty-chat-state">
-            <div class="icon-circle">
-              <i class="fas fa-comments"></i>
+            <div class="empty-state-card">
+              <div class="icon-glow">
+                <i class="fas fa-comments"></i>
+              </div>
+              <h2>{{ activeTab === 'groups' ? 'Explore Groups' : 'Stay Connected' }}</h2>
+              <p>
+                {{
+                  activeTab === 'groups'
+                    ? 'Join a circle of warriors. Discussion is the first step to strategy.'
+                    : 'Select a friend to begin your journey. Every great quest starts with a "Hello".'
+                }}
+              </p>
             </div>
-            <h2>{{ activeTab === 'groups' ? 'Select a group' : 'Select a conversation' }}</h2>
-            <p>
-              {{
-                activeTab === 'groups'
-                  ? 'Choose a group to start chatting'
-                  : 'Choose a friend from the list to start chatting or invite them to a game.'
-              }}
-            </p>
           </div>
         </div>
 
@@ -653,9 +688,32 @@ const handlePrivateMessage = (event: CustomEvent) => {
 :root {
   --neon-pink: #ff7eb3;
   --neon-cyan: #7afcff;
-  --neon-pink: #ff7eb3;
-  --neon-cyan: #7afcff;
-  --glass-bg: var(--glass-bg);
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+/* Custom Scrollbars */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-pink);
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 126, 179, 0.2);
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-pink);
 }
 
 .social-container {
@@ -961,12 +1019,13 @@ const handlePrivateMessage = (event: CustomEvent) => {
 
 /* Main Panel */
 .main-panel {
-  flex: 1; /* Take remaining space */
-  min-width: 0; /* Prevent flex overflow */
+  flex: 1;
+  min-width: 0;
   display: flex;
-  flex-direction: row; /* Horizontal layout for Chat + Sidebar */
-  overflow: hidden; /* Clip nested borders */
-  align-items: stretch; /* Full height */
+  flex-direction: row;
+  overflow: hidden;
+  align-items: stretch;
+  background: rgba(0, 0, 0, 0.15); /* Slightly darker for better contrast */
 }
 
 .main-content-wrapper {
@@ -974,36 +1033,57 @@ const handlePrivateMessage = (event: CustomEvent) => {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  width: 100%; /* Ensure it takes full width when sidebar is hidden */
+  width: 100%;
+  position: relative;
   align-items: stretch;
-  justify-content: center; /* For empty state */
 }
 
 /* Ensure empty state centers properly */
 .empty-chat-state {
-  margin: auto;
-  max-width: 400px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.icon-circle {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 24px;
+  padding: 40px;
 }
-.icon-circle i {
-  font-size: 2.5rem;
-  color: #ff7eb3;
+
+.empty-state-card {
+  text-align: center;
+  max-width: 320px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 40px 30px;
+  border-radius: 32px;
+  backdrop-filter: blur(10px);
 }
-.empty-chat-state h2 {
-  color: var(--text-primary);
-  margin-bottom: 10px;
+
+.icon-glow {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(255, 126, 179, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 0 30px rgba(255, 126, 179, 0.1);
+}
+
+.icon-glow i {
+  font-size: 2rem;
+  color: var(--neon-pink);
+}
+
+.empty-state-card h2 {
+  font-size: 1.4rem;
+  margin-bottom: 12px;
+  color: white;
+}
+
+.empty-state-card p {
+  font-size: 0.9rem;
+  color: #888;
+  line-height: 1.5;
 }
 .add-friend-section {
   padding: 20px 0;
@@ -1079,199 +1159,162 @@ const handlePrivateMessage = (event: CustomEvent) => {
   height: 8px;
 }
 
-/* Group Chat Panel */
-.group-chat-panel {
+/* New Premium Chat Layout */
+.message-row {
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 0 4px;
 }
-.chat-header {
-  padding: 20px;
-  border-bottom: 1px solid var(--glass-border);
+
+.message-row.mine {
+  justify-content: flex-end;
+}
+
+.message-row.group-start {
+  margin-top: 14px;
+}
+
+.avatar-col {
+  width: 40px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  padding-bottom: 2px;
 }
-.chat-header-info h3 {
-  margin: 0;
-  font-size: 1.2rem;
-}
-.chat-header-info p {
-  margin: 5px 0 0;
-  font-size: 0.85rem;
-  color: #777;
-}
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-.message-item {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
+
 .msg-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .msg-content {
-  flex: 1;
+  max-width: 80%;
 }
+
 .msg-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
+  margin-left: 12px;
 }
+
 .msg-username {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #ff7eb3;
-}
-.msg-time {
   font-size: 0.75rem;
-  color: #777;
+  font-weight: 600;
+  color: var(--neon-pink);
+  opacity: 0.9;
 }
-.msg-text {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+
+.msg-bubble {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  width: fit-content;
-  max-width: 100%;
+  border-radius: 16px;
+  border-top-left-radius: 2px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
-.msg-text.my-text {
-  background: linear-gradient(135deg, #ff7eb3 0%, #ff5a9e 100%);
-  color: white;
-  border-color: transparent;
-  border-bottom-right-radius: 4px;
+
+.my-bubble {
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.2) 0%, rgba(255, 90, 158, 0.1) 100%);
+  border: 1px solid rgba(255, 126, 179, 0.2);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 2px;
+}
+
+.msg-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-break: break-word;
+  color: #eee;
 }
 
 .msg-time-inline {
-  display: block;
   font-size: 0.65rem;
-  opacity: 0.7;
-  text-align: right;
+  opacity: 0.5;
   margin-top: 4px;
+  align-self: flex-end;
 }
 
-.my-text .msg-time-inline {
-  color: white;
-}
-
-.group-start {
-  margin-top: 15px;
-}
-
-.msg-avatar-placeholder {
-  width: 36px;
-  flex-shrink: 0;
-}
-
-.input-container-modern {
-  flex: 1;
+.chat-loading {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 4px 6px 4px 16px;
-  transition: all 0.2s;
+  gap: 10px;
+  padding: 40px;
+  color: #666;
 }
 
-.input-container-modern:focus-within {
-  border-color: #ff7eb3;
-  box-shadow: 0 0 10px rgba(255, 126, 179, 0.1);
+/* Chat Input Glassmorphism */
+.chat-input-area {
+  padding: 16px 20px 24px;
 }
 
-.input-container-modern input {
-  flex: 1;
-  background: none !important;
-  border: none !important;
-  padding: 8px 0 !important;
-  outline: none !important;
-}
-
-.input-actions-modern {
+.input-glass-wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 8px 12px;
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.input-glass-wrapper:focus-within {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--neon-pink);
+  box-shadow: 0 0 20px rgba(255, 126, 179, 0.1);
+}
+
+.input-glass-wrapper input {
+  background: none;
+  border: none;
+  color: white;
+  padding: 8px 4px;
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.input-footer {
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
 }
 
-.btn-send-modern {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #ff7eb3;
-  color: white;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-send-modern:hover:not(:disabled) {
-  transform: scale(1.05);
-  background: #ff5a9e;
-}
-
-.btn-send-modern:disabled {
-  opacity: 0.3;
-  background: #444;
-}
-
-.char-count {
+.char-counter {
   font-size: 0.7rem;
   color: #666;
 }
 
-/* My Messages Alignment */
-.message-item.mine {
-  flex-direction: row-reverse;
-}
-.message-item.mine .msg-content {
-  align-items: flex-end;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-input-box {
-  padding: 20px;
-  border-top: 1px solid var(--glass-border);
-  display: flex;
-  gap: 10px;
-}
-.chat-input-box input {
-  flex: 1;
-  padding: 12px 16px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  color: var(--text-primary);
-}
-.btn-send {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: #ff7eb3;
-  border: none;
+.btn-send-neon {
+  background: var(--neon-pink);
   color: white;
-  cursor: pointer;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(255, 126, 179, 0.3);
+  transition: all 0.2s;
 }
-.btn-send:hover {
-  background: #ff5a9e;
+
+.btn-send-neon:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 126, 179, 0.5);
+}
+
+.btn-send-neon:disabled {
+  background: #333;
+  box-shadow: none;
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 /* Group Sidebar Panel */
