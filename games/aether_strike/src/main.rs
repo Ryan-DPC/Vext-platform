@@ -900,6 +900,7 @@ async fn main() {
                                       client.end_turn(next);
                                   }
                              } 
+                             }
                              // Boss Turn
                              else if let Some(boss) = &_enemy {
                                  if &boss.id == current_id {
@@ -912,6 +913,58 @@ async fn main() {
                                           let next = turn_system.peek_next_id();
                                           client.end_turn(next);
                                       }
+                                 }
+                             }
+                         }
+                     }
+
+                     // === MULTIPLAYER HOST WAVE MANAGEMENT ===
+                     if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
+                          // Update Wave Manager state (Host Only)
+                          wave_manager.update(get_frame_time(), _enemies.len(), _enemy.is_some());
+                          
+                          if let Some(client) = &network_manager.client {
+                              // Check if we need to spawn
+                                   if wave_manager.state == waves::WaveState::Spawning {
+                                        // 1. Get Wave Enemies
+                                        let mut new_enemies_data = Vec::new();
+                                        if let Some(wave) = wave_manager.get_current_wave() {
+                                            for (i, (stats, kind, pos)) in wave.enemies.iter().enumerate() {
+                                               let enemy_id = format!("{}-{}-{}", stats.name, wave_manager.current_wave_index, i); 
+                                               new_enemies_data.push(network_client::EnemyData {
+                                                   id: enemy_id,
+                                                   name: stats.name.clone(),
+                                                   hp: stats.hp,
+                                                   max_hp: stats.hp,
+                                                   speed: stats.speed, 
+                                                   position: (pos.x, pos.y),
+                                               });
+                                            }
+                                        }
+                                        // 2. Send Start Wave
+                                        if !new_enemies_data.is_empty() {
+                                            println!("HOST: Starting Wave {} with {} enemies", wave_manager.current_wave_index, new_enemies_data.len());
+                                            client.start_next_wave(new_enemies_data);
+                                        }
+
+                                        // 3. Advance State (Manual force to Active)
+                                        wave_manager.state = waves::WaveState::Active;
+                                   } else if wave_manager.state == waves::WaveState::AllWavesCleared {
+                                        wave_manager.wave_timer += get_frame_time();
+                                        if wave_manager.wave_timer < 0.1 {
+                                             client.trigger_game_over(true); 
+                                        }
+                                   }
+                          }
+                     }
+
+                     // === MULTIPLAYER DEATH SKIP ===
+                     if !is_solo_mode && is_my_turn {
+                         if let Some(gs) = &_game_state {
+                             if gs.resources.current_hp <= 0.0 {
+                                 if let Some(client) = &network_manager.client {
+                                     let next = turn_system.peek_next_id();
+                                     client.end_turn(next);
                                  }
                              }
                          }

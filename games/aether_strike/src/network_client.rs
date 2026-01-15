@@ -69,6 +69,8 @@ pub enum GameEvent {
         is_area: bool 
     },
     TurnChanged { current_turn_id: String },
+    WaveStarted { enemies: Vec<EnemyData> },
+    GameEnded { victory: bool },
     Error(String),
 }
 
@@ -91,6 +93,8 @@ pub enum WsCommand {
     Flee,
     ChangeClass { new_class: String },
     StartGame { enemies: Vec<EnemyData> },
+    NextWave { enemies: Vec<EnemyData> },
+    GameOver { victory: bool },
 }
 
 
@@ -168,6 +172,14 @@ impl GameClient {
     /// Démarre la partie (Hôte uniquement) avec les ennemis initiaux
     pub fn start_game(&self, enemies: Vec<EnemyData>) {
         let _ = self.tx_to_ws.send(WsCommand::StartGame { enemies });
+    }
+
+    pub fn start_next_wave(&self, enemies: Vec<EnemyData>) {
+        let _ = self.tx_to_ws.send(WsCommand::NextWave { enemies });
+    }
+
+    pub fn trigger_game_over(&self, victory: bool) {
+        let _ = self.tx_to_ws.send(WsCommand::GameOver { victory });
     }
 
     /// Récupère tous les événements disponibles (non-bloquant)
@@ -371,6 +383,20 @@ fn ws_thread_loop(
                                         "class": new_class // FIX: Added 'class' so receiver finds it
                                     },
                                     "payload": { "newClass": new_class }
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::NextWave { enemies } => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:next-wave",
+                                    "data": { "enemies": enemies }
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::GameOver { victory } => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:game-over",
+                                    "data": { "victory": victory }
                                 });
                                 let _ = socket.send(Message::Text(msg.to_string()));
                             }

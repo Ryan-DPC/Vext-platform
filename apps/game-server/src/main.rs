@@ -287,6 +287,27 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                              let _ = room.tx.send(broadcast);
                                         }
                                     }
+                                    }
+                                    "aether-strike:next-wave" => {
+                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                            let enemies_val = &data["enemies"];
+                                            let broadcast = serde_json::json!({
+                                                "type": "aether-strike:wave-started",
+                                                "data": { "enemies": enemies_val }
+                                            }).to_string();
+                                            let _ = room.tx.send(broadcast);
+                                        }
+                                    }
+                                    "aether-strike:game-over" => {
+                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                            let victory = data["victory"].as_bool().unwrap_or(false);
+                                            let broadcast = serde_json::json!({
+                                                "type": "aether-strike:game-ended",
+                                                "data": { "victory": victory }
+                                            }).to_string();
+                                            let _ = room.tx.send(broadcast);
+                                        }
+                                    }
                                     _ => {
                                         // Relay Logic
                                         if !current_room_id.is_empty() {

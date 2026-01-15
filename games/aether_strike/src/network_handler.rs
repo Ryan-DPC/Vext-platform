@@ -134,34 +134,58 @@ impl NetworkHandler {
                     };
                     combat_logs.push(format!("Turn: {}", id_display));
                 }
+                GameEvent::WaveStarted { enemies: server_enemies } => {
+                     combat_logs.push(">>> WAVE STARTED <<<".to_string());
+                     enemies.clear();
+                     *enemy_boss = None;
+                     let (synced_enemies, boss_ref) = enemy_model::from_server_data(&server_enemies, screen_width, screen_height);
+                     *enemies = synced_enemies;
+                     *enemy_boss = boss_ref;
+                     
+                     if let Some(gs) = game_state {
+                         turn_system.init_queue(
+                             &player_profile.vext_username,
+                             gs.resources.speed as u32,
+                             other_players,
+                             enemies,
+                             enemy_boss.as_ref()
+                         );
+                         *current_turn_id = turn_system.get_current_id().to_string();
+                     }
+                }
+                GameEvent::GameEnded { victory } => {
+                     let res = if victory { "VICTORY!" } else { "DEFEAT..." };
+                     combat_logs.push(format!(">>> {} <<<", res));
+                }
                 GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost, .. } => {
-                    let actor_name = if actor_id == "enemy" { "ENEMY" } else { 
-                        if actor_id == player_profile.vext_username { "YOU" } else { 
-                           // Find in other players
-                           other_players.get(&actor_id).map(|p| p.username.as_str()).unwrap_or_else(|| {
-                               if actor_id.len() >= 4 { &actor_id[..4] } else { &actor_id }
-                           })
-                        }
+                    let actor_name = if actor_id == player_profile.vext_username { 
+                        "YOU".to_string() 
+                    } else if let Some(p) = other_players.get(&actor_id) {
+                        p.username.clone()
+                    } else if let Some(e) = enemies.iter().find(|e| e.id == actor_id) {
+                        format!("{} ({})", e.name, &e.id[..4])
+                    } else if let Some(b) = enemy_boss.as_ref() {
+                        if b.id == actor_id { "BOSS".to_string() } else { "Unknown".to_string() }
+                    } else {
+                        actor_id.clone()
                     };
+
                     combat_logs.push(format!("{} used {} ({} dmg)", actor_name, action_name, damage));
                     
                     if let Some(tid) = target_id {
-                        if tid == "enemy" {
-                            *enemy_hp = (*enemy_hp - damage).max(0.0);
-                            // Also update boss health if it exists
-                            if let Some(boss) = enemy_boss {
-                                boss.health = *enemy_hp;
-                            }
-                        } else if tid == player_profile.vext_username {
-                            if let Some(gs) = game_state {
-                                gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                        if tid == player_profile.vext_username {
+                             if let Some(gs) = game_state {
+                                 gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                             }
+                        } 
+                        else if let Some(enemy) = enemies.iter_mut().find(|e| e.id == tid) {
+                            enemy.take_damage(damage);
+                        }
+                        else if let Some(boss) = enemy_boss {
+                            if boss.id == tid {
+                                boss.take_damage(damage);
                             }
                         }
-                    } else if actor_id == "enemy" {
-                         // Area attack by enemy
-                         if let Some(gs) = game_state {
-                             gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
-                         }
                     }
 
                     if actor_id == player_profile.vext_username {
