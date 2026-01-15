@@ -8,7 +8,7 @@ pub struct LauncherConfig {
 pub fn parse_launch_args() -> (LauncherConfig, PlayerProfile) {
     let args: Vec<String> = std::env::args().collect();
     let mut vext_username = "GuestPlayer".to_string();
-    let mut vext_token = String::new();
+    let mut vext_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NWY3ZWJkYzg4MjIwNTBmMThmNmI0NyIsInVzZXJuYW1lIjoidGVzdCN0ZXN0IiwiaXNBZG1pbiI6ZmFsc2UsImlhdCI6MTc2ODQ4Njc0OX0.tF_xyn3lFyezDzoNcRvzNgl7npeBVJBLrvbj2_wvLHw".to_string(); // DEBUG HARDCODED TOKEN
     let mut friends_to_add = Vec::new();
 
     for i in 0..args.len() {
