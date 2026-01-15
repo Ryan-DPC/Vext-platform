@@ -221,6 +221,30 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             tracing::info!("Player {} changed class to {}", user_id, new_class);
                                         }
                                     }
+                                    "aether-strike:start-game" => {
+                                        let room_tx = {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                                room.state = "playing".to_string();
+                                                Some(room.tx.clone())
+                                            } else {
+                                                None
+                                            }
+                                        };
+
+                                        if let Some(tx) = room_tx {
+                                            let enemies_val = &data["enemies"];
+                                            let start_msg = serde_json::json!({
+                                                "type": "aether-strike:game-started",
+                                                "data": {
+                                                    "enemies": enemies_val
+                                                }
+                                            }).to_string();
+                                            
+                                            let _ = tx.send(start_msg);
+                                            tracing::info!("Game {} started", current_room_id);
+                                        }
+                                    }
                                     _ => {
                                         // Relay Logic
                                         if !current_room_id.is_empty() {
