@@ -25,6 +25,6 @@ pub fn refresh_sessions() -> Vec<SessionButton> {
     }).collect()
 }
 
-pub fn create_session(name: &str, is_private: bool, password: &str, max_players: u32) -> bool {
-    network_api::announce_server(name, "Guest", max_players, is_private, if password.is_empty() { None } else { Some(password.to_string()) }).is_some()
+pub fn create_session(name: &str, username: &str, is_private: bool, password: &str, max_players: u32) -> bool {
+    network_api::announce_server(name, username, max_players, is_private, if password.is_empty() { None } else { Some(password.to_string()) }).is_some()
 }

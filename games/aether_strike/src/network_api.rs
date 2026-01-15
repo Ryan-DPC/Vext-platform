@@ -71,14 +71,24 @@ pub fn fetch_server_list() -> Vec<MultiplayerLobby> {
         Ok(response) => {
             if response.status().is_success() {
                 match response.json::<Vec<MultiplayerLobby>>() {
-                    Ok(list) => list,
-                    Err(_) => Vec::new()
+                    Ok(list) => {
+                        println!("✅ Fetched {} servers", list.len());
+                        list
+                    },
+                    Err(e) => {
+                        println!("❌ Failed to parse server list: {}", e);
+                        Vec::new()
+                    }
                 }
             } else {
+                println!("❌ Fetch server list failed: Status {}", response.status());
                 Vec::new()
             }
         },
-        Err(_) => Vec::new()
+        Err(e) => {
+            println!("❌ Fetch server list error: {}", e);
+            Vec::new()
+        }
     }
 }
 
@@ -107,11 +117,16 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
     match res {
         Ok(response) => {
             if response.status().is_success() {
+                println!("✅ HTTP Announce success");
                 Some("registered".to_string()) 
             } else {
+                println!("❌ HTTP Announce failed: Status {}", response.status());
                 None
             }
         },
-        Err(_) => None
+        Err(e) => {
+             println!("❌ HTTP Announce error: {}", e);
+             None
+        }
     }
 }
