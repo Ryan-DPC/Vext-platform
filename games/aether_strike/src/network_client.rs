@@ -39,6 +39,7 @@ pub struct RemotePlayer {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EnemyData {
     pub id: String,
     pub name: String,
