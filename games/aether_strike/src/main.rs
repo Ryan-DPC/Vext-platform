@@ -298,10 +298,11 @@ async fn main() {
                         // Use WaveManager to get accurate enemies for init.
                         // WaveManager logic
                         if let Some(_wave) = wave_manager.get_current_wave() {
-                             // Just check if it's boss wave to init _enemy ref if needed? 
-                             // No, let InGame loop handle it.
-                             // But wait, if InGame loop spawns on frame 1, we might flicker?
-                             // It's acceptable.
+                        if get_time() % 3.0 < 0.02 {
+                             println!("InGame Loop: _enemies count = {}, _enemy (solo boss) = {:?}", _enemies.len(), _enemy.is_some());
+                             if let Some(e) = _enemies.first() {
+                                 println!("  First Enemy Pos: ({}, {})", e.position.x, e.position.y);
+                             }
                         }
 
                         
@@ -635,6 +636,14 @@ async fn main() {
             }
 
             GameScreen::InGame => {
+                // DBG 
+                if get_time() % 3.0 < 0.02 {
+                     println!("InGame Loop: _enemies count = {}, _enemy (solo boss) = {:?}", _enemies.len(), _enemy.is_some());
+                     if let Some(e) = _enemies.first() {
+                         println!("  First Enemy Pos: ({}, {})", e.position.x, e.position.y);
+                     }
+                }
+
                 world_renderer::WorldRenderer::draw_game(
                     &renderer,
                     &_player,
