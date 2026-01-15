@@ -60,6 +60,10 @@ impl NetworkHandler {
                     let msg = online::handle_player_left(&player_id, other_players);
                     *last_network_log = msg;
                 }
+                GameEvent::NewHost { host_id } => {
+                    *lobby_host_id = host_id.clone();
+                    *last_network_log = format!("New Host: {}", host_id);
+                }
                 GameEvent::PlayerUpdated { player_id, class } => {
                     let display_class = class.clone();
                     *last_network_log = format!("Update: {} -> {}", &player_id[..4], display_class);
