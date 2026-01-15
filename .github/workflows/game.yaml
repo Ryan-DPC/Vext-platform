@@ -57,6 +57,7 @@ jobs:
           # Set outputs
           echo "exe_size=$size_mb MB" >> $env:GITHUB_OUTPUT
           echo "build_date=$build_date" >> $env:GITHUB_OUTPUT
+          echo "build_date=$build_date" >> $env:GITHUB_OUTPUT
           
           # Dist folder
           if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force }
@@ -64,6 +65,13 @@ jobs:
           
           # Copy Exe
           Copy-Item $exe_path -Destination "dist/"
+          
+          # Copy Config
+          if (Test-Path "server_config.txt") {
+              Copy-Item "server_config.txt" -Destination "dist/"
+          } else {
+              Write-Warning "server_config.txt not found!"
+          }
           
           # Copy Assets
           if (Test-Path "assets") {
