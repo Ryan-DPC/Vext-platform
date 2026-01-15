@@ -566,11 +566,16 @@ async fn main() {
                  }
 
                 // Start Button (Host Only)
-                if _lobby_host_id == player_profile.vext_username {
+                // Debug log occasionally
+                if get_time() % 5.0 < 0.02 {
+                    println!("Debug Host Check: lobby_host_id='{}', username='{}', is_host={}", 
+                        _lobby_host_id, player_profile.vext_username, is_host);
+                }
+
+                if _lobby_host_id == player_profile.vext_username || is_host {
 
                     // Check if START is clicked
                     if start_btn.is_clicked(mouse_pos) {
-
                         println!("Host starting game...");
                         if let Some(client) = &network_manager.client {
                             // Generate Wave 1 Enemies
