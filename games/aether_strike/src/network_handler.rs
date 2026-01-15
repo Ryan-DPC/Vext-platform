@@ -72,6 +72,7 @@ impl NetworkHandler {
                     }
                 }
                 GameEvent::GameStarted { enemies: server_enemies } => {
+                    println!("NET-RX: GameStarted Event received with {} enemies", server_enemies.len());
                     *last_network_log = "Game start received! Launching...".to_string();
                     
                     let p_class = selected_class.clone().unwrap_or_else(|| all_classes[0].clone());

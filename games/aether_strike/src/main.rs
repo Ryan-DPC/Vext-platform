@@ -612,6 +612,7 @@ async fn main() {
                             let mut init_enemies = Vec::new();
                             let temp_wm = waves::WaveManager::new(); // Just to get Wave 1 data
                             if let Some(wave) = temp_wm.waves.get(0) { // Wave 1
+                                println!("Host: Found Wave 1 with {} enemies", wave.enemies.len());
                                 for (stats, kind, _pos) in &wave.enemies {
                                      let e = Enemy::new(*_pos, kind.clone(), stats.clone());
                                      init_enemies.push(network_client::EnemyData {
@@ -622,8 +623,11 @@ async fn main() {
                                          speed: e.speed,
                                      });
                                 }
+                            } else {
+                                println!("Host: ERROR - Wave 1 not found!");
                             }
                             
+                            println!("Host: Sending start_game with {} enemies", init_enemies.len());
                             client.start_game(init_enemies);
                         }
                     }
