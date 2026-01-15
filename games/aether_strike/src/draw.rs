@@ -235,7 +235,7 @@ impl<'a> Renderer<'a> {
         let rect = self.assets.get_sprite_rect(class_name, 0);
 
         let (scale, ox, oy) = self.all_classes.iter()
-            .find(|c| c.name == class_name)
+            .find(|c| c.name.eq_ignore_ascii_case(class_name))
             .map(|c| (c.visual_scale, c.visual_offset_x, c.visual_offset_y))
             .unwrap_or((1.0, 0.0, 0.0));
         
