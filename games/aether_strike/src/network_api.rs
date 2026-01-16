@@ -1,22 +1,43 @@
 use serde::{Deserialize, Serialize};
 use reqwest::blocking::Client;
-
-
+use std::fs;
 use std::net::UdpSocket;
 
-// Default to prod, hardcoded as requested
-pub fn get_api_url() -> String {
-    "https://vext-backend-yj77.onrender.com/api/lobby/multiplayer".to_string()
+/// Helper to read the base URL from server_config.txt
+pub fn get_base_url() -> String {
+    if let Ok(url) = fs::read_to_string("server_config.txt") {
+        let mut trimmed = url.trim().to_string();
+        // Remove common suffixes to get the clean base
+        if trimmed.ends_with("/api") {
+            trimmed = trimmed.replace("/api", "");
+        }
+        if trimmed.ends_with('/') {
+            trimmed.pop();
+        }
+        if !trimmed.is_empty() {
+            return trimmed;
+        }
+    }
+    // Hardcoded fallback if file is missing or empty
+    "https://vext-ws-server-3jrc.onrender.com".to_string()
 }
 
-// Get WebSocket URL based on config
+/// URL for REST API (listing/announcing)
+pub fn get_api_url() -> String {
+    let base = get_base_url();
+    format!("{}/api/lobby/multiplayer", base)
+}
+
+/// URL for WebSocket (real-time game)
 pub fn get_ws_url() -> String {
-    "wss://vext-game-server-1mgy.onrender.com/ws".to_string()
+    let base = get_base_url();
+    let ws_protocol = if base.starts_with("https") { "wss" } else { "ws" };
+    let clean_base = base.replace("https://", "").replace("http://", "");
+    format!("{}://{}", ws_protocol, clean_base)
 }
 
 // Auto-detect local IP (LAN)
 pub fn get_local_ip() -> String {
-    // Try to bind a UDP socket and connect to external address
     match UdpSocket::bind("0.0.0.0:0") {
         Ok(socket) => {
             if socket.connect("8.8.8.8:80").is_ok() {
@@ -52,6 +73,7 @@ pub struct MultiplayerLobby {
 pub fn fetch_server_list() -> Vec<MultiplayerLobby> {
     let api_url = get_api_url();
     let client = Client::new();
+    println!("📡 Fetching server list from: {}/list", api_url);
     let res = client.get(format!("{}/list", api_url)).send();
 
     match res {
@@ -97,6 +119,7 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
     };
 
     let api_url = get_api_url();
+    println!("📡 Announcing server to: {}/announce", api_url);
     let res = client.post(format!("{}/announce", api_url))
         .json(&lobby)
         .send();
