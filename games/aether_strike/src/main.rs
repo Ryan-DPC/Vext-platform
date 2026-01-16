@@ -669,30 +669,36 @@ async fn main() {
 
                               // Check if we need to spawn
                               if wave_manager.state == waves::WaveState::Spawning {
-                                        // 1. Get Wave Enemies
-                                        let mut new_enemies_data = Vec::new();
-                                        if let Some(wave) = wave_manager.get_current_wave() {
-                                            for (i, (stats, kind, pos)) in wave.enemies.iter().enumerate() {
-                                               let enemy_id = format!("{}-{}-{}", stats.name, wave_manager.current_wave_index, i); 
-                                           new_enemies_data.push(crate::network_protocol::EnemyData {
-                                                   id: enemy_id,
-                                                   name: stats.name.clone(),
-                                                   hp: stats.hp,
-                                                   max_hp: stats.hp,
-                                                   speed: stats.speed, 
-                                                   position: (pos.x, pos.y),
-                                               });
+                                        // GUARD: If wave 0 and enemies already exist (from GameStarted), skip duplicate spawn
+                                        if wave_manager.current_wave_index == 0 && !_enemies.is_empty() {
+                                            println!("HOST: Wave 0 already populated by GameStarted, skipping spawn");
+                                            wave_manager.state = waves::WaveState::Active;
+                                        } else {
+                                            // 1. Get Wave Enemies
+                                            let mut new_enemies_data = Vec::new();
+                                            if let Some(wave) = wave_manager.get_current_wave() {
+                                                for (i, (stats, kind, pos)) in wave.enemies.iter().enumerate() {
+                                                   let enemy_id = format!("{}-{}-{}", stats.name, wave_manager.current_wave_index, i); 
+                                               new_enemies_data.push(crate::network_protocol::EnemyData {
+                                                       id: enemy_id,
+                                                       name: stats.name.clone(),
+                                                       hp: stats.hp,
+                                                       max_hp: stats.hp,
+                                                       speed: stats.speed, 
+                                                       position: (pos.x, pos.y),
+                                                   });
+                                                }
                                             }
-                                        }
-                                        // 2. Send Start Wave
-                                        if !new_enemies_data.is_empty() {
-                                            println!("HOST: Starting Wave {} with {} enemies", wave_manager.current_wave_index, new_enemies_data.len());
-                                            let (g, e) = (50 * wave_manager.current_wave_index as u32, 20 * wave_manager.current_wave_index as u32);
-                                            client.start_next_wave(new_enemies_data, g, e);
-                                        }
+                                            // 2. Send Start Wave
+                                            if !new_enemies_data.is_empty() {
+                                                println!("HOST: Starting Wave {} with {} enemies", wave_manager.current_wave_index, new_enemies_data.len());
+                                                let (g, e) = (50 * wave_manager.current_wave_index as u32, 20 * wave_manager.current_wave_index as u32);
+                                                client.start_next_wave(new_enemies_data, g, e);
+                                            }
 
-                                        // 3. Advance State (Manual force to Active)
-                                        wave_manager.state = waves::WaveState::Active;
+                                            // 3. Advance State (Manual force to Active)
+                                            wave_manager.state = waves::WaveState::Active;
+                                        }
                                    } else if wave_manager.state == waves::WaveState::AllWavesCleared {
                                         wave_manager.wave_timer += get_frame_time();
                                         if wave_manager.wave_timer < 0.1 {

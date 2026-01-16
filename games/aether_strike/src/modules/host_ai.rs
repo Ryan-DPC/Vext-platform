@@ -37,30 +37,48 @@ impl HostAI {
         is_solo_mode: bool,
         lobby_host_id: &str,
     ) {
-        // DEBUG: Log all conditions
-        println!("HostAI: is_solo={}, lobby_host='{}', me='{}', current_turn='{}'", 
-            is_solo_mode, lobby_host_id, player_profile.vext_username, current_turn_id);
+        // DEBUG: Log only on turn changes (compare with static)
+        use std::sync::{OnceLock, Mutex};
+        static LAST_LOGGED_TURN: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+        let should_log = {
+            let mutex = LAST_LOGGED_TURN.get_or_init(|| Mutex::new(None));
+            let mut guard = mutex.lock().unwrap();
+            if guard.as_ref() != Some(&current_turn_id.to_string()) {
+                *guard = Some(current_turn_id.to_string());
+                true
+            } else {
+                false
+            }
+        };
+        
+        if should_log {
+            println!("═══════════════════════════════════════════════════════════");
+            println!("HostAI: is_solo={}, lobby_host='{}', me='{}', current_turn='{}'", 
+                is_solo_mode, lobby_host_id, player_profile.vext_username, current_turn_id);
+        }
         
         // Must be Multiplayer, Host, and not Solo
         if is_solo_mode || lobby_host_id != player_profile.vext_username {
             return;
         }
 
-        // DEBUG: Trace Turn
-        if network_manager.client.is_some() {
+        // DEBUG: Trace Turn (only when turn changes)
+        if network_manager.client.is_some() && should_log {
              println!("Host AI Active: Turn={}, Acted={}", current_turn_id, self.acted);
         }
 
         if let Some(client) = &network_manager.client {
-            // DEBUG: ALWAYS print enemy status
-            println!("HostAI [ALWAYS]: turn='{}', enemies_count={}, boss={}", 
-                current_turn_id, 
-                enemies.len(),
-                enemy.is_some()
-            );
-            
-            if !enemies.is_empty() {
-                println!("HostAI: Enemy IDs: {:?}", enemies.iter().map(|e| e.id.clone()).collect::<Vec<_>>());
+            // DEBUG: Only print enemy status on turn change
+            if should_log {
+                println!("HostAI: turn='{}', enemies_count={}, boss={}", 
+                    current_turn_id, 
+                    enemies.len(),
+                    enemy.is_some()
+                );
+                
+                if !enemies.is_empty() {
+                    println!("HostAI: Enemy IDs: {:?}", enemies.iter().map(|e| e.id.clone()).collect::<Vec<_>>());
+                }
             }
             
             // Check Minion
