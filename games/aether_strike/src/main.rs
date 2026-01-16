@@ -693,13 +693,7 @@ async fn main() {
             GameScreen::InGame => {
                 // DBG 
                 if get_time() % 3.0 < 0.02 {
-                     println!("InGame Loop: _enemies count = {}, _enemy (solo boss) = {:?}", _enemies.len(), _enemy.is_some());
-                     if let Some(e) = _enemies.first() {
-                         println!("  First Enemy Pos: ({}, {})", e.position.x, e.position.y);
-                     }
-                     for p in other_players.values() {
-                         println!("  Remote Player {}: Class='{}'", p.username, p.class);
-                     }
+                     // Debug logs removed to reduce console spam
                 }
 
                 world_renderer::WorldRenderer::draw_game(
