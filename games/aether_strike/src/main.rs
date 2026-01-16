@@ -33,6 +33,7 @@ use crate::ui::hud::{HUD, HUDAction};
 use modules::button::{MenuButton, ClassButton, SessionButton};
 use modules::turn::TurnSystem;
 use modules::position::*; // Import constants directly
+use modules::host_ai::HostAI;
 use class_system::CharacterClass;
 use menu_ui::{draw_create_server, draw_password_dialog};
 use assets::GameAssets;
@@ -101,10 +102,9 @@ async fn main() {
     let mut is_private_server = false;
     let mut max_players = 4u32;
     // New vars
-    let mut current_turn_id = String::new();
-    let mut last_network_log = String::new();
+    // Duplicate declarations removed (current_turn_id, last_network_log defined later)
     let mut last_turn_id_debug = String::new(); // For debug/management of turns
-    let mut host_ai_acted = false; // Prevents AI from spamming attacks in one turn
+    let mut host_ai = HostAI::new();
     let mut server_name_active = false;
     let mut server_password_active = false;
     
@@ -862,6 +862,10 @@ async fn main() {
                                             mana = skill.mana_cost;
                                             is_area = skill.skill_type.to_lowercase().contains("aoe");
                                         }
+                                        
+                                        // --- OPTIMISTIC MANA UPDATE (0 Lag) ---
+                                        gs.resources.mana = gs.resources.mana.saturating_sub(mana);
+                                        
                                         client.use_attack(name, Some(target_id), damage, mana, is_area); 
                                         
                                         // Auto-End Turn after attack in Multiplayer
@@ -890,73 +894,23 @@ async fn main() {
                      // Track turn changes to reset AI flag
                      if current_turn_id != last_turn_id_debug {
                          last_turn_id_debug = current_turn_id.clone();
-                         host_ai_acted = false;
+                         host_ai.reset_turn_flag();
                      }
+
                      // === MULTIPLAYER HOST AI ===
-                     if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
-                         if let Some(client) = &network_manager.client {
-                             let current_id = &current_turn_id;
-                             
-                             // Check Minion
-                             if let Some(enemy) = _enemies.iter().find(|e| &e.id == current_id) {
-                                  if !host_ai_acted {
-                                      enemy_attack_timer += get_frame_time() as f64;
-                                      if enemy_attack_timer > 0.6 {
-                                          enemy_attack_timer = 0.0;
-                                          
-                                          // --- SMART TARGET SELECTION ---
-                                          let mut targets: Vec<(String, f32)> = Vec::new();
-                                          if let Some(gs) = &_game_state {
-                                              targets.push((player_profile.vext_username.clone(), gs.resources.current_hp));
-                                          }
-                                          for rp in other_players.values() {
-                                              targets.push((rp.userId.clone(), rp.hp));
-                                          }
-                                          targets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-                                          
-                                          let target = if !targets.is_empty() { targets[0].0.clone() } else { player_profile.vext_username.clone() };
-                                          
-                                          println!("Host AI: Minion {} SMART-attacks {}", enemy.id, target);
-                                          client.admin_attack(enemy.id.clone(), "Attack".to_string(), Some(target), enemy.attack_damage);
-                                          
-                                          host_ai_acted = true;
-                                          
-                                          let next = turn_system.peek_next_id();
-                                          client.end_turn(next);
-                                      }
-                                  }
-                             } 
-                             // Check Boss
-                             else if let Some(boss) = &_enemy {
-                                 if &boss.id == current_id {
-                                      if !host_ai_acted {
-                                          enemy_attack_timer += get_frame_time() as f64;
-                                          if enemy_attack_timer > 1.0 {
-                                              enemy_attack_timer = 0.0;
-                                              
-                                              // --- SMART TARGET SELECTION ---
-                                              let mut targets: Vec<(String, f32)> = Vec::new();
-                                              if let Some(gs) = &_game_state {
-                                                  targets.push((player_profile.vext_username.clone(), gs.resources.current_hp));
-                                              }
-                                              for rp in other_players.values() {
-                                                  targets.push((rp.userId.clone(), rp.hp));
-                                              }
-                                              targets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-                                              
-                                              let target = if !targets.is_empty() { targets[0].0.clone() } else { player_profile.vext_username.clone() };
-    
-                                              println!("Host AI: Boss {} SMART-attacks {}", boss.id, target);
-                                              client.admin_attack(boss.id.clone(), "Smash".to_string(), Some(target), boss.attack_damage);
-                                              host_ai_acted = true;
-                                              let next = turn_system.peek_next_id();
-                                              client.end_turn(next);
-                                          }
-                                      }
-                                 }
-                             }
-                         }
-                     }
+                     // Logic moved to src/modules/host_ai.rs
+                     host_ai.update(
+                         &current_turn_id,
+                         &player_profile,
+                         if let Some(gs) = &_game_state { gs } else { return }, // Safe unwrap via return or check
+                         &network_manager,
+                         &_enemies,
+                         &_enemy,
+                         &other_players,
+                         &turn_system,
+                         is_solo_mode,
+                         &_lobby_host_id
+                     );
 
                      // === MULTIPLAYER HOST WAVE MANAGEMENT ===
                      if !is_solo_mode && _lobby_host_id == player_profile.vext_username {

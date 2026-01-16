@@ -128,7 +128,9 @@ impl NetworkHandler {
                     }
                 }
                 GameEvent::TurnChanged { current_turn_id: next_id } => {
-                    *current_turn_id = next_id;
+                    *current_turn_id = next_id.clone();
+                    turn_system.sync_to_id(&next_id); // Sync local index
+                    
                     let id_display = if *current_turn_id == "enemy" { 
                         "ENEMY" 
                     } else if current_turn_id == &player_profile.vext_username { 
@@ -213,9 +215,10 @@ impl NetworkHandler {
                     }
 
                     if actor_id == player_profile.vext_username {
-                        if let Some(gs) = game_state {
-                            gs.resources.mana = gs.resources.mana.saturating_sub(mana_cost);
-                        }
+                        // OPTIMISTIC UPDATE: Already deducted in main.rs
+                        // if let Some(gs) = game_state {
+                        //     gs.resources.mana = gs.resources.mana.saturating_sub(mana_cost);
+                        // }
                     }
                 }
                 GameEvent::Error(e) => {

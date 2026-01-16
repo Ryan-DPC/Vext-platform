@@ -289,17 +289,23 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     "aether-strike:admin-attack" => {
+                                        tracing::info!("Processing admin-attack from {}", user_id);
                                         let room_tx = {
                                             let mut rooms = state.rooms.write().unwrap();
                                             if let Some(room) = rooms.get_mut(&current_room_id) {
                                                 let target_id = data["targetId"].as_str().unwrap_or("");
                                                 let damage = data["damage"].as_f64().unwrap_or(0.0) as f32;
                                                 
+                                                tracing::info!("Admin Attack: Target='{}' Damage={}", target_id, damage);
+                                                
                                                 let mut new_hp = None;
                                                 if let Some(target) = room.players.get_mut(target_id) {
                                                     target.hp -= damage;
                                                     if target.hp < 0.0 { target.hp = 0.0; }
                                                     new_hp = Some(target.hp);
+                                                    tracing::info!("Target Found. New HP: {}", target.hp);
+                                                } else {
+                                                    tracing::warn!("Target '{}' NOT found in room players.", target_id);
                                                 }
 
                                                 let broadcast = serde_json::json!({
@@ -315,21 +321,35 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                     }
                                                 }).to_string();
                                                 Some((room.tx.clone(), broadcast))
-                                            } else { None }
+                                            } else { 
+                                                tracing::error!("Room {} not found during admin-attack", current_room_id);
+                                                None 
+                                            }
                                         };
 
                                         if let Some((tx, msg)) = room_tx {
                                             let _ = tx.send(msg);
+                                            tracing::info!("Admin Attack Broadcast Sent");
                                         }
                                     }
                                     "aether-strike:end-turn" => {
+                                        tracing::info!("Processing end-turn from {}", user_id);
+                                        // Use write lock if we needed to update state, but here we only read?
+                                        // Wait, end-turn usually updates 'current_turn_id'?
+                                        // The current implementation just Broadcasts "turn-changed". 
+                                        // It relies on Clients to track turn order locally!
                                         if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
                                              let next_id = data["nextTurnId"].as_str().unwrap_or("");
+                                             tracing::info!("End Turn: Next ID='{}'", next_id);
+                                             
                                              let broadcast = serde_json::json!({
                                                  "type": "aether-strike:turn-changed",
                                                  "data": { "currentTurnId": next_id }
                                              }).to_string();
                                              let _ = room.tx.send(broadcast);
+                                             tracing::info!("End Turn Broadcast Sent");
+                                        } else {
+                                            tracing::warn!("Room {} not found during end-turn", current_room_id);
                                         }
                                     }
                                     "aether-strike:next-wave" => {

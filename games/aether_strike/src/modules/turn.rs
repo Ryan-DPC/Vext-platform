@@ -134,5 +134,14 @@ impl TurnSystem {
         }
         println!("--------------------------------------");
     }
+
+    pub fn sync_to_id(&mut self, target_id: &str) {
+        if let Some(idx) = self.turn_queue.iter().position(|(id, _)| id == target_id) {
+            self.current_turn_index = idx;
+            self.current_turn_id = target_id.to_string();
+        } else {
+            println!("⚠️ TurnSystem: Sync failed. ID '{}' not found in queue.", target_id);
+        }
+    }
 }
 
