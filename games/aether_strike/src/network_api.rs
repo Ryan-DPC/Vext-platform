@@ -2,14 +2,17 @@ use serde::{Deserialize, Serialize};
 use reqwest::blocking::Client;
 use std::net::UdpSocket;
 
-/// Helper to get the base URL (Hardcoded for stability)
+/// Helper to get the base URL (Hardcoded for Dedicated Game Server)
 pub fn get_base_url() -> String {
-    "https://vext-ws-server-3jrc.onrender.com".to_string()
+    "https://vext-game-server-1mgy.onrender.com".to_string()
 }
 
 /// URL for REST API (listing/announcing)
 pub fn get_api_url() -> String {
     let base = get_base_url();
+    // Le serveur Rust semble avoir un /health, on va supposer qu'il gère aussi le listing sur /api
+    // Si la liste est gérée par le backend central, on remettra yj77 plus tard.
+    // Mais pour l'instant, synchronisons sur le serveur de jeu.
     format!("{}/api/lobby/multiplayer", base)
 }
 
@@ -18,7 +21,8 @@ pub fn get_ws_url() -> String {
     let base = get_base_url();
     let ws_protocol = if base.starts_with("https") { "wss" } else { "ws" };
     let clean_base = base.replace("https://", "").replace("http://", "");
-    format!("{}://{}", ws_protocol, clean_base)
+    // Le serveur Axum spécifie .route("/ws", ...)
+    format!("{}://{}/ws", ws_protocol, clean_base)
 }
 
 // Auto-detect local IP (LAN)
@@ -56,7 +60,10 @@ pub struct MultiplayerLobby {
 }
 
 pub fn fetch_server_list() -> Vec<MultiplayerLobby> {
-    let api_url = get_api_url();
+    // Si le serveur de jeu Rust ne gère pas le listing, les parties créées dessus 
+    // n'apparaîtront pas. Dans ce cas, il faudrait utiliser le backend central.
+    // Pour l'instant on garde la cohérence.
+    let api_url = "https://vext-backend-yj77.onrender.com/api/lobby/multiplayer"; 
     let client = Client::new();
     println!("📡 Fetching server list from: {}/list", api_url);
     let res = client.get(format!("{}/list", api_url)).send();
@@ -103,7 +110,8 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
         mapName: "TheNexus".to_string(),
     };
 
-    let api_url = get_api_url();
+    // L'annonce doit se faire sur le backend central pour que tout le monde la voie
+    let api_url = "https://vext-backend-yj77.onrender.com/api/lobby/multiplayer";
     println!("📡 Announcing server to: {}/announce", api_url);
     let res = client.post(format!("{}/announce", api_url))
         .json(&lobby)
