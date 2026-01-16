@@ -5,7 +5,9 @@ use crate::modules::button::{MenuButton, SessionButton};
 use crate::menu_ui::{draw_create_server};
 use crate::input::handle_text_input;
 use crate::network_api;
-use crate::network_client::{GameClient, RemotePlayer};
+use crate::network_protocol::PlayerData;
+use crate::network_protocol::EnemyData;
+use crate::network_client::GameClient;
 use crate::server::NetworkManager;
 use crate::class_system::CharacterClass;
 use crate::draw::Renderer;
@@ -74,7 +76,7 @@ impl LobbySystem {
         vext_token: &str,
         // For Lobby Polling
         all_classes: &[CharacterClass],
-        other_players: &mut HashMap<String, RemotePlayer>,
+        other_players: &mut HashMap<String, PlayerData>,
         game_state: &mut Option<GameState>,
         enemies: &mut Vec<Enemy>,
         enemy: &mut Option<Enemy>,
@@ -310,7 +312,7 @@ impl LobbySystem {
                                 for (i, def) in wave.enemies.iter().enumerate() {
                                     let id = format!("{}-{}", def.0.name, rand::rand() as u32);
                                     let hp = def.0.hp; // Simplified
-                                    enemies_list.push(crate::network_client::EnemyData {
+                                    enemies_list.push(crate::network_protocol::EnemyData {
                                         id,
                                         name: def.0.name.clone(),
                                         hp, // f32

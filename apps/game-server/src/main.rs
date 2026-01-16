@@ -20,7 +20,7 @@ struct AppState {
 }
 
 struct Room {
-    tx: broadcast::Sender<String>, // Broadcast channel for the room
+    tx: broadcast::Sender<Vec<u8>>, // Broadcast channel for the room
     players: HashMap<String, Player>, // userId -> Player state
     host_id: String,
     state: String, // "waiting", "playing"
@@ -32,6 +32,7 @@ struct Player {
     class: String,
     hp: f32,
     max_hp: f32,
+    speed: f32, // Added
     position: (f32, f32),
 }
 
@@ -74,9 +75,8 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     // User session state
     let mut user_id = String::new();
-    let _username = String::new(); // Placeholder
     let mut current_room_id = String::new();
-    let mut rx_room: Option<broadcast::Receiver<String>> = None;
+    let mut rx_room: Option<broadcast::Receiver<Vec<u8>>> = None; // Changed to Vec<u8>
 
     loop {
         tokio::select! {
@@ -84,34 +84,23 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             val = receiver.next() => {
                 match val {
                     Some(Ok(msg)) => {
-                        if let Message::Text(text) = msg {
-                           if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
-                                let msg_type = parsed["type"].as_str().unwrap_or("");
-                                let data = &parsed["data"];
-                                
-                                match msg_type {
-                                    "auth" => {
-                                         if let Some(_token) = data["token"].as_str() {
-                                            tracing::info!("Auth requested (Logic pending)");
-                                         }
-                                    }
-                                    "aether-strike:create-game" => {
-                                        let game_id = data["gameId"].as_str().unwrap_or("default").to_string();
-                                        // Use userId from payload if available, else default
-                                        user_id = data["userId"].as_str().unwrap_or("Host").to_string();
-                                        let username_val = data["username"].as_str().unwrap_or("Host").to_string();
+                        if let Message::Binary(bin) = msg {
+                           if let Ok(client_msg) = rmp_serde::from_slice::<ClientMessage>(&bin) {
+                                match client_msg {
+                                    ClientMessage::CreateGame { game_id, user_id: uid, username, player_class, hp, max_hp } => {
+                                        user_id = uid.clone();
                                         
                                         let (tx, _rx) = broadcast::channel(100);
                                         
                                         {
                                             let mut rooms = state.rooms.write().unwrap();
                                             let mut players_map = HashMap::new();
-                                            // Add Host to players immediately
                                             players_map.insert(user_id.clone(), Player {
-                                                username: username_val.clone(),
-                                                class: data["playerClass"].as_str().unwrap_or("warrior").to_string(),
-                                                hp: data["hp"].as_f64().unwrap_or(100.0) as f32,
-                                                max_hp: data["maxHp"].as_f64().unwrap_or(100.0) as f32,
+                                                username: username.clone(),
+                                                class: player_class.clone(),
+                                                hp,
+                                                max_hp,
+                                                speed: 100.0, // Default speed
                                                 position: (0.0, 0.0),
                                             });
                                             
@@ -121,166 +110,120 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                 host_id: user_id.clone(),
                                                 state: "waiting".to_string(),
                                             });
-                                        } // DROP LOCK HERE
+                                        }
                                         
                                         current_room_id = game_id.clone();
                                         rx_room = Some(tx.subscribe());
                                         
-                                        let response = serde_json::json!({
-                                            "type": "aether-strike:new-host",
-                                            "data": { "gameId": game_id, "hostId": user_id }
-                                        }).to_string();
-                                        let _ = sender.send(Message::Text(response)).await;
-                                        
-                                        tracing::info!("Game Created: {} by {}", game_id, username_val);
+                                        let response = ServerMessage::NewHost { game_id: game_id.clone(), host_id: user_id.clone() };
+                                        if let Ok(data) = rmp_serde::to_vec(&response) {
+                                            let _ = sender.send(Message::Binary(data)).await;
+                                        }
+                                        tracing::info!("Game Created: {} by {}", game_id, username);
                                     }
-                                    "aether-strike:join-game" => {
-                                        let game_id = data["gameId"].as_str().unwrap_or("").to_string();
-                                        // Read Identity from Payload
-                                        if let Some(uid) = data["userId"].as_str() { user_id = uid.to_string(); }
-                                        let username_val = data["username"].as_str().unwrap_or("Unknown").to_string();
-                                        let player_class = data["playerClass"].as_str().unwrap_or("warrior").to_string();
+                                    ClientMessage::JoinGame { game_id, user_id: uid, username, player_class, hp, max_hp } => {
+                                        user_id = uid.clone();
 
                                         let (room_tx, room_state, room_host, current_players) = {
                                             let mut rooms = state.rooms.write().unwrap();
                                             if let Some(room) = rooms.get_mut(&game_id) {
-                                                // Add Player to Room State
                                                 room.players.insert(user_id.clone(), Player {
-                                                    username: username_val.clone(),
+                                                    username: username.clone(),
                                                     class: player_class.clone(),
-                                                    hp: data["hp"].as_f64().unwrap_or(100.0) as f32,
-                                                    max_hp: data["maxHp"].as_f64().unwrap_or(100.0) as f32,
+                                                    hp,
+                                                    max_hp,
+                                                    speed: 100.0, // Default speed
                                                     position: (0.0, 0.0),
                                                 });
                                                 
-                                                // Clone players list for Initial State Sync
-                                                let players_list: Vec<Value> = room.players.iter().map(|(id, p)| {
-                                                    serde_json::json!({
-                                                        "userId": id,
-                                                        "username": p.username,
-                                                        "class": p.class,
-                                                        "hp": p.hp,
-                                                        "maxHp": p.max_hp,
-                                                        "position": {"x": p.position.0, "y": p.position.1}
-                                                    })
+                                                let players_list: Vec<PlayerData> = room.players.iter().map(|(id, p)| {
+                                                     PlayerData {
+                                                         user_id: id.clone(),
+                                                         username: p.username.clone(),
+                                                         class: p.class.clone(),
+                                                         hp: p.hp,
+                                                         max_hp: p.max_hp,
+                                                         speed: p.speed,
+                                                         position: p.position
+                                                     }
                                                 }).collect();
 
                                                 (Some(room.tx.clone()), Some(room.state.clone()), Some(room.host_id.clone()), Some(players_list))
                                             } else {
                                                 (None, None, None, None)
                                             }
-                                        }; // DROP LOCK
+                                        };
                                         
                                         if let Some(tx) = room_tx {
                                             current_room_id = game_id.clone();
                                             rx_room = Some(tx.subscribe());
                                             
-                                            // Send Game State (Snapshot) to Joiner
-                                            let response = serde_json::json!({
-                                                "type": "aether-strike:game-state",
-                                                "data": { 
-                                                    "players": current_players.unwrap_or_default(), 
-                                                    "state": room_state.unwrap_or_default(),
-                                                    "hostId": room_host.unwrap_or_default()
-                                                }
-                                            }).to_string();
-                                            let _ = sender.send(Message::Text(response)).await;
+                                            // Send Snapshot
+                                            let response = ServerMessage::GameState { 
+                                                players: current_players.unwrap_or_default(), 
+                                                state: room_state.unwrap_or_default(),
+                                                host_id: room_host.unwrap_or_default()
+                                            };
+                                            if let Ok(data) = rmp_serde::to_vec(&response) {
+                                                let _ = sender.send(Message::Binary(data)).await;
+                                            }
 
-                                            // BROADCAST "Player Joined" to others
-                                            let broadcast_msg = serde_json::json!({
-                                                "type": "aether-strike:player-joined",
-                                                "data": {
-                                                    "playerId": user_id,
-                                                    "username": username_val,
-                                                    "class": player_class,
-                                                    "hp": data["hp"].as_f64().unwrap_or(100.0),
-                                                    "maxHp": data["maxHp"].as_f64().unwrap_or(100.0)
-                                                }
-                                            }).to_string();
-                                            let _ = tx.send(broadcast_msg);
-                                            
+                                            // Broadcast Join
+                                            let broadcast_msg = ServerMessage::PlayerJoined {
+                                                player_id: user_id.clone(),
+                                                username,
+                                                class: player_class,
+                                                hp,
+                                                max_hp,
+                                                speed: 100.0 // Default
+                                            };
+                                            if let Ok(data) = rmp_serde::to_vec(&broadcast_msg) {
+                                                let _ = tx.send(data);
+                                            }
                                             tracing::info!("Player joined: {} ({})", game_id, user_id);
                                         }
                                     }
-                                    "aether-strike:change-class" => {
-                                        let new_class = data["class"].as_str().unwrap_or("warrior").to_string();
-                                        
-                                        // Update Room State
-                                        let room_tx = {
-                                            let mut rooms = state.rooms.write().unwrap();
-                                            if let Some(room) = rooms.get_mut(&current_room_id) {
-                                                if let Some(player) = room.players.get_mut(&user_id) {
-                                                    player.class = new_class.clone();
-                                                }
-                                                Some(room.tx.clone())
-                                            } else {
-                                                None
-                                            }
-                                        }; // DROP LOCK
-
-                                        // Broadcast Update
-                                        if let Some(tx) = room_tx {
-                                            let update_msg = serde_json::json!({
-                                                "type": "aether-strike:player-updated",
-                                                "data": {
-                                                    "playerId": user_id,
-                                                    "class": new_class
-                                                }
-                                            }).to_string();
-                                            let _ = tx.send(update_msg);
-                                        }
-                                    }
-                                    "aether-strike:start-game" => {
+                                    ClientMessage::StartGame { enemies } => {
                                         let room_tx = {
                                             let mut rooms = state.rooms.write().unwrap();
                                             if let Some(room) = rooms.get_mut(&current_room_id) {
                                                 room.state = "playing".to_string();
                                                 Some(room.tx.clone())
-                                            } else {
-                                                None
-                                            }
+                                            } else { None }
                                         };
 
                                         if let Some(tx) = room_tx {
-                                            let enemies_val = &data["enemies"];
-                                            let start_msg = serde_json::json!({
-                                                "type": "aether-strike:game-started",
-                                                "data": {
-                                                    "enemies": enemies_val
-                                                }
-                                            }).to_string();
-                                            
-                                            let _ = tx.send(start_msg);
+                                            let start_msg = ServerMessage::GameStarted { enemies };
+                                            if let Ok(data) = rmp_serde::to_vec(&start_msg) {
+                                                let _ = tx.send(data);
+                                            }
                                             tracing::info!("Game {} started", current_room_id);
                                         }
                                     }
-                                    "aether-strike:use-attack" => {
+                                    ClientMessage::UseAttack { target_id, attack_name, damage, mana_cost, is_area } => {
                                         let room_tx = {
                                             let mut rooms = state.rooms.write().unwrap();
                                             if let Some(room) = rooms.get_mut(&current_room_id) {
-                                                let target_id = data["targetId"].as_str().unwrap_or("");
-                                                let damage = data["damage"].as_f64().unwrap_or(0.0) as f32;
-                                                
                                                 let mut new_hp = None;
-                                                if let Some(target) = room.players.get_mut(target_id) {
-                                                    target.hp -= damage;
-                                                    if target.hp < 0.0 { target.hp = 0.0; }
-                                                    new_hp = Some(target.hp);
+                                                if let Some(target_id_str) = &target_id {
+                                                    if let Some(target) = room.players.get_mut(target_id_str) {
+                                                        target.hp = (target.hp - damage).max(0.0);
+                                                        new_hp = Some(target.hp);
+                                                    }
                                                 }
                                                 
-                                                let broadcast = serde_json::json!({
-                                                    "type": "aether-strike:combat-action",
-                                                    "data": {
-                                                        "actorId": user_id,
-                                                        "targetId": target_id,
-                                                        "actionName": data["attackName"],
-                                                        "damage": damage,
-                                                        "manaCost": data["manaCost"].as_u64().unwrap_or(0),
-                                                        "isArea": data["isArea"].as_bool().unwrap_or(false),
-                                                        "targetNewHp": new_hp
-                                                    }
-                                                }).to_string();
-                                                Some((room.tx.clone(), broadcast))
+                                                let broadcast = ServerMessage::CombatAction {
+                                                    actor_id: user_id.clone(),
+                                                    target_id,
+                                                    action_name: attack_name,
+                                                    damage,
+                                                    mana_cost,
+                                                    is_area,
+                                                    target_new_hp: new_hp
+                                                };
+                                                if let Ok(data) = rmp_serde::to_vec(&broadcast) {
+                                                    Some((room.tx.clone(), data))
+                                                } else { None }
                                             } else { None }
                                         };
                                         
@@ -288,115 +231,35 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             let _ = tx.send(msg);
                                         }
                                     }
-                                    "aether-strike:admin-attack" => {
-                                        tracing::info!("Processing admin-attack from {}", user_id);
-                                        let room_tx = {
-                                            let mut rooms = state.rooms.write().unwrap();
-                                            if let Some(room) = rooms.get_mut(&current_room_id) {
-                                                let target_id = data["targetId"].as_str().unwrap_or("");
-                                                let damage = data["damage"].as_f64().unwrap_or(0.0) as f32;
-                                                
-                                                tracing::info!("Admin Attack: Target='{}' Damage={}", target_id, damage);
-                                                
-                                                let mut new_hp = None;
-                                                if let Some(target) = room.players.get_mut(target_id) {
-                                                    target.hp -= damage;
-                                                    if target.hp < 0.0 { target.hp = 0.0; }
-                                                    new_hp = Some(target.hp);
-                                                    tracing::info!("Target Found. New HP: {}", target.hp);
-                                                } else {
-                                                    tracing::warn!("Target '{}' NOT found in room players.", target_id);
-                                                }
-
-                                                let broadcast = serde_json::json!({
-                                                    "type": "aether-strike:combat-action",
-                                                    "data": {
-                                                        "actorId": data["actorId"],
-                                                        "targetId": target_id,
-                                                        "actionName": data["attackName"],
-                                                        "damage": damage,
-                                                        "manaCost": 0,
-                                                        "isArea": false,
-                                                        "targetNewHp": new_hp
-                                                    }
-                                                }).to_string();
-                                                Some((room.tx.clone(), broadcast))
-                                            } else { 
-                                                tracing::error!("Room {} not found during admin-attack", current_room_id);
-                                                None 
-                                            }
-                                        };
-
-                                        if let Some((tx, msg)) = room_tx {
-                                            let _ = tx.send(msg);
-                                            tracing::info!("Admin Attack Broadcast Sent");
-                                        }
-                                    }
-                                    "aether-strike:end-turn" => {
-                                        tracing::info!("Processing end-turn from {}", user_id);
-                                        // Use write lock if we needed to update state, but here we only read?
-                                        // Wait, end-turn usually updates 'current_turn_id'?
-                                        // The current implementation just Broadcasts "turn-changed". 
-                                        // It relies on Clients to track turn order locally!
+                                    ClientMessage::EndTurn { next_turn_id } => {
                                         if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
-                                             let next_id = data["nextTurnId"].as_str().unwrap_or("");
-                                             tracing::info!("End Turn: Next ID='{}'", next_id);
-                                             
-                                             let broadcast = serde_json::json!({
-                                                 "type": "aether-strike:turn-changed",
-                                                 "data": { "currentTurnId": next_id }
-                                             }).to_string();
-                                             let _ = room.tx.send(broadcast);
-                                             tracing::info!("End Turn Broadcast Sent");
-                                        } else {
-                                            tracing::warn!("Room {} not found during end-turn", current_room_id);
+                                             let broadcast = ServerMessage::TurnChanged { current_turn_id: next_turn_id };
+                                             if let Ok(data) = rmp_serde::to_vec(&broadcast) {
+                                                 let _ = room.tx.send(data);
+                                             }
                                         }
                                     }
-                                    "aether-strike:next-wave" => {
+                                    ClientMessage::NextWave { enemies, gold, exp } => {
                                         if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
-                                            let enemies_val = &data["enemies"];
-                                            let gold = data["gold"].as_u64().unwrap_or(0);
-                                            let exp = data["exp"].as_u64().unwrap_or(0);
-                                            
-                                            let broadcast = serde_json::json!({
-                                                "type": "aether-strike:wave-started",
-                                                "data": { 
-                                                    "enemies": enemies_val,
-                                                    "gold": gold,
-                                                    "exp": exp
-                                                }
-                                            }).to_string();
-                                            let _ = room.tx.send(broadcast);
-                                        }
-                                    }
-                                    "aether-strike:game-over" => {
-                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
-                                            let victory = data["victory"].as_bool().unwrap_or(false);
-                                            let broadcast = serde_json::json!({
-                                                "type": "aether-strike:game-ended",
-                                                "data": { "victory": victory }
-                                            }).to_string();
-                                            let _ = room.tx.send(broadcast);
-                                        }
-                                    }
-                                    _ => {
-                                        // Relay Logic
-                                        if !current_room_id.is_empty() {
-                                            let tx = {
-                                                let rooms = state.rooms.read().unwrap();
-                                                rooms.get(&current_room_id).map(|r| r.tx.clone())
-                                            }; // DROP LOCK
-                                            
-                                            if let Some(tx) = tx {
-                                                // Avoid echoing back to sender? 
-                                                // Ideally strictly relay. But if we broadcast, we receive it in our RX loop too?
-                                                // Usually we want to echo to others.
-                                                // broadcast::channel sends to ALL receivers.
-                                                let _ = tx.send(text);
+                                            let broadcast = ServerMessage::WaveStarted { enemies, gold, exp };
+                                            if let Ok(data) = rmp_serde::to_vec(&broadcast) {
+                                                let _ = room.tx.send(data);
                                             }
                                         }
                                     }
+                                    ClientMessage::GameOver { victory } => {
+                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                            let broadcast = ServerMessage::GameEnded { victory };
+                                            if let Ok(data) = rmp_serde::to_vec(&broadcast) {
+                                                let _ = room.tx.send(data);
+                                            }
+                                        }
+                                    }
+                                    // Handle other cases or ignore
+                                    _ => {}
                                 }
+                           } else {
+                               tracing::warn!("Failed to deserialize MessagePack");
                            }
                         }
                     }
@@ -409,18 +272,14 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 if let Some(rx) = &mut rx_room {
                     rx.recv().await
                 } else {
-                    // If no room, wait forever (pending) so we don't busy loop
-                    std::future::pending::<Result<String, broadcast::error::RecvError>>().await
+                    std::future::pending::<Result<Vec<u8>, broadcast::error::RecvError>>().await
                 }
             } => {
                 match recv_result {
                     Ok(msg) => {
-                         // Relay to our WebSocket
-                         let _ = sender.send(Message::Text(msg)).await;
+                         let _ = sender.send(Message::Binary(msg)).await;
                     }
-                    Err(_e) => {
-                        // Lagged or closed
-                    }
+                    Err(_e) => {}
                 }
             }
         }
@@ -432,13 +291,67 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
          if let Some(room) = rooms.get_mut(&current_room_id) {
              room.players.remove(&user_id);
              
-             // BROADCAST "Player Left"
-             let leave_msg = serde_json::json!({
-                "type": "aether-strike:player-left",
-                "data": { "playerId": user_id }
-             }).to_string();
-             let _ = room.tx.send(leave_msg);
-             tracing::info!("Player left: {} ({})", current_room_id, user_id);
+             let leave_msg = ServerMessage::PlayerLeft { player_id: user_id.clone() };
+             if let Ok(data) = rmp_serde::to_vec(&leave_msg) {
+                 let _ = room.tx.send(data);
+             }
          }
     }
+}
+
+// --- SHARED PROTOCOL DEFINITIONS ---
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", content = "data", rename_all = "kebab-case")] // To match JSON style somewhat if we wanted, but standard helpful
+pub enum ClientMessage {
+    Auth { token: String },
+    CreateGame { game_id: String, user_id: String, username: String, player_class: String, hp: f32, max_hp: f32 },
+    JoinGame { game_id: String, user_id: String, username: String, player_class: String, hp: f32, max_hp: f32 },
+    ChangeClass { class: String },
+    StartGame { enemies: Vec<EnemyData> },
+    UseAttack { target_id: Option<String>, attack_name: String, damage: f32, mana_cost: u32, is_area: bool },
+    AdminAttack { target_id: String, attack_name: String, damage: f32, actor_id: String },
+    EndTurn { next_turn_id: String },
+    NextWave { enemies: Vec<EnemyData>, gold: u32, exp: u32 },
+    GameOver { victory: bool },
+    Input { x: f32, y: f32, vx: f32, vy: f32, anim: String },
+    Flee,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", content = "data", rename_all = "kebab-case")]
+pub enum ServerMessage {
+    NewHost { game_id: String, host_id: String },
+    GameState { players: Vec<PlayerData>, state: String, host_id: String },
+    PlayerJoined { player_id: String, username: String, class: String, hp: f32, max_hp: f32, speed: f32 },
+    PlayerLeft { player_id: String },
+    PlayerUpdated { player_id: String, class: String },
+    GameStarted { enemies: Vec<EnemyData> },
+    CombatAction { actor_id: String, target_id: Option<String>, action_name: String, damage: f32, mana_cost: u32, is_area: bool, target_new_hp: Option<f32> },
+    TurnChanged { current_turn_id: String },
+    WaveStarted { enemies: Vec<EnemyData>, gold: u32, exp: u32 },
+    GameEnded { victory: bool },
+    PlayerUpdate { player_id: String, position: Option<(f32, f32)>, animation: Option<String> }, // Movement
+    Error(String),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PlayerData {
+    pub user_id: String,
+    pub username: String,
+    pub class: String,
+    pub hp: f32,
+    pub max_hp: f32,
+    pub speed: f32,
+    pub position: (f32, f32),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EnemyData {
+    pub id: String,
+    pub name: String,
+    pub hp: f32,
+    pub max_hp: f32,
+    pub speed: f32,
+    pub position: (f32, f32),
 }

@@ -12,3 +12,4 @@ futures = "0.3"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rmp-serde = "1.3.1"

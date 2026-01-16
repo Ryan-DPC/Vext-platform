@@ -24,6 +24,7 @@ mod modules; // New Module Hub
 mod network_handler;
 mod combat_system;
 mod world_renderer;
+pub mod network_protocol;
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
@@ -108,7 +109,7 @@ async fn main() {
     
     // Renderer (Refactored)
     let renderer = draw::Renderer::new(&assets, &all_classes);
-    let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
+    let mut other_players: HashMap<String, network_protocol::PlayerData> = HashMap::new();
     let mut is_host = false;
     let mut _lobby_host_id = String::new();
     
@@ -356,10 +357,12 @@ async fn main() {
                 );
 
                 match action {
-                    LobbyAction::SwitchScreen(s) => current_screen = s,
                     LobbyAction::StartGame => {
                         current_screen = GameScreen::InGame;
                         is_solo_mode = false;
+                        if is_host {
+                            _lobby_host_id = player_profile.vext_username.clone(); // FORCE HOST ID
+                        }
 
                         // Init visual player entity with Sorted Position
                         let mut all_ids = vec![player_profile.vext_username.clone()];
@@ -620,18 +623,20 @@ async fn main() {
 
                      // === MULTIPLAYER HOST AI ===
                      // Logic moved to src/modules/host_ai.rs
-                     host_ai.update(
-                         &mut current_turn_id,
-                         &player_profile,
-                         if let Some(gs) = &_game_state { gs } else { return }, // Safe unwrap via return or check
-                         &network_manager,
-                         &_enemies,
-                         &_enemy,
-                         &other_players,
-                         &mut turn_system,
-                         is_solo_mode,
-                         &_lobby_host_id
-                     );
+                     if let Some(gs) = &_game_state {
+                         host_ai.update(
+                             &mut current_turn_id,
+                             &player_profile,
+                             gs, 
+                             &network_manager,
+                             &_enemies,
+                             &_enemy,
+                             &other_players,
+                             &mut turn_system,
+                             is_solo_mode,
+                             &_lobby_host_id
+                         );
+                     }
 
                      // === MULTIPLAYER HOST WAVE MANAGEMENT ===
                      if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
@@ -665,7 +670,7 @@ async fn main() {
                                         if let Some(wave) = wave_manager.get_current_wave() {
                                             for (i, (stats, kind, pos)) in wave.enemies.iter().enumerate() {
                                                let enemy_id = format!("{}-{}-{}", stats.name, wave_manager.current_wave_index, i); 
-                                               new_enemies_data.push(network_client::EnemyData {
+                                           new_enemies_data.push(crate::network_protocol::EnemyData {
                                                    id: enemy_id,
                                                    name: stats.name.clone(),
                                                    hp: stats.hp,

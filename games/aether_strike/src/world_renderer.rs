@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 use crate::draw::Renderer;
 use crate::entities::{StickFigure, Enemy};
-use crate::network_client::RemotePlayer;
+use crate::network_protocol::PlayerData;
 use crate::game::GameState;
 use crate::menu_system::PlayerProfile;
 use crate::modules::button::MenuButton;
@@ -31,7 +31,7 @@ impl WorldRenderer {
         renderer: &Renderer,
         player: &Option<StickFigure>,
         teammates: &[StickFigure],
-        other_players: &HashMap<String, RemotePlayer>,
+        other_players: &HashMap<String, PlayerData>,
         enemies: &[Enemy],
         enemy_boss: Option<&Enemy>,
         game_state: &Option<GameState>,

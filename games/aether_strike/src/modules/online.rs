@@ -1,4 +1,4 @@
-use crate::network_client::{GameEvent, RemotePlayer};
+use crate::network_protocol::PlayerData;
 use std::collections::HashMap;
 use crate::modules::position::*;
 
@@ -11,7 +11,7 @@ pub fn handle_player_joined(
     max_hp: f32,
     speed: f32,
     local_username: &str,
-    other_players: &mut HashMap<String, RemotePlayer>
+    other_players: &mut HashMap<String, PlayerData>
 ) -> String {
     let id_short = if player_id.len() >= 4 { &player_id[..4] } else { player_id };
     let msg = format!("{} joined! ({})", username, id_short);
@@ -23,8 +23,8 @@ pub fn handle_player_joined(
         let slot_idx = (other_players.len() % 3) + 1;
         let pos = PLAYER_POSITIONS[slot_idx];
         
-        other_players.insert(player_id.to_string(), RemotePlayer {
-            userId: player_id.to_string(),
+        other_players.insert(player_id.to_string(), PlayerData {
+            user_id: player_id.to_string(),
             username: username.to_string(),
             class: display_class,
             hp,
@@ -36,7 +36,7 @@ pub fn handle_player_joined(
     msg
 }
 
-pub fn handle_player_left(player_id: &str, other_players: &mut HashMap<String, RemotePlayer>) -> String {
+pub fn handle_player_left(player_id: &str, other_players: &mut HashMap<String, PlayerData>) -> String {
     other_players.remove(player_id);
     let id_short = if player_id.len() >= 6 { &player_id[..6] } else { player_id };
     format!("Player {} left", id_short)
@@ -44,9 +44,9 @@ pub fn handle_player_left(player_id: &str, other_players: &mut HashMap<String, R
 
 // Logic for GameState sync event
 pub fn sync_game_state(
-    players: Vec<crate::network_client::RemotePlayer>,
+    players: Vec<PlayerData>,
     local_username: &str,
-    other_players: &mut HashMap<String, RemotePlayer>,
+    other_players: &mut HashMap<String, PlayerData>,
     all_classes: &[crate::class_system::CharacterClass]
 ) -> (String, Option<crate::class_system::CharacterClass>) {
     let mut selected_class_update = None;
@@ -58,7 +58,7 @@ pub fn sync_game_state(
              let slot_idx = (other_players.len() % 3) + 1;
              let pos = PLAYER_POSITIONS[slot_idx];
              p.position = (pos.x, pos.y);
-             other_players.insert(p.userId.clone(), p);
+             other_players.insert(p.user_id.clone(), p);
         } else {
              if let Some(cls) = all_classes.iter().find(|c| c.name.eq_ignore_ascii_case(&p.class)) {
                  selected_class_update = Some(cls.clone());

@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 use crate::entities::Enemy;
-use crate::network_client::EnemyData;
+use crate::network_protocol::EnemyData;
 
 
 pub fn from_server_data(data: &[EnemyData], screen_width: f32, screen_height: f32) -> (Vec<Enemy>, Option<Enemy>) {

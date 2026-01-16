@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use crate::network_client::{GameClient, GameEvent, RemotePlayer, EnemyData};
+use crate::network_client::{GameClient, GameEvent};
+use crate::network_protocol::{PlayerData, EnemyData};
 use crate::menu_system::PlayerProfile;
 use crate::class_system::CharacterClass;
 use crate::game::GameState;
@@ -16,7 +17,7 @@ impl NetworkHandler {
         client: &GameClient,
         player_profile: &PlayerProfile,
         all_classes: &[CharacterClass],
-        other_players: &mut HashMap<String, RemotePlayer>,
+        other_players: &mut HashMap<String, PlayerData>,
         game_state: &mut Option<GameState>,
         enemies: &mut Vec<Enemy>,
         enemy_boss: &mut Option<Enemy>,
@@ -28,7 +29,7 @@ impl NetworkHandler {
         selected_class: &mut Option<CharacterClass>,
         screen_width: f32,
         screen_height: f32,
-        enemy_hp: &mut f32,
+        _enemy_hp: &mut f32,
     ) -> Option<String> { // Returns Some(new_screen) if we need to switch screen
         let mut next_screen = None;
         let events = client.poll_updates();
@@ -120,9 +121,9 @@ impl NetworkHandler {
                     combat_logs.push("Multiplayer Battle started!".to_string());
                     next_screen = Some("InGame".to_string());
                 }
-                GameEvent::PlayerUpdate(update) => {
-                    if let Some(player) = other_players.get_mut(&update.player_id) {
-                        if let Some(pos) = update.position {
+                GameEvent::PlayerMove { player_id, position, action: _ } => {
+                    if let Some(player) = other_players.get_mut(&player_id) {
+                        if let Some(pos) = position {
                             player.position = pos;
                         }
                     }
@@ -170,7 +171,7 @@ impl NetworkHandler {
                      combat_logs.push(format!(">>> {} <<<", res));
                      next_screen = Some("Summary".to_string());
                 }
-                GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost, .. } => {
+                GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost: _, .. } => {
                     let actor_name = if actor_id == player_profile.vext_username { 
                         "YOU".to_string() 
                     } else if let Some(p) = other_players.get(&actor_id) {
@@ -183,12 +184,12 @@ impl NetworkHandler {
                         actor_id.clone()
                     };
 
-                    println!("NET-RX: CombatAction from {} targeting {:?}. Damage: {}", actor_name, target_id, damage);
+                    // println!("NET-RX: CombatAction from {} targeting {:?}. Damage: {}", actor_name, target_id, damage);
                     if let Some(ref tid) = target_id {
                          let found_enemy = enemies.iter().any(|e| &e.id == tid);
-                         println!("DEBUG: Target ID '{}' found in enemies list? {}", tid, found_enemy);
+                         // println!("DEBUG: Target ID '{}' found in enemies list? {}", tid, found_enemy);
                          if !found_enemy {
-                             println!("DEBUG: Available Enemy IDs: {:?}", enemies.iter().map(|e| &e.id).collect::<Vec<_>>());
+                             // println!("DEBUG: Available Enemy IDs: {:?}", enemies.iter().map(|e| &e.id).collect::<Vec<_>>());
                          }
                     }
 
@@ -196,7 +197,7 @@ impl NetworkHandler {
                     
                     if let Some(tid) = target_id {
                         if tid.eq_ignore_ascii_case(&player_profile.vext_username) {
-                             println!("DEBUG: Applying {} damage to LOCAL PLAYER", damage);
+                             // println!("DEBUG: Applying {} damage to LOCAL PLAYER", damage);
                              if let Some(gs) = game_state {
                                  gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
                              }
@@ -212,13 +213,6 @@ impl NetworkHandler {
                                 boss.take_damage(damage);
                             }
                         }
-                    }
-
-                    if actor_id == player_profile.vext_username {
-                        // OPTIMISTIC UPDATE: Already deducted in main.rs
-                        // if let Some(gs) = game_state {
-                        //     gs.resources.mana = gs.resources.mana.saturating_sub(mana_cost);
-                        // }
                     }
                 }
                 GameEvent::Error(e) => {

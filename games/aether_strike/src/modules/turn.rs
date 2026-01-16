@@ -20,7 +20,7 @@ impl TurnSystem {
         &mut self,
         player_id: &str,
         player_speed: u32,
-        other_players: &std::collections::HashMap<String, crate::network_client::RemotePlayer>,
+        other_players: &std::collections::HashMap<String, crate::network_protocol::PlayerData>,
         enemies: &[Enemy],
         boss: Option<&Enemy>,
     ) {
@@ -32,7 +32,7 @@ impl TurnSystem {
 
         // 2. Add Remote Players
         for rp in other_players.values() {
-            participants.push((rp.userId.clone(), rp.speed as u32));
+            participants.push((rp.user_id.clone(), rp.speed as u32));
         }
 
         // 3. Add Enemies

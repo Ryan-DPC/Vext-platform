@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::assets::GameAssets;
 use crate::class_system::CharacterClass;
 use crate::menu_ui::*;
-use crate::network_client::RemotePlayer;
+use crate::network_protocol::PlayerData;
 use crate::entities::{StickFigure, Enemy};
 
         pub struct DrawCommand<'a> {
@@ -85,7 +85,7 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    pub fn draw_lobby(&self, session_name: &str, player_count: usize, profile: &PlayerProfile, other_players: &HashMap<String, RemotePlayer>) {
+    pub fn draw_lobby(&self, session_name: &str, player_count: usize, profile: &PlayerProfile, other_players: &HashMap<String, PlayerData>) {
         clear_background(Color::from_rgba(30, 30, 50, 255));
         draw_text(&format!("LOBBY: {}", session_name), 50.0, 50.0, 40.0, WHITE);
         
@@ -124,7 +124,7 @@ impl<'a> Renderer<'a> {
         &self,
         player: Option<&StickFigure>,
         teammates: &[StickFigure],
-        other_players: &HashMap<String, RemotePlayer>,
+        other_players: &HashMap<String, PlayerData>,
         enemies: &[Enemy],
         boss: Option<&Enemy>,
         player_class_name: &str,

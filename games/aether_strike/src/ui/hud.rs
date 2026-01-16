@@ -33,7 +33,7 @@ impl HUD {
         screen_height: f32, 
         character_name: &str, 
         character_class: &CharacterClass,
-        other_players: &std::collections::HashMap<String, crate::network_client::RemotePlayer>,
+        other_players: &std::collections::HashMap<String, crate::network_protocol::PlayerData>,
         enemies: &[crate::entities::Enemy],
         start_enemy: Option<&crate::entities::Enemy>, // For multiplayer Boss fallback
         current_turn_id: &str,

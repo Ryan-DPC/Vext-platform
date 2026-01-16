@@ -5,13 +5,14 @@ use crate::modules::effect::EffectType;
 use crate::ui::hud::{HUDAction, BattleUIState};
 use crate::waves::{WaveManager, WaveState};
 use crate::menu_system::PlayerProfile;
-use crate::network_client::RemotePlayer;
+use crate::network_protocol::PlayerData;
 use std::collections::HashMap;
 use macroquad::prelude::*;
 
 pub struct CombatSystem;
 
 impl CombatSystem {
+// ... (method body omitted for brevity, focusing on import and signature)
     pub fn handle_player_action(
         action: &HUDAction,
         gs: &mut GameState,
@@ -193,7 +194,7 @@ impl CombatSystem {
         turn_system: &mut TurnSystem,
         player_profile: &PlayerProfile,
         gs: &Option<GameState>,
-        other_players: &HashMap<String, RemotePlayer>,
+        other_players: &HashMap<String, PlayerData>,
         enemies: &mut Vec<Enemy>,
         enemy_boss: &mut Option<Enemy>,
         current_turn_id: &mut String,
