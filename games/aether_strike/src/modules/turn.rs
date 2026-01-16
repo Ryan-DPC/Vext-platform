@@ -52,10 +52,18 @@ impl TurnSystem {
         self.turn_queue = participants;
         self.current_turn_index = 0;
         
+        // DEBUG: Print queue contents
+        println!("TurnSystem::init_queue - Built queue with {} participants:", self.turn_queue.len());
+        for (i, (id, speed)) in self.turn_queue.iter().enumerate() {
+            println!("  [{}] {} (speed: {})", i, id, speed);
+        }
+        
         if !self.turn_queue.is_empty() {
             self.current_turn_id = self.turn_queue[0].0.clone();
+            println!("TurnSystem: First turn -> {}", self.current_turn_id);
         } else {
             self.current_turn_id.clear();
+            println!("TurnSystem: WARNING - Queue is empty!");
         }
     }
 
