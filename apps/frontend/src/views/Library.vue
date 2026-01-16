@@ -255,7 +255,7 @@ const handleUninstall = async (game: any) => {
 const router = useRouter();
 const goToGameDetails = (gameId: string) => {
   if (!gameId) return;
-  router.push(`/game/${gameId}`);
+  router.push(`/games/details/${gameId}`);
 };
 
 // Social Actions

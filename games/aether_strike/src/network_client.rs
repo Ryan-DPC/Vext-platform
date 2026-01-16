@@ -16,6 +16,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::mpsc::{channel, Sender, Receiver};
+use std::collections::HashMap;
 use std::thread;
 use tungstenite::{connect, Message};
 use url::Url;
@@ -457,9 +458,20 @@ fn ws_thread_loop(
                                                             let uname = p["username"].as_str().unwrap_or("Unknown").to_string();
                                                             let uclass = p["class"].as_str().unwrap_or("warrior").to_string();
                                                             
-                                                            player_map.insert(uid, RemotePlayer {
+                                                            let hp = p["hp"].as_f64().unwrap_or(100.0) as f32;
+                                                            let max_hp = p["maxHp"].as_f64().unwrap_or(100.0) as f32;
+                                                            let speed = p["speed"].as_f64().unwrap_or(100.0) as f32;
+                                                            let pos_x = p["position"]["x"].as_f64().unwrap_or(0.0) as f32;
+                                                            let pos_y = p["position"]["y"].as_f64().unwrap_or(0.0) as f32;
+                                                            
+                                                            player_map.insert(uid.clone(), RemotePlayer {
+                                                                userId: uid,
                                                                 username: uname,
                                                                 class: uclass,
+                                                                hp,
+                                                                max_hp,
+                                                                speed,
+                                                                position: (pos_x, pos_y),
                                                             });
                                                         }
                                                     }
