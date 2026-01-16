@@ -96,6 +96,11 @@ async fn main() {
     let mut selected_class: Option<CharacterClass> = None;
     
     // Variables pour le online
+    let mut server_name_input = String::new();
+    let mut server_password_input = String::new();
+    let mut is_private_server = false;
+    let mut max_players = 4u32;
+    // New vars
     let mut current_turn_id = String::new();
     let mut last_network_log = String::new();
     let mut last_turn_id_debug = String::new(); // For debug/management of turns
