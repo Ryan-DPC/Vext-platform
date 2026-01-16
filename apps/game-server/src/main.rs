@@ -411,6 +411,14 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
          let mut rooms = state.rooms.write().unwrap();
          if let Some(room) = rooms.get_mut(&current_room_id) {
              room.players.remove(&user_id);
+             
+             // BROADCAST "Player Left"
+             let leave_msg = serde_json::json!({
+                "type": "aether-strike:player-left",
+                "data": { "playerId": user_id }
+             }).to_string();
+             let _ = room.tx.send(leave_msg);
+             tracing::info!("Player left: {} ({})", current_room_id, user_id);
          }
     }
 }
