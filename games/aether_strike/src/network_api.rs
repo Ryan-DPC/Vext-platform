@@ -21,7 +21,8 @@ pub fn get_ws_url() -> String {
     let ws_protocol = if base.starts_with("https") { "wss" } else { "ws" };
     let clean_base = base.replace("https://", "").replace("http://", "");
     // Le serveur Rust (Axum) écoute sur /ws
-    format!("{}://{}/ws", ws_protocol, clean_base)
+    // format!("{}://{}/ws", ws_protocol, clean_base)
+    "ws://127.0.0.1:3000/ws".to_string() // DEBUG: Localhost override
 }
 
 // Auto-detect local IP (LAN)

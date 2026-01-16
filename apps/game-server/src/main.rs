@@ -85,9 +85,11 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 match val {
                     Some(Ok(msg)) => {
                         if let Message::Binary(bin) = msg {
-                           if let Ok(client_msg) = rmp_serde::from_slice::<ClientMessage>(&bin) {
+                           match rmp_serde::from_slice::<ClientMessage>(&bin) {
+                                Ok(client_msg) => {
                                 match client_msg {
                                     ClientMessage::CreateGame { game_id, user_id: uid, username, player_class, hp, max_hp } => {
+                                        // ... (keep existing logic)
                                         user_id = uid.clone();
                                         
                                         let (tx, _rx) = broadcast::channel(100);
@@ -122,6 +124,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         tracing::info!("Game Created: {} by {}", game_id, username);
                                     }
                                     ClientMessage::JoinGame { game_id, user_id: uid, username, player_class, hp, max_hp } => {
+                                        // ... (keep existing logic)
                                         user_id = uid.clone();
 
                                         let (room_tx, room_state, room_host, current_players) = {
@@ -184,7 +187,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     ClientMessage::StartGame { enemies } => {
-                                        let room_tx = {
+                                         let room_tx = {
                                             let mut rooms = state.rooms.write().unwrap();
                                             if let Some(room) = rooms.get_mut(&current_room_id) {
                                                 room.state = "playing".to_string();
@@ -256,11 +259,19 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     // Handle other cases or ignore
-                                    _ => {}
+                                    _ => {
+                                        tracing::debug!("Unhandled ClientMessage: {:?}", client_msg);
+                                    }
                                 }
-                           } else {
-                               tracing::warn!("Failed to deserialize MessagePack");
+                           },
+                           Err(e) => {
+                               tracing::warn!("Failed to deserialize MessagePack: {}", e);
+                               tracing::warn!("Binary Length: {} bytes", bin.len());
+                               if bin.len() > 0 {
+                                    tracing::warn!("Header Byte: {:#04x}", bin[0]);
+                               }
                            }
+                        }
                         }
                     }
                     Some(Err(_)) | None => break, // Disconnect
@@ -301,8 +312,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
 // --- SHARED PROTOCOL DEFINITIONS ---
 
+// #[serde(tag = "type", content = "data", rename_all = "kebab-case")] // To match JSON style somewhat if we wanted, but standard helpful
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", content = "data", rename_all = "kebab-case")] // To match JSON style somewhat if we wanted, but standard helpful
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMessage {
     Auth { token: String },
     CreateGame { game_id: String, user_id: String, username: String, player_class: String, hp: f32, max_hp: f32 },
@@ -319,7 +331,7 @@ pub enum ClientMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", content = "data", rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
     NewHost { game_id: String, host_id: String },
     GameState { players: Vec<PlayerData>, state: String, host_id: String },

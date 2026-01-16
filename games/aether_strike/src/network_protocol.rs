@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", content = "data", rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMessage {
     Auth { token: String },
     CreateGame { game_id: String, user_id: String, username: String, player_class: String, hp: f32, max_hp: f32 },
@@ -18,7 +18,7 @@ pub enum ClientMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", content = "data", rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
     NewHost { game_id: String, host_id: String },
     GameState { players: Vec<PlayerData>, state: String, host_id: String },
