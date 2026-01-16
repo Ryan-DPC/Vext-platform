@@ -63,8 +63,10 @@ impl HostAI {
             
             // Check Minion
             if let Some(minion) = enemies.iter().find(|e| &e.id == current_turn_id) {
+                println!("HostAI: FOUND minion {} for turn!", minion.id);
                 if !self.acted {
                     self.attack_timer += get_frame_time() as f64;
+                    println!("HostAI: Timer={:.3}, Threshold=0.2", self.attack_timer);
                     if self.attack_timer > 0.2 { // WAS 0.6
                         self.attack_timer = 0.0;
                         
@@ -78,7 +80,7 @@ impl HostAI {
                         
                         let target = if !targets.is_empty() { targets[0].0.clone() } else { player_profile.vext_username.clone() };
                         
-                        // println!("Host AI: Minion {} SMART-attacks {}", minion.id, target);
+                        println!("HostAI: Minion {} ATTACKS target '{}' for {} dmg", minion.id, target, minion.attack_damage);
                         client.admin_attack(minion.id.clone(), "Attack".to_string(), Some(target), minion.attack_damage);
                         
                         self.acted = true;
