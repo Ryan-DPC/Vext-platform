@@ -483,7 +483,7 @@ fn ws_thread_loop(
                                                         .to_string();
 
                                                     Some(GameEvent::GameState {
-                                                        players: player_map,
+                                                        players: player_map.into_values().collect(),
                                                         host_id: hid,
                                                     })
                                                 }
