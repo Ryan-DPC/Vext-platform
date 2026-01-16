@@ -870,11 +870,22 @@ async fn main() {
                                         
                                         // Auto-End Turn after attack in Multiplayer
                                         let next = turn_system.peek_next_id();
+                                        
+                                        // --- OPTIMISTIC TURN ADVANCE (0 Lag) ---
+                                        // Update local state immediately so next actor (e.g. Host AI) can start
+                                        current_turn_id = next.clone();
+                                        turn_system.sync_to_id(&next);
+                                        
                                         client.end_turn(next);
                                     }
                                     HUDAction::Flee => { client.flee(); }
                                     HUDAction::EndTurn => { 
                                         let next = turn_system.peek_next_id();
+                                        
+                                        // --- OPTIMISTIC TURN ADVANCE (0 Lag) ---
+                                        current_turn_id = next.clone();
+                                        turn_system.sync_to_id(&next);
+                                        
                                         client.end_turn(next); 
                                     }
                                     _ => { println!("Action not supported in Multiplayer"); }
