@@ -98,7 +98,10 @@ impl TurnSystem {
         } else {
             self.current_turn_index + 1
         };
-        self.turn_queue[next_idx].0.clone()
+        let next_id = self.turn_queue[next_idx].0.clone();
+        println!("peek_next_id: current_idx={}, next_idx={}, next_id='{}'", 
+            self.current_turn_index, next_idx, next_id);
+        next_id
     }
 
     /// Dynamically updates the speed of an entity.
