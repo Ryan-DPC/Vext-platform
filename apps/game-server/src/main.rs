@@ -127,7 +127,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         rx_room = Some(tx.subscribe());
                                         
                                         let response = serde_json::json!({
-                                            "type": "aether-strike:game-created",
+                                            "type": "aether-strike:new-host",
                                             "data": { "gameId": game_id, "hostId": user_id }
                                         }).to_string();
                                         let _ = sender.send(Message::Text(response)).await;
@@ -228,7 +228,6 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                 }
                                             }).to_string();
                                             let _ = tx.send(update_msg);
-                                            tracing::info!("Player {} changed class to {}", user_id, new_class);
                                         }
                                     }
                                     "aether-strike:start-game" => {

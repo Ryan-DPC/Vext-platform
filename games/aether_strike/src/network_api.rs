@@ -2,15 +2,16 @@ use serde::{Deserialize, Serialize};
 use reqwest::blocking::Client;
 use std::net::UdpSocket;
 
-/// Helper to get the base URL (Hardcoded for the Correct WebSocket Server)
+/// Helper to get the base URL (Dedicated Rust Game Server)
 pub fn get_base_url() -> String {
-    // vext-ws-server-3jrc is the Bun server containing the AetherStrikeManager logic
-    "https://vext-ws-server-3jrc.onrender.com".to_string()
+    "https://vext-game-server-1mgy.onrender.com".to_string()
 }
 
 /// URL for REST API (listing/announcing)
 pub fn get_api_url() -> String {
-    // API LISTING must go to the Main Backend where DB is
+    // Si vous voulez aussi que la liste soit sur le serveur Rust, il doit implémenter /list
+    // Sinon, on garde le backend central yj77 pour la persistence.
+    // Mettons yj77 pour la liste pour l'instant car 1mgy ne semble pas avoir de DB
     "https://vext-backend-yj77.onrender.com/api/lobby/multiplayer".to_string()
 }
 
@@ -19,8 +20,8 @@ pub fn get_ws_url() -> String {
     let base = get_base_url();
     let ws_protocol = if base.starts_with("https") { "wss" } else { "ws" };
     let clean_base = base.replace("https://", "").replace("http://", "");
-    // IMPORTANT: The Bun/Elysia server listens on the root path "/" for WS
-    format!("{}://{}", ws_protocol, clean_base)
+    // Le serveur Rust (Axum) écoute sur /ws
+    format!("{}://{}/ws", ws_protocol, clean_base)
 }
 
 // Auto-detect local IP (LAN)
