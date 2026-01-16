@@ -96,10 +96,10 @@ async fn main() {
     let mut selected_class: Option<CharacterClass> = None;
     
     // Variables pour le online
-    let mut server_name_input = String::new();
-    let mut server_password_input = String::new();
-    let mut is_private_server = false;
-    let mut max_players = 4u32;
+    let mut current_turn_id = String::new();
+    let mut last_network_log = String::new();
+    let mut last_turn_id_debug = String::new(); // For debug/management of turns
+    let mut host_ai_acted = false; // Prevents AI from spamming attacks in one turn
     let mut server_name_active = false;
     let mut server_password_active = false;
     
@@ -882,13 +882,19 @@ async fn main() {
                          );
                      }
                      
+                     // Track turn changes to reset AI flag
+                     if current_turn_id != last_turn_id_debug {
+                         last_turn_id_debug = current_turn_id.clone();
+                         host_ai_acted = false;
+                     }
                      // === MULTIPLAYER HOST AI ===
                      if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
                          if let Some(client) = &network_manager.client {
                              let current_id = &current_turn_id;
                              
                              // Minion Turn
-                             if let Some(enemy) = _enemies.iter().find(|e| &e.id == current_id) {
+                             if !host_ai_acted {
+                                 if let Some(enemy) = _enemies.iter().find(|e| &e.id == current_id) {
                                   enemy_attack_timer += get_frame_time() as f64;
                                   if enemy_attack_timer > 1.5 {
                                       enemy_attack_timer = 0.0;
@@ -908,12 +914,14 @@ async fn main() {
                                       println!("Host AI: Minion {} SMART-attacks {}", enemy.id, target);
                                       client.admin_attack(enemy.id.clone(), "Attack".to_string(), Some(target), enemy.attack_damage);
                                       
+                                      host_ai_acted = true;
+                                      
                                       let next = turn_system.peek_next_id();
                                       client.end_turn(next);
                                   }
-                             } 
-                             // Boss Turn
-                             else if let Some(boss) = &_enemy {
+                              } 
+                              // Boss Turn
+                              else if let Some(boss) = &_enemy {
                                  if &boss.id == current_id {
                                       enemy_attack_timer += get_frame_time() as f64;
                                       if enemy_attack_timer > 2.0 {
@@ -933,6 +941,7 @@ async fn main() {
 
                                           println!("Host AI: Boss {} SMART-attacks {}", boss.id, target);
                                           client.admin_attack(boss.id.clone(), "Smash".to_string(), Some(target), boss.attack_damage);
+                                          host_ai_acted = true;
                                           let next = turn_system.peek_next_id();
                                           client.end_turn(next);
                                       }

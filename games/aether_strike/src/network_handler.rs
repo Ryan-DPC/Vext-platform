@@ -193,7 +193,8 @@ impl NetworkHandler {
                     combat_logs.push(format!("{} used {} ({} dmg)", actor_name, action_name, damage));
                     
                     if let Some(tid) = target_id {
-                        if tid == player_profile.vext_username {
+                        if tid.eq_ignore_ascii_case(&player_profile.vext_username) {
+                             println!("DEBUG: Applying {} damage to LOCAL PLAYER", damage);
                              if let Some(gs) = game_state {
                                  gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
                              }
