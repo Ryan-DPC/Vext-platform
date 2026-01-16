@@ -37,6 +37,10 @@ impl HostAI {
         is_solo_mode: bool,
         lobby_host_id: &str,
     ) {
+        // DEBUG: Log all conditions
+        println!("HostAI: is_solo={}, lobby_host='{}', me='{}', current_turn='{}'", 
+            is_solo_mode, lobby_host_id, player_profile.vext_username, current_turn_id);
+        
         // Must be Multiplayer, Host, and not Solo
         if is_solo_mode || lobby_host_id != player_profile.vext_username {
             return;
@@ -44,7 +48,7 @@ impl HostAI {
 
         // DEBUG: Trace Turn
         if network_manager.client.is_some() {
-             // println!("Host AI Update: Turn={}, Acted={}", current_turn_id, self.acted);
+             println!("Host AI Active: Turn={}, Acted={}", current_turn_id, self.acted);
         }
 
         if let Some(client) = &network_manager.client {
