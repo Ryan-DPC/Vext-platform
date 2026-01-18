@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
           secure: false,
         },
         '/socket.io': {
-          target: env.VITE_WEBSOCKET_URL || 'https://vext-ws-server-gur7.onrender.com',
+          target: env.VITE_WEBSOCKET_URL || 'https://vext-backend-gur7.onrender.com',
           ws: true,
           changeOrigin: true,
           secure: false,
@@ -41,7 +41,6 @@ export default defineConfig(({ mode }) => {
           output: {
             manualChunks: {
               vendor: ['vue', 'vue-router', 'pinia', 'axios'],
-              ui: ['@fortawesome/fontawesome-free'],
             },
           },
         },

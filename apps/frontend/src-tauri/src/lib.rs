@@ -1,3 +1,4 @@
+mod verification;
 mod installation;
 mod launcher;
 use tauri::Manager;
@@ -5,12 +6,15 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_sql::Builder::default().build())
+    .plugin(tauri_plugin_updater::Builder::new().build())
     .invoke_handler(tauri::generate_handler![
         installation::install_game,
         installation::is_game_installed,
         installation::uninstall_game,
         installation::select_folder,
-        launcher::launch_game
+        launcher::launch_game,
+        verification::verify_game_integrity
     ])
     .setup(|app| {
       app.manage(launcher::GameState(std::sync::Arc::new(std::sync::Mutex::new(None))));

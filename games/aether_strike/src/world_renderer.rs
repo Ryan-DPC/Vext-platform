@@ -27,17 +27,18 @@ impl WorldRenderer {
         draw_rectangle(0.0, 500.0, screen_width, 20.0, Color::from_rgba(50, 40, 30, 255));
     }
 
-    pub fn draw_game(
-        renderer: &Renderer,
+    pub fn draw_game<'a, 'b>(
+        renderer: &Renderer<'a>,
         player: &Option<StickFigure>,
-        teammates: &[StickFigure],
-        other_players: &HashMap<String, PlayerData>,
+        teammates: &'b [StickFigure],
+        other_players: &'b HashMap<String, PlayerData>,
         enemies: &[Enemy],
         enemy_boss: Option<&Enemy>,
         game_state: &Option<GameState>,
         screen_width: f32,
         screen_height: f32,
     ) {
+        let mut commands = Vec::with_capacity(100);
         clear_background(Color::from_rgba(20, 20, 30, 255));
         Self::draw_environment(screen_width, screen_height);
 
@@ -54,6 +55,7 @@ impl WorldRenderer {
             enemies,
             enemy_boss,
             player_class_name,
+            &mut commands,
         );
     }
 }

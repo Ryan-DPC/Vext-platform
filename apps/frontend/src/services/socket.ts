@@ -8,9 +8,8 @@ import { saveMessage } from './db';
 import router from '../router';
 
 // Get WebSocket URL based on environment
-// Get WebSocket URL based on environment
 const getSocketUrl = () => {
-  return 'wss://vext-ws-server-3jrc.onrender.com';
+  return import.meta.env.VITE_WS_URL || 'wss://vext-backend-gur7.onrender.com/ws';
 };
 
 class SocketService {
@@ -222,7 +221,7 @@ class SocketService {
     if (this.socket) {
       // Remove listener not fully implemented in NativeSocketService using EventEmitter
       // But EventEmitter has .off (alias for removeListener)
-      this.socket.off(event, () => {}); // removeAllListeners(event) might be better if no callback passed
+      this.socket.off(event, () => { }); // removeAllListeners(event) might be better if no callback passed
       // NativeSocketService extends EventEmitter, so it has off or removeListener.
       // But we need the reference to the callback to remove specific one.
       // For now, simple wrapper.

@@ -9,19 +9,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
+use dashmap::DashMap;
 use tokio::sync::broadcast;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone)]
 struct AppState {
-    rooms: Arc<RwLock<HashMap<String, Room>>>,
+    rooms: Arc<DashMap<String, Room>>,
 }
 
 struct Room {
     tx: broadcast::Sender<Vec<u8>>, // Broadcast channel for the room
-    players: HashMap<String, Player>, // userId -> Player state
+    players: HashMap<String, Player>, // userId -> Player state (Keep HashMap internal to Room as it's protected by DashMap shard lock when accessing Room)
     host_id: String,
     state: String, // "waiting", "playing"
 }
@@ -32,7 +33,7 @@ struct Player {
     class: String,
     hp: f32,
     max_hp: f32,
-    speed: f32, // Added
+    speed: f32,
     position: (f32, f32),
 }
 
@@ -46,7 +47,7 @@ async fn main() {
         .init();
 
     let state = AppState {
-        rooms: Arc::new(RwLock::new(HashMap::new())),
+        rooms: Arc::new(DashMap::new()),
     };
 
     let app = Router::new()
@@ -76,7 +77,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     // User session state
     let mut user_id = String::new();
     let mut current_room_id = String::new();
-    let mut rx_room: Option<broadcast::Receiver<Vec<u8>>> = None; // Changed to Vec<u8>
+    let mut rx_room: Option<broadcast::Receiver<Vec<u8>>> = None;
 
     loop {
         tokio::select! {
@@ -89,24 +90,23 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                 Ok(client_msg) => {
                                 match client_msg {
                                     ClientMessage::CreateGame { game_id, user_id: uid, username, player_class, hp, max_hp } => {
-                                        // ... (keep existing logic)
                                         user_id = uid.clone();
                                         
                                         let (tx, _rx) = broadcast::channel(100);
                                         
                                         {
-                                            let mut rooms = state.rooms.write().unwrap();
+                                            // DashMap: insert directly
                                             let mut players_map = HashMap::new();
                                             players_map.insert(user_id.clone(), Player {
                                                 username: username.clone(),
                                                 class: player_class.clone(),
                                                 hp,
                                                 max_hp,
-                                                speed: 100.0, // Default speed
+                                                speed: 100.0,
                                                 position: (0.0, 0.0),
                                             });
                                             
-                                            rooms.insert(game_id.clone(), Room {
+                                            state.rooms.insert(game_id.clone(), Room {
                                                 tx: tx.clone(),
                                                 players: players_map,
                                                 host_id: user_id.clone(),
@@ -124,18 +124,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         tracing::info!("Game Created: {} by {}", game_id, username);
                                     }
                                     ClientMessage::JoinGame { game_id, user_id: uid, username, player_class, hp, max_hp } => {
-                                        // ... (keep existing logic)
                                         user_id = uid.clone();
 
                                         let (room_tx, room_state, room_host, current_players) = {
-                                            let mut rooms = state.rooms.write().unwrap();
-                                            if let Some(room) = rooms.get_mut(&game_id) {
+                                            // DashMap: get_mut returns a guard (RAII)
+                                            if let Some(mut room) = state.rooms.get_mut(&game_id) {
                                                 room.players.insert(user_id.clone(), Player {
                                                     username: username.clone(),
                                                     class: player_class.clone(),
                                                     hp,
                                                     max_hp,
-                                                    speed: 100.0, // Default speed
+                                                    speed: 100.0,
                                                     position: (0.0, 0.0),
                                                 });
                                                 
@@ -178,7 +177,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                 class: player_class,
                                                 hp,
                                                 max_hp,
-                                                speed: 100.0 // Default
+                                                speed: 100.0
                                             };
                                             if let Ok(data) = rmp_serde::to_vec(&broadcast_msg) {
                                                 let _ = tx.send(data);
@@ -188,8 +187,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                     }
                                     ClientMessage::StartGame { enemies } => {
                                          let room_tx = {
-                                            let mut rooms = state.rooms.write().unwrap();
-                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                            if let Some(mut room) = state.rooms.get_mut(&current_room_id) {
                                                 room.state = "playing".to_string();
                                                 Some(room.tx.clone())
                                             } else { None }
@@ -205,8 +203,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                     }
                                     ClientMessage::UseAttack { target_id, attack_name, damage, mana_cost, is_area } => {
                                         let room_tx = {
-                                            let mut rooms = state.rooms.write().unwrap();
-                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                            if let Some(mut room) = state.rooms.get_mut(&current_room_id) {
                                                 let mut new_hp = None;
                                                 if let Some(target_id_str) = &target_id {
                                                     if let Some(target) = room.players.get_mut(target_id_str) {
@@ -235,7 +232,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     ClientMessage::EndTurn { next_turn_id } => {
-                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                        // Use get() for read-only access if we don't modify structure, 
+                                        // but we need to reference the tx. DashMap::get returns a guard too.
+                                        if let Some(room) = state.rooms.get(&current_room_id) {
                                              let broadcast = ServerMessage::TurnChanged { current_turn_id: next_turn_id };
                                              if let Ok(data) = rmp_serde::to_vec(&broadcast) {
                                                  let _ = room.tx.send(data);
@@ -243,7 +242,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     ClientMessage::NextWave { enemies, gold, exp } => {
-                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                        if let Some(room) = state.rooms.get(&current_room_id) {
                                             let broadcast = ServerMessage::WaveStarted { enemies, gold, exp };
                                             if let Ok(data) = rmp_serde::to_vec(&broadcast) {
                                                 let _ = room.tx.send(data);
@@ -251,7 +250,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     ClientMessage::GameOver { victory } => {
-                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                        if let Some(room) = state.rooms.get(&current_room_id) {
                                             let broadcast = ServerMessage::GameEnded { victory };
                                             if let Ok(data) = rmp_serde::to_vec(&broadcast) {
                                                 let _ = room.tx.send(data);
@@ -260,9 +259,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                     }
                                     ClientMessage::ChangeClass { class } => {
                                         let room_tx = {
-                                            let mut rooms = state.rooms.write().unwrap();
-                                            if let Some(room) = rooms.get_mut(&current_room_id) {
-                                                // Update player class in room state
+                                            if let Some(mut room) = state.rooms.get_mut(&current_room_id) {
                                                 if let Some(player) = room.players.get_mut(&user_id) {
                                                     player.class = class.clone();
                                                     tracing::info!("Player {} changed class to {}", user_id, class);
@@ -283,11 +280,8 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                         }
                                     }
                                     ClientMessage::AdminAttack { actor_id, attack_name, target_id, damage } => {
-                                        // Host sends enemy attack - broadcast to all players
                                         let room_tx = {
-                                            let rooms = state.rooms.read().unwrap();
-                                            if let Some(room) = rooms.get(&current_room_id) {
-                                                // Only allow host to send AdminAttack
+                                            if let Some(room) = state.rooms.get(&current_room_id) {
                                                 if room.host_id == user_id {
                                                     let broadcast = ServerMessage::CombatAction {
                                                         actor_id,
@@ -296,7 +290,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                                         damage,
                                                         mana_cost: 0,
                                                         is_area: false,
-                                                        target_new_hp: None // Client calculates locally
+                                                        target_new_hp: None 
                                                     };
                                                     if let Ok(data) = rmp_serde::to_vec(&broadcast) {
                                                         Some((room.tx.clone(), data))
@@ -312,7 +306,6 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             let _ = tx.send(msg);
                                         }
                                     }
-                                    // Handle other cases or ignore
                                     _ => {
                                         tracing::debug!("Unhandled ClientMessage: {:?}", client_msg);
                                     }
@@ -320,10 +313,6 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                            },
                            Err(e) => {
                                tracing::warn!("Failed to deserialize MessagePack: {}", e);
-                               tracing::warn!("Binary Length: {} bytes", bin.len());
-                               if bin.len() > 0 {
-                                    tracing::warn!("Header Byte: {:#04x}", bin[0]);
-                               }
                            }
                         }
                         }
@@ -352,21 +341,31 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     
     // Cleanup
     if !current_room_id.is_empty() {
-         let mut rooms = state.rooms.write().unwrap();
-         if let Some(room) = rooms.get_mut(&current_room_id) {
+         // DashMap: remove or get_mut
+         // We only want to remove the player.
+         if let Some(mut room) = state.rooms.get_mut(&current_room_id) {
              room.players.remove(&user_id);
              
              let leave_msg = ServerMessage::PlayerLeft { player_id: user_id.clone() };
              if let Ok(data) = rmp_serde::to_vec(&leave_msg) {
                  let _ = room.tx.send(data);
              }
+             
+             // Optional: If room empty, remove it?
+             // if room.players.is_empty() {
+             //    drop(room); // release lock
+             //    state.rooms.remove(&current_room_id);
+             // }
+             // Careful with deadlock if remove() tries to lock? DashMap handle handles it.
+             // Usually better to check later or let a cleanup job do it.
+             // For now, simple logic matches previous code.
          }
     }
 }
 
 // --- SHARED PROTOCOL DEFINITIONS ---
+// (Identical to before)
 
-// #[serde(tag = "type", content = "data", rename_all = "kebab-case")] // To match JSON style somewhat if we wanted, but standard helpful
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMessage {
@@ -397,7 +396,7 @@ pub enum ServerMessage {
     TurnChanged { current_turn_id: String },
     WaveStarted { enemies: Vec<EnemyData>, gold: u32, exp: u32 },
     GameEnded { victory: bool },
-    PlayerUpdate { player_id: String, position: Option<(f32, f32)>, animation: Option<String> }, // Movement
+    PlayerUpdate { player_id: String, position: Option<(f32, f32)>, animation: Option<String> },
     Error(String),
 }
 

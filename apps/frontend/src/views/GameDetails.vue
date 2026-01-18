@@ -369,27 +369,33 @@ onMounted(async () => {
         console.log('Using cached install status for', game.value.gameName);
       }
 
-      // Check if user owns this game
-      try {
-        const libraryResponse = await axios.get('/library/my-games');
-        const myGames = libraryResponse.data;
-        // Check by ID or folder name
-        userOwnsGame.value = myGames.some(
-          (g: any) => g._id === game.value._id || g.folder_name === game.value.folder_name
-        );
-      } catch (e) {
-        console.error('Error checking ownership:', e);
-      }
+      // Parallelize secondary data fetching
+      const requests = [];
 
-      // Check installation status
+      // 1. Check Ownership
+      requests.push((async () => {
+        try {
+          const libraryResponse = await axios.get('/library/my-games');
+          const myGames = libraryResponse.data;
+          userOwnsGame.value = myGames.some(
+            (g: any) => g._id === game.value._id || g.folder_name === game.value.folder_name
+          );
+        } catch (e) {
+          console.error('Error checking ownership:', e);
+        }
+      })());
+
+      // 2. Installation (Tauri)
       if ((window as any).__TAURI__) {
-        await checkInstallationStatus();
+        requests.push(checkInstallationStatus());
         setupInstallListeners();
       }
 
-      // Load Wishlist & Reviews
-      await checkWishlistStatus();
-      await fetchReviews();
+      // 3. Wishlist & Reviews
+      requests.push(checkWishlistStatus());
+      requests.push(fetchReviews());
+
+      await Promise.all(requests);
     }
   } catch (err: any) {
     error.value = err.message || 'Erreur lors du chargement du jeu';

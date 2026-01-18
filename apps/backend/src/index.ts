@@ -29,6 +29,7 @@ import { handleStickArenaMessage, handleStickArenaDisconnect } from './features/
 import { handleAetherStrikeMessage, handleAetherStrikeDisconnect } from './features/aether-strike/aether-strike.socket';
 import { FriendsService } from './features/friends/friends.service';
 import { jwt } from '@elysiajs/jwt';
+import { decode } from '@msgpack/msgpack';
 
 // WebSocket Data Interface
 interface WebSocketData {
@@ -49,6 +50,12 @@ await connectDB();
 import './jobs/redis-cleanup.job';
 
 import { staticPlugin } from '@elysiajs/static';
+
+// Initialize JWT globally to avoid recreation
+const jwtInstance = jwt({
+  name: 'jwt',
+  secret: process.env.JWT_SECRET || 'default_secret',
+});
 
 const app = new Elysia()
   .use(
@@ -119,10 +126,7 @@ const app = new Elysia()
 
       if (token) {
         try {
-          const jwtInstance = jwt({
-            name: 'jwt',
-            secret: process.env.JWT_SECRET || 'default_secret',
-          });
+          // Use global jwt instance
           const payload = await jwtInstance.decorator.jwt.verify(token);
 
           if (payload) {
@@ -151,6 +155,13 @@ const app = new Elysia()
         let parsed: any;
         if (typeof message === 'string') {
           parsed = JSON.parse(message);
+        } else if (message instanceof Buffer || message instanceof Uint8Array || (message as any).buffer) {
+          try {
+            parsed = decode(message);
+          } catch (e) {
+            logger.error('[WebSocket] Failed to decode binary message:', e);
+            return;
+          }
         } else {
           parsed = message;
         }
@@ -160,10 +171,6 @@ const app = new Elysia()
         // Handle authentication
         if (type === 'auth' && data?.token) {
           try {
-            const jwtInstance = jwt({
-              name: 'jwt',
-              secret: process.env.JWT_SECRET || 'default_secret',
-            });
             const payload = await jwtInstance.decorator.jwt.verify(data.token);
 
             if (payload) {
@@ -184,31 +191,32 @@ const app = new Elysia()
           return;
         }
 
-        // Require authentication for other messages
-        if (!ws.data.authenticated) {
-          ws.send(JSON.stringify({ type: 'error', data: { message: 'Not authenticated' } }));
+        // Handle Lobby Messages (Ported from apps/server)
+        if (type === 'createGame' || type === 'joinGame' || type === 'leaveGame' || type.startsWith('lobby:')) {
+          const { handleLobbyMessage } = await import('./features/lobby/lobby.socket');
+          await handleLobbyMessage(ws, type, data);
           return;
         }
 
-        // Handle user status updates
-        if (type === 'user:status-update') {
-          const { status, lobbyId } = data;
+        // Handle user status updates (Ported logic)
+        if (type === 'user:status-update' || type === 'status:update') {
+          const { status, lobbyId, activity } = data;
           logger.info(`[WebSocket] Status update from ${ws.data.username}: ${status}`);
 
           // Get user's friends and broadcast to them
           const friends = await FriendsService.getFriends(ws.data.userId);
 
           for (const friend of friends) {
-            const friendUserId = friend.friend_id?.toString();
+            const friendUserId = friend.id; // Corrected field access based on FriendsService return
             if (friendUserId) {
-              // Publish to friend's personal channel
               ws.publish(`user:${friendUserId}`, JSON.stringify({
                 type: 'friend:status-changed',
                 data: {
                   userId: ws.data.userId,
                   username: ws.data.username,
                   status,
-                  lobbyId
+                  lobbyId,
+                  activity
                 }
               }));
             }
@@ -232,7 +240,7 @@ const app = new Elysia()
             ws.publish(`user:${toUserId}`, JSON.stringify({
               type: 'chat:new-message',
               data: {
-                id: message._id || message.id,
+                id: message.id,
                 from_user_id: ws.data.userId,
                 from_username: ws.data.username,
                 content,
@@ -244,7 +252,7 @@ const app = new Elysia()
             // Confirm to sender
             ws.send(JSON.stringify({
               type: 'chat:message-sent',
-              data: { messageId: message._id || message.id }
+              data: { messageId: message.id }
             }));
 
           } catch (error) {
@@ -269,9 +277,20 @@ const app = new Elysia()
           return;
         }
 
-        // Handle other message types...
-        logger.warn(`[WebSocket] Unhandled message type: ${type}`);
 
+        // Handle Group Messages
+        if (type.startsWith('group:')) {
+          const { handleGroupMessage } = await import('./features/groups/groups.socket');
+          await handleGroupMessage(ws, type, data);
+          return;
+        }
+
+        // Handle Transaction Messages
+        if (type.startsWith('transaction:')) {
+          const { handleTransactionMessage } = await import('./features/finance/transactions.socket');
+          await handleTransactionMessage(ws, type, data);
+          return;
+        }
       } catch (error) {
         logger.error('[WebSocket] Message handling error:', error);
       }

@@ -33,28 +33,6 @@ services:
       - key: BACKEND_URL
         value: https://vext-backend-yj77.onrender.com
 
-  # --------------------------------------------------------------------------------
-  # WEBSOCKET SERVER (Launcher/Legacy) - apps/server
-  # --------------------------------------------------------------------------------
-  - type: web
-    name: vext-ws-server
-    region: frankfurt
-    env: node
-    plan: free
-    rootDir: .
-    buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install
-    startCommand: cd apps/server && bun run src/index.ts
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        sync: false
-      - key: MONGODB_URI
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: REDIS_URL
-        sync: false
 
   # --------------------------------------------------------------------------------
   # GAME SERVER (Dedicated Aether Strike) - apps/game-server

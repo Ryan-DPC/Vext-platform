@@ -59,9 +59,31 @@ pub async fn install_game(
 
     // 1. Download
     println!("📥 Starting download from: {}", download_url);
-    let res = client
+    
+    // Check for existing partial file
+    let mut downloaded: u64 = 0;
+    let mut file_mode = fs::OpenOptions::new();
+    file_mode.write(true).create(true);
+    
+    if file_path.exists() {
+        if let Ok(metadata) = fs::metadata(&file_path) {
+            downloaded = metadata.len();
+            println!("🔄 Found partial file. Size: {} bytes. Attempting resume...", downloaded);
+            file_mode.append(true);
+        }
+    } else {
+        file_mode.truncate(true);
+    }
+
+    let mut request = client
         .get(&download_url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+    if downloaded > 0 {
+        request = request.header("Range", format!("bytes={}-", downloaded));
+    }
+
+    let res = request
         .send()
         .await
         .map_err(|e| {
@@ -71,29 +93,34 @@ pub async fn install_game(
 
     println!("📡 Response status: {}", res.status());
 
+    let mut file = if res.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+        println!("✅ Server supports resume. Appending to existing file.");
+        file_mode.open(&file_path).map_err(|e| e.to_string())?
+    } else {
+        if downloaded > 0 {
+            println!("⚠️ Server does not support resume (or file validation failed). Restarting download.");
+            downloaded = 0;
+        }
+        fs::OpenOptions::new().write(true).create(true).truncate(true).open(&file_path).map_err(|e| e.to_string())?
+    };
+
     if !res.status().is_success() {
         println!("❌ Download failed with status: {}", res.status());
         return Err(format!("Download failed with status: {}", res.status()));
     }
 
-    let total_size = res.content_length().unwrap_or(0);
-    println!("📊 Total size: {} bytes", total_size);
+    // Content-Length matches the *remaining* bytes if partial, or total if full
+    let content_length = res.content_length().unwrap_or(0);
+    let total_size = downloaded + content_length;
+    
+    println!("📊 Total size: {} bytes (Remaining: {})", total_size, content_length);
     
     let mut stream = res.bytes_stream();
     
-    println!("📄 Creating file: {:?}", file_path);
-    let mut file = fs::File::create(&file_path).map_err(|e| {
-        println!("❌ Failed to create file: {}", e);
-        e.to_string()
-    })?;
-    println!("✅ File created successfully");
-    
-    let mut downloaded: u64 = 0;
-
     let _ = window.emit("install:progress", ProgressPayload {
         game_id: game_id.clone(),
         game_name: game_name.clone(),
-        progress: 0,
+        progress: if total_size > 0 { min(100, (downloaded * 100) / total_size) } else { 0 },
         status: "downloading".to_string(),
     });
 
@@ -198,6 +225,13 @@ pub async fn install_game(
     // 3. Verify or Create Manifest
     let manifest_path = game_dir.join("manifest.json");
     
+    // Calculate hashes for integrity check
+    println!("🛡️ Calculating file hashes...");
+    // We need to reference the verification module from the crate root
+    // Since installation and verification are sibling modules, we might need crate::verification
+    let file_hashes = crate::verification::generate_dir_hashes(&game_dir).unwrap_or_default();
+    println!("✅ Hashed {} files", file_hashes.len());
+
     // Always check for executable name if we are creating a manifest
     let mut entry_point = "Game.exe".to_string();
     
@@ -223,18 +257,34 @@ pub async fn install_game(
 
     if !manifest_path.exists() {
         // Create a basic manifest if missing
-        let manifest_content = format!(
-            r#"{{
-                "id": "{}",
-                "name": "{}",
-                "version": "1.0.0",
-                "executable": "{}",
-                "entryPoint": "{}"
-            }}"#,
-            game_id, game_name, entry_point, entry_point
-        );
+        let manifest_json = serde_json::json!({
+            "id": game_id,
+            "name": game_name,
+            "version": "1.0.0",
+            "executable": entry_point,
+            "entryPoint": entry_point,
+            "files": file_hashes
+        });
+        
+        // Write pretty printed JSON
+        let manifest_content = serde_json::to_string_pretty(&manifest_json).map_err(|e| e.to_string())?;
         let mut m_file = fs::File::create(&manifest_path).map_err(|e| e.to_string())?;
         m_file.write_all(manifest_content.as_bytes()).map_err(|e| e.to_string())?;
+    } else {
+        // If manifest exists (e.g. from zip), we should probably update it with hashes if they are missing
+        // For now, let's assume we overwrite or merge if we want to enforce our hashing.
+        // But the zip might contain a Better manifest.
+        // Strategy: Read existing, update 'files', write back.
+        if let Ok(content) = fs::read_to_string(&manifest_path) {
+             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&content) {
+                 v["files"] = serde_json::to_value(file_hashes).unwrap_or(serde_json::json!({}));
+                 // Also ensure ID is correct just in case
+                 if v["id"].is_null() { v["id"] = serde_json::Value::String(game_id.clone()); }
+                 
+                 let new_content = serde_json::to_string_pretty(&v).unwrap_or(content);
+                 let _ = fs::write(&manifest_path, new_content);
+             }
+        }
     }
 
     // 4. Create server_config.txt

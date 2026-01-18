@@ -6,14 +6,16 @@ use crate::menu_ui::*;
 use crate::network_protocol::PlayerData;
 use crate::entities::{StickFigure, Enemy};
 
-        pub struct DrawCommand<'a> {
+use std::borrow::Cow;
+
+        pub struct DrawCommand<'a, 'b> {
             pub y: f32, // For sorting
             pub texture: &'a Texture2D,
             pub source: Rect,
             pub dest: Rect,
             pub color: Color,
             pub flip_x: bool,
-            pub name: Option<String>,
+            pub name: Option<Cow<'b, str>>,
             pub name_color: Color,
             pub text_y: f32, // NEW: Absolute Y position for text
             pub text_center_x: Option<f32>, // Optional absolute X center for text (overrides dest center)
@@ -120,16 +122,17 @@ impl<'a> Renderer<'a> {
         draw_rectangle(0.0, 500.0, SCREEN_WIDTH, 20.0, Color::from_rgba(50, 40, 30, 255));
     }
 
-    pub fn draw_game_scene(
+    pub fn draw_game_scene<'b>(
         &self,
         player: Option<&StickFigure>,
-        teammates: &[StickFigure],
-        other_players: &HashMap<String, PlayerData>,
+        teammates: &'b [StickFigure],
+        other_players: &'b HashMap<String, PlayerData>,
         enemies: &[Enemy],
         boss: Option<&Enemy>,
         player_class_name: &str,
+        commands: &mut Vec<DrawCommand<'a, 'b>>,
     ) {
-        let mut commands = Vec::new();
+        commands.clear();
 
         // 1. Collect Teammates
         for (i, teammate) in teammates.iter().enumerate() {
@@ -138,17 +141,17 @@ impl<'a> Renderer<'a> {
                 2 => "Archer",
                 _ => "Warrior",
             };
-            self.push_entity_command(&mut commands, teammate.position, class_name, &teammate.name, WHITE, false);
+            self.push_entity_command(commands, teammate.position, class_name, Cow::from(&teammate.name), WHITE, false);
         }
 
         // 2. Collect Player
         if let Some(p) = player {
-            self.push_entity_command(&mut commands, p.position, player_class_name, "YOU", GOLD, false);
+            self.push_entity_command(commands, p.position, player_class_name, Cow::from("YOU"), GOLD, false);
         }
 
         // 3. Collect Other Players
         for op in other_players.values() {
-            self.push_entity_command(&mut commands, vec2(op.position.0, op.position.1), &op.class, &op.username, WHITE, false);
+            self.push_entity_command(commands, vec2(op.position.0, op.position.1), &op.class, Cow::from(&op.username), WHITE, false);
         }
 
         // 4. Collect Enemies
@@ -180,7 +183,7 @@ impl<'a> Renderer<'a> {
                 dest: Rect::new(enemy.position.x - base_size / 2.0, enemy.position.y - base_size / 2.0, base_size, base_size),
                 color: WHITE,
                 flip_x: true,
-                name: Some("BOSS".to_string()),
+                name: Some(Cow::from("BOSS")),
                 name_color: RED,
                 text_y: enemy.position.y - 120.0,
                 text_center_x: None,
@@ -191,7 +194,7 @@ impl<'a> Renderer<'a> {
         commands.sort_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal));
 
         // --- DRAW ALL ---
-        for cmd in commands {
+        for cmd in commands.iter() {
             draw_texture_ex(
                 cmd.texture,
                 cmd.dest.x,
@@ -205,14 +208,14 @@ impl<'a> Renderer<'a> {
                 },
             );
 
-            if let Some(name) = cmd.name {
+            if let Some(name) = &cmd.name {
                 let font_size = if name == "BOSS" { 30.0 } else { 18.0 };
-                let text_dims = measure_text(&name, None, font_size as u16, 1.0);
+                let text_dims = measure_text(name, None, font_size as u16, 1.0);
                 
                 let center_x = cmd.text_center_x.unwrap_or(cmd.dest.x + cmd.dest.w / 2.0);
                 
                 draw_text(
-                    &name, 
+                    name, 
                     center_x - text_dims.width / 2.0, 
                     cmd.text_y, 
                     font_size, 
@@ -222,12 +225,12 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn push_entity_command(
+    fn push_entity_command<'b>(
         &self,
-        commands: &mut Vec<DrawCommand<'a>>,
+        commands: &mut Vec<DrawCommand<'a, 'b>>,
         pos: Vec2,
         class_name: &str,
-        name: &str,
+        name: Cow<'b, str>,
         name_color: Color,
         _flip_x: bool,
     ) {
@@ -257,19 +260,13 @@ impl<'a> Renderer<'a> {
             dest: Rect::new(pos.x - dest_w / 2.0 + ox, pos.y - dest_h / 2.0 + oy, dest_w, dest_h),
             color: WHITE,
             flip_x: false,
-            name: Some(name.to_string()),
+            name: Some(name),
             name_color,
             text_y: visible_top_y - 5.0, // Reduced gap to 5px
             text_center_x: Some(visible_center_x),
         });
-        
-        // Use text_y (already calculated) but we need to pass center_x for drawing?
-        // DrawCommand stores `dest`. The draw loop calculates text X from `dest`.
-        // We need to store the `visible_center_x` in DrawCommand or adjust `dest`?
-        // No, `dest` is used for the sprite. We can reuse `dest.x` + offset?
-        // If we change `dest`, sprite moves.
-        // We can add `text_x` to DrawCommand? Or better, `text_center_x`.
     }
+    
 }
 
 pub const SCREEN_WIDTH: f32 = 1024.0;

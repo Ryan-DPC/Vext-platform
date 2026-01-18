@@ -50,10 +50,14 @@ const installProgress = ref({
 });
 
 onMounted(async () => {
-  await gameStore.fetchMyGames();
-  await categoryStore.fetchCategories();
-  await friendsStore.fetchFriends();
-  await groupStore.fetchMyGroups();
+  await Promise.all([
+    gameStore.fetchMyGames(),
+    categoryStore.fetchCategories(),
+    friendsStore.fetchFriends(),
+    groupStore.fetchMyGroups(),
+  ]);
+  
+  // Setup WS listeners after fetching
   groupStore.setupWebSocketListeners();
 
   // Install check is now handled by gameStore
@@ -421,7 +425,7 @@ const handleAddFriendFromGroup = async (username: string) => {
             <div v-for="game in filteredGames" :key="game._id" class="grid-card" @click="goToGameDetails(game._id || game.folder_name)">
               <div class="card-poster">
                 <img :src="game.image_url || defaultGameImg" />
-                <div class="poster-overlay">
+                <div class="poster-overlay" :class="{ 'active-install': installingGameId === (game._id || game.folder_name) }">
                   <div
                     v-if="installingGameId === (game._id || game.folder_name)"
                     class="install-status"
@@ -1459,6 +1463,11 @@ const handleAddFriendFromGroup = async (username: string) => {
   border-radius: 4px;
   margin-top: 8px;
   font-style: italic;
+}
+
+.poster-overlay.active-install {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.7); /* Slightly darker for better text readability */
 }
 
 /* Transitions */

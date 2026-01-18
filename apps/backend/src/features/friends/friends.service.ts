@@ -1,5 +1,6 @@
 import { FriendModel } from './friends.model';
 import mongoose from 'mongoose';
+import { redisService } from '../../services/redis.service';
 
 export class FriendsService {
   static async sendFriendRequest(userId: string, friendId: string) {
@@ -57,6 +58,11 @@ export class FriendsService {
       { $setOnInsert: { status: 'accepted' } }, // Only set status if inserting new
       { upsert: true }
     );
+
+    // Invalidate cache for both users
+    await this.clearCache(row.user_id.toString());
+    await this.clearCache(row.friend_id.toString());
+
     return 1;
   }
 
@@ -81,20 +87,41 @@ export class FriendsService {
         { user_id: friendId, friend_id: userId },
       ],
     });
+
+    // Invalidate cache
+    await this.clearCache(userId);
+    await this.clearCache(friendId);
+
     return res.deletedCount;
   }
 
+  private static async clearCache(userId: string) {
+    await redisService.del(`friends:${userId}`);
+  }
+
   static async getFriends(userId: string) {
+    const cacheKey = `friends:${userId}`;
+    const cached = await redisService.get(cacheKey);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const rows = await FriendModel.find({ user_id: userId, status: 'accepted' })
       .populate('friend_id', { username: 1, profile_pic: 1, socket_id: 1 })
       .lean();
 
-    return rows.map((r: any) => ({
+    const result = rows.map((r: any) => ({
       id: r.friend_id._id.toString(),
       username: r.friend_id.username,
       profile_pic: r.friend_id.profile_pic,
       status: r.friend_id.socket_id ? 'online' : 'offline',
     }));
+
+    // Cache finding for 1 hour
+    await redisService.setWithTTL(cacheKey, JSON.stringify(result), 3600);
+
+    return result;
   }
 
   static async getFriendRequests(userId: string) {

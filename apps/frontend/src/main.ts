@@ -22,18 +22,10 @@ app.use(i18n);
 
 // Initialize auth from localStorage
 import { useUserStore } from './stores/userStore';
-import { socketService } from './services/socket';
 
 const userStore = useUserStore();
 userStore.initializeAuth();
 
-// WebSocket connection
-const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-if (token) {
-  console.log('🔌 Initializing WebSocket connection...');
-  socketService.connect(token);
-} else {
-  console.log('⚠️ No token found, WebSocket not initialized');
-}
+// WebSocket connection is now handled by UserStore.initializeAuth()
 
 app.mount('#app');
