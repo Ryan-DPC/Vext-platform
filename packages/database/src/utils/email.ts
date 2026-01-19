@@ -28,9 +28,7 @@ const sendMail = async (options: EmailOptions) => {
   if (error) {
     // eslint-disable-next-line no-console
     console.error('❌ Resend Error:', error);
-    // Don't throw - allow registration to continue without email
-    // In production, you should verify a domain at resend.com/domains
-    return null;
+    throw new Error(error.message);
   }
 
   // eslint-disable-next-line no-console
