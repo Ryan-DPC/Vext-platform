@@ -156,11 +156,43 @@ const handleVerify = async () => {
           <router-link to="/register">Réessayer l'inscription</router-link>
         </div>
       </form>
+      <div class="back-link">
+        <button type="button" class="btn-text" @click="router.push('/register')">
+          <i class="fas fa-arrow-left"></i> Revenir à l'inscription
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Previous styles remain... */
+
+.back-link {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #b0b9c3;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-text:hover {
+  color: #fff;
+}
+
+/* ... existing styles continue */
+
 .verify-container {
   position: fixed;
   top: 0;

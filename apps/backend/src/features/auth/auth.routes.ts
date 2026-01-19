@@ -4,6 +4,17 @@ import { Users } from '@vext/database';
 
 // Helper to generate a token
 // Note: We'll access the `jwt` plugin instance from the handler context
+
+// Helper to sanitize user object
+const sanitizeUser = (user: any) => ({
+  id: user.id || user._id.toString(),
+  username: user.username,
+  email: user.email,
+  profile_pic: user.profile_pic || user.profile_picture,
+  tokens: user.tokens,
+  isAdmin: user.isAdmin,
+});
+
 export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
   .use(
     jwt({
@@ -79,7 +90,7 @@ export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
       return {
         success: true,
         token,
-        user: newUser,
+        user: sanitizeUser(newUser),
       };
     },
     {
@@ -132,7 +143,7 @@ export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
       return {
         success: true,
         token,
-        user,
+        user: sanitizeUser(user),
       };
     },
     {
@@ -169,7 +180,7 @@ export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
       return {
         success: true,
         token,
-        user,
+        user: sanitizeUser(user),
       };
     },
     {
