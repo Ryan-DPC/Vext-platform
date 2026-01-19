@@ -4,7 +4,6 @@ import { Users } from '@vext/database';
 
 // Helper to generate a token
 // Note: We'll access the `jwt` plugin instance from the handler context
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
   .use(
     jwt({
