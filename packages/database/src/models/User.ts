@@ -117,19 +117,29 @@ export class Users {
 
   static async createUser(userData: any): Promise<any> {
     // Hashing should be done before calling this
-    const doc = await UserModel.create(userData);
+    const doc = await UserModel.create({
+      ...userData,
+      isVerified: true, // Auto-verify for dev/testing as requested
+    });
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     doc.codeVerified = code;
     doc.codeVerifiedExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     await doc.save();
-    // send email to user with code
-    const username = doc.username.split('#')[0]; // Get username without tag
-    await sendMail({
-      email: doc.email,
-      subject: 'Vérifie ton email - VEXT',
-      text: `Ton code de vérification est: ${code}`,
-      html: getVerificationEmailHtml(code, username),
-    });
+
+    // Try to send email, but don't block registration if it fails (e.g. Resend limitation)
+    try {
+      const username = doc.username.split('#')[0]; // Get username without tag
+      await sendMail({
+        email: doc.email,
+        subject: 'Vérifie ton email - VEXT',
+        text: `Ton code de vérification est: ${code}`,
+        html: getVerificationEmailHtml(code, username),
+      });
+    } catch (error) {
+      console.error('⚠️ Email sending failed (non-fatal):', error);
+      // We swallow the error so the user can still be created and logged in (since we auto-verified them)
+    }
+
     return { id: doc._id.toString(), username: doc.username, email: doc.email, tokens: doc.tokens };
   }
 
