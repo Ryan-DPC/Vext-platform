@@ -1,116 +1,118 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useGameStore } from '../stores/gameStore'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useGameStore } from '../stores/gameStore';
+import { useRouter } from 'vue-router';
+import { useThemeStore } from '../stores/themeStore';
 // import defaultGameImg from '@/assets/images/default-game.svg'
-import { getApiUrl } from '../utils/url';
-const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
-import heroBg from '@/assets/images/hero-bg.png'
-import heroBg2 from '@/assets/images/hero-bg-2.png'
-import heroBg3 from '@/assets/images/hero-bg-3.png'
+const themeStore = useThemeStore();
+import heroBg from '@/assets/images/hero-bg.png';
+import heroBg2 from '@/assets/images/hero-bg-2.png';
+import heroBg3 from '@/assets/images/hero-bg-3.png';
 
-const router = useRouter()
-const gameStore = useGameStore()
-const searchQuery = ref('')
-const activeCategory = ref(localStorage.getItem('home_active_category') || 'trending')
+const router = useRouter();
+const gameStore = useGameStore();
+const searchQuery = ref('');
+const activeCategory = ref(localStorage.getItem('home_active_category') || 'trending');
 
-import { watch } from 'vue'
+import { watch } from 'vue';
 watch(activeCategory, (newVal) => {
-  localStorage.setItem('home_active_category', newVal)
-})
+  localStorage.setItem('home_active_category', newVal);
+});
 
 // Filtered Search Results
 const searchResults = computed(() => {
-  if (!searchQuery.value || searchQuery.value.length < 2) return []
-  const query = searchQuery.value.toLowerCase()
-  return gameStore.games.filter((g: any) => 
-    g.game_name.toLowerCase().includes(query)
-  ).slice(0, 5) // Limit to 5 results
-})
+  if (!searchQuery.value || searchQuery.value.length < 2) return [];
+  const query = searchQuery.value.toLowerCase();
+  return gameStore.games.filter((g: any) => g.game_name.toLowerCase().includes(query)).slice(0, 5); // Limit to 5 results
+});
 
 const selectGame = (gameId: string) => {
-  goToGameDetails(gameId)
-  searchQuery.value = '' // Clear search after selection
-}
+  goToGameDetails(gameId);
+  searchQuery.value = ''; // Clear search after selection
+};
 
 // Carousel State
-const currentSlide = ref(0)
+const currentSlide = ref(0);
 const slides = [
   {
     id: 1,
     title: 'VEXT CHESS:\nSTRATEGY EVOLVED',
     desc: 'Master the board in this futuristic take on the classic game. Ranked matches available now.',
     image: heroBg,
-    badge: 'FEATURED'
+    badge: 'FEATURED',
   },
   {
     id: 2,
     title: 'CYBER LEGENDS:\nARENA',
     desc: 'Join the ultimate battle for supremacy in the neon-soaked arena.',
     image: heroBg2,
-    badge: 'NEW SEASON'
+    badge: 'NEW SEASON',
   },
   {
     id: 3,
     title: 'NEON RACER:\nOVERDRIVE',
     desc: 'High-speed racing through the digital cityscape. Customize your ride.',
     image: heroBg3,
-    badge: 'EARLY ACCESS'
-  }
-]
+    badge: 'EARLY ACCESS',
+  },
+];
 
-let slideInterval: any = null
+let slideInterval: any = null;
 
 const nextSlide = () => {
-  currentSlide.value = (currentSlide.value + 1) % slides.length
-}
+  currentSlide.value = (currentSlide.value + 1) % slides.length;
+};
 
 const goToGameDetails = (gameId: string) => {
-  router.push({ name: 'game-details', params: { id: gameId } })
-}
+  router.push({ name: 'game-details', params: { id: gameId } });
+};
 
 const handlePlayNow = (slide: any) => {
   // Extract main title part (before colon or newline)
-  const title = slide.title.split(':')[0].split('\n')[0].trim().toLowerCase()
-  
+  const title = slide.title.split(':')[0].split('\n')[0].trim().toLowerCase();
+
   // Find matching game in store
-  const game = gameStore.games.find((g: any) => 
-    g.game_name.toLowerCase().includes(title) || 
-    title.includes(g.game_name.toLowerCase())
-  )
+  const game = gameStore.games.find(
+    (g: any) =>
+      g.game_name.toLowerCase().includes(title) || title.includes(g.game_name.toLowerCase())
+  );
 
   if (game) {
-    goToGameDetails(game._id || game.id)
+    goToGameDetails(game._id || game.id);
   } else {
     // Optional: Show a toast or alert
-    alert('This game is coming soon!')
+    alert('This game is coming soon!');
   }
-}
+};
 
 const prevSlide = () => {
-  currentSlide.value = (currentSlide.value - 1 + slides.length) % slides.length
-}
+  currentSlide.value = (currentSlide.value - 1 + slides.length) % slides.length;
+};
 
 const setSlide = (index: number) => {
-  currentSlide.value = index
-}
+  currentSlide.value = index;
+};
 
 onMounted(async () => {
-  await gameStore.fetchHomeData()
-  slideInterval = setInterval(nextSlide, 5000)
-})
+  await gameStore.fetchHomeData();
+  slideInterval = setInterval(nextSlide, 5000);
+});
 
 onUnmounted(() => {
-  if (slideInterval) clearInterval(slideInterval)
-})
+  if (slideInterval) clearInterval(slideInterval);
+});
 
 const categories = [
   { id: 'trending', name: 'Trending', icon: 'fas fa-fire' },
   { id: 'new', name: 'New Releases', icon: 'fas fa-rocket' },
   { id: 'top', name: 'Top Rated', icon: 'fas fa-star' },
   { id: 'rpg', name: 'RPG', icon: 'fas fa-dungeon' },
-  { id: 'strategy', name: 'Strategy', icon: 'fas fa-chess' }
-]
+  { id: 'strategy', name: 'Strategy', icon: 'fas fa-chess' },
+];
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  target.src = themeStore.defaultGameImg;
+};
 </script>
 
 <template>
@@ -120,13 +122,15 @@ const categories = [
     <div class="bg-glow cyan-glow"></div>
 
     <div class="scroll-content">
-      
       <!-- Centered Content Wrapper -->
       <div class="centered-wrapper">
         <!-- Hero Carousel Section -->
         <section class="hero-section">
           <div class="carousel-container">
-            <div class="carousel-track" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
+            <div
+              class="carousel-track"
+              :style="{ transform: `translateX(-${currentSlide * 100}%)` }"
+            >
               <div v-for="slide in slides" :key="slide.id" class="hero-card">
                 <img :src="slide.image" :alt="slide.title" class="hero-bg" />
                 <div class="hero-overlay"></div>
@@ -136,25 +140,30 @@ const categories = [
                     <h1>{{ slide.title }}</h1>
                     <p>{{ slide.desc }}</p>
                     <div class="hero-actions">
-                      <button class="btn-neon btn-play" @click="handlePlayNow(slide)">PLAY NOW</button>
+                      <button class="btn-neon btn-play" @click="handlePlayNow(slide)">
+                        PLAY NOW
+                      </button>
                       <button class="btn-glass">WATCH TRAILER</button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <!-- Carousel Controls -->
-            <button class="carousel-nav prev" @click="prevSlide"><i class="fas fa-chevron-left"></i></button>
-            <button class="carousel-nav next" @click="nextSlide"><i class="fas fa-chevron-right"></i></button>
-            
+            <button class="carousel-nav prev" @click="prevSlide">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="carousel-nav next" @click="nextSlide">
+              <i class="fas fa-chevron-right"></i>
+            </button>
           </div>
-          
+
           <div class="carousel-dots">
-            <button 
-              v-for="(slide, index) in slides" 
-              :key="slide.id" 
-              class="dot" 
+            <button
+              v-for="(slide, index) in slides"
+              :key="slide.id"
+              class="dot"
               :class="{ active: currentSlide === index }"
               @click="setSlide(index)"
             ></button>
@@ -174,34 +183,41 @@ const categories = [
           <div class="filter-bar">
             <div class="search-input">
               <i class="fas fa-search search-icon"></i>
-              <input 
-                v-model="searchQuery" 
-                type="text" 
+              <input
+                v-model="searchQuery"
+                type="text"
                 placeholder="Search games..."
-                @keyup.enter="searchResults.length > 0 && selectGame(searchResults[0]._id || searchResults[0].id)"
-              >
-              
-               <!-- Search Dropdown -->
+                @keyup.enter="
+                  searchResults.length > 0 &&
+                  selectGame(searchResults[0]._id || searchResults[0].id)
+                "
+              />
+
+              <!-- Search Dropdown -->
               <div v-if="searchResults.length > 0" class="search-dropdown">
                 <ul>
-                  <li 
-                    v-for="game in searchResults" 
+                  <li
+                    v-for="game in searchResults"
                     :key="game._id || game.id"
                     @click="selectGame(game._id || game.id)"
                   >
-                    <img :src="game.image_url || defaultGameImg" class="thumb">
+                    <img
+                      :src="game.image_url || themeStore.defaultGameImg"
+                      class="thumb"
+                      @error="handleImageError"
+                    />
                     <div class="info">
-                        <span class="title">{{ game.game_name }}</span>
-                        <span class="price">{{ game.price > 0 ? game.price + ' CHF' : 'FREE' }}</span>
+                      <span class="title">{{ game.game_name }}</span>
+                      <span class="price">{{ game.price > 0 ? game.price + ' CHF' : 'FREE' }}</span>
                     </div>
                   </li>
                 </ul>
               </div>
             </div>
-            
+
             <div class="categories-row">
-              <button 
-                v-for="cat in categories" 
+              <button
+                v-for="cat in categories"
                 :key="cat.id"
                 class="cat-pill"
                 type="button"
@@ -218,14 +234,20 @@ const categories = [
 
       <!-- Featured Games Grid (Full Width / Separate) -->
       <section class="games-grid-section">
-        <div class="section-title">
-          <i class="fas fa-gamepad"></i> FEATURED GAMES
-        </div>
-        
+        <div class="section-title"><i class="fas fa-gamepad"></i> FEATURED GAMES</div>
+
         <div class="games-grid">
-          <div v-for="game in gameStore.getFilteredGames(activeCategory)" :key="game._id" class="game-card-neon">
+          <div
+            v-for="game in gameStore.getFilteredGames(activeCategory)"
+            :key="game._id"
+            class="game-card-neon"
+          >
             <div class="card-image">
-              <img :src="game.image_url || defaultGameImg" alt="Game">
+              <img
+                :src="game.image_url || themeStore.defaultGameImg"
+                alt="Game"
+                @error="handleImageError"
+              />
               <div class="card-overlay">
                 <button class="btn-view" @click="goToGameDetails(game.id)">VIEW DETAILS</button>
               </div>
@@ -239,17 +261,16 @@ const categories = [
               </div>
             </div>
           </div>
-          
+
           <!-- Fallback if no games -->
           <!-- Fallback if no games -->
           <template v-if="gameStore.getFilteredGames(activeCategory).length === 0">
-             <div class="no-games-placeholder">
-                <p>No featured games available at the moment.</p>
-             </div>
+            <div class="no-games-placeholder">
+              <p>No featured games available at the moment.</p>
+            </div>
           </template>
         </div>
       </section>
-
     </div>
   </div>
 </template>
@@ -284,8 +305,13 @@ const categories = [
   position: relative;
   z-index: 1;
 }
-.scroll-content::-webkit-scrollbar { width: 6px; }
-.scroll-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.scroll-content::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
 
 /* Centered Wrapper */
 .centered-wrapper {
@@ -295,14 +321,16 @@ const categories = [
 }
 
 /* Hero Section & Carousel */
-.hero-section { margin-bottom: 50px; }
+.hero-section {
+  margin-bottom: 50px;
+}
 
 .carousel-container {
   position: relative;
   height: 450px;
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   border: 1px solid var(--glass-border);
 }
 
@@ -319,18 +347,32 @@ const categories = [
 }
 
 .hero-bg {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   object-fit: fill;
   object-position: center;
 }
 
 .hero-overlay {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: linear-gradient(90deg, rgba(18,12,24,0.8) 0%, rgba(18,12,24,0.6) 70%, rgba(18,12,24,0.3) 100%);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(18, 12, 24, 0.8) 0%,
+    rgba(18, 12, 24, 0.6) 70%,
+    rgba(18, 12, 24, 0.3) 100%
+  );
 }
 
 .hero-content {
-  position: relative; z-index: 2;
+  position: relative;
+  z-index: 2;
   height: 100%;
   width: 100%;
   display: flex;
@@ -338,13 +380,19 @@ const categories = [
   padding: 40px 60px;
 }
 
-.hero-text { width: 100%; max-width: 100%; }
+.hero-text {
+  width: 100%;
+  max-width: 100%;
+}
 
 .badge {
   background: linear-gradient(45deg, #ff7eb3, #ff758c);
   color: white;
-  display: inline-block; padding: 6px 16px;
-  border-radius: 20px; font-weight: 800; font-size: 0.8rem;
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 0.8rem;
   margin-bottom: 16px; /* Reduced margin */
   letter-spacing: 1px;
   box-shadow: 0 4px 15px rgba(255, 118, 136, 0.4);
@@ -352,7 +400,7 @@ const categories = [
 
 .hero-text h1 {
   font-size: 3rem; /* Reduced from 4rem */
-  line-height: 1.1; 
+  line-height: 1.1;
   margin: 0 0 16px 0; /* Reduced margin */
   font-weight: 900;
   text-transform: uppercase;
@@ -361,46 +409,74 @@ const categories = [
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 20px rgba(255,255,255,0.1));
+  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
 }
 
-.hero-text p { 
-  font-size: 1.1rem; 
-  color: var(--text-secondary); 
+.hero-text p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
   margin-bottom: 30px; /* Reduced from 40px */
-  line-height: 1.5; 
-  max-width: 80%; 
+  line-height: 1.5;
+  max-width: 80%;
 }
 
-.hero-actions { display: flex; gap: 16px; }
+.hero-actions {
+  display: flex;
+  gap: 16px;
+}
 
 .btn-neon {
-  background: #ff7eb3; color: white;
-  border: none; padding: 16px 40px;
-  border-radius: 12px; font-weight: 800;
+  background: #ff7eb3;
+  color: white;
+  border: none;
+  padding: 16px 40px;
+  border-radius: 12px;
+  font-weight: 800;
   box-shadow: 0 0 20px rgba(255, 126, 179, 0.4);
-  cursor: pointer; transition: all 0.3s;
-  text-transform: uppercase; letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
-.btn-neon:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(255, 126, 179, 0.6); }
+.btn-neon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(255, 126, 179, 0.6);
+}
 
 .btn-glass {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white; padding: 16px 40px;
-  border-radius: 12px; font-weight: 700;
-  cursor: pointer; transition: all 0.3s;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 16px 40px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
   backdrop-filter: blur(10px);
-  text-transform: uppercase; letter-spacing: 1px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
-.btn-glass:hover { background: rgba(255,255,255,0.15); border-color: white; }
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: white;
+}
 
 /* Carousel Controls */
 .carousel-nav {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
-  color: white; width: 40px; height: 40px; border-radius: 50%;
-  cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.3s ease;
   opacity: 0;
   transform: translateY(-50%) scale(0.9);
@@ -409,42 +485,63 @@ const categories = [
   opacity: 1;
   transform: translateY(-50%) scale(1);
 }
-.carousel-nav:hover { background: #ff7eb3; border-color: #ff7eb3; transform: translateY(-50%) scale(1.1) !important; }
-.carousel-nav.prev { left: 20px; }
-.carousel-nav.next { right: 20px; }
+.carousel-nav:hover {
+  background: #ff7eb3;
+  border-color: #ff7eb3;
+  transform: translateY(-50%) scale(1.1) !important;
+}
+.carousel-nav.prev {
+  left: 20px;
+}
+.carousel-nav.next {
+  right: 20px;
+}
 
 .carousel-dots {
-  display: flex; 
-  gap: 10px; 
+  display: flex;
+  gap: 10px;
   justify-content: center;
   margin-top: 20px;
 }
 .dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: rgba(255,255,255,0.3); border: none; cursor: pointer;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  cursor: pointer;
   transition: all 0.3s;
 }
-.dot.active { background: #ff7eb3; transform: scale(1.2); box-shadow: 0 0 10px #ff7eb3; }
+.dot.active {
+  background: #ff7eb3;
+  transform: scale(1.2);
+  box-shadow: 0 0 10px #ff7eb3;
+}
 
 /* Discover Section */
-.discover-section { 
-  margin-bottom: 40px; 
+.discover-section {
+  margin-bottom: 40px;
   display: flex;
   flex-direction: column;
   align-items: center; /* Center everything in this section */
   text-align: center;
 }
 
-.section-header { 
-  margin-bottom: 24px; 
+.section-header {
+  margin-bottom: 24px;
   width: 100%;
   display: flex;
   justify-content: center;
 }
 .section-header h2 {
-  font-size: 1.5rem; letter-spacing: 2px; margin: 0;
-  color: #ff7eb3; font-weight: 700;
-  display: flex; align-items: center; gap: 15px;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  margin: 0;
+  color: #ff7eb3;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .title-decoration {
@@ -455,9 +552,9 @@ const categories = [
 }
 
 .filter-bar {
-  display: flex; 
+  display: flex;
   flex-direction: column; /* Stack search and filters */
-  gap: 20px; 
+  gap: 20px;
   align-items: stretch; /* Stretch children to match width */
   width: fit-content; /* Width determined by content (filters) */
   max-width: 100%; /* Ensure it doesn't overflow on small screens */
@@ -480,7 +577,7 @@ const categories = [
 }
 
 .search-input:focus-within {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-color: #7afcff;
   box-shadow: 0 0 20px rgba(122, 252, 255, 0.1);
 }
@@ -490,15 +587,15 @@ const categories = [
   padding: 14px 14px 14px 45px;
   background: transparent;
   border: none;
-  color: var(--text-primary); 
+  color: var(--text-primary);
   font-size: 1rem;
   outline: none;
 }
 
-.search-icon { 
-  position: absolute; 
-  left: 16px; 
-  color: var(--text-secondary); 
+.search-icon {
+  position: absolute;
+  left: 16px;
+  color: var(--text-secondary);
   pointer-events: none;
 }
 
@@ -512,14 +609,20 @@ const categories = [
   border-radius: 0 0 12px 12px;
   margin-top: 5px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   animation: slideDown 0.2s ease-out;
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .search-dropdown ul {
@@ -571,10 +674,10 @@ const categories = [
   text-align: left;
 }
 
-.categories-row { 
-  display: flex; 
-  gap: 10px; 
-  flex-wrap: wrap; 
+.categories-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
   justify-content: center; /* Center the pills */
 }
 
@@ -586,27 +689,38 @@ const categories = [
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-  display: flex; align-items: center; gap: 8px; font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
 }
 
-.cat-pill:hover, .cat-pill.active {
+.cat-pill:hover,
+.cat-pill.active {
   background: transparent;
   border-color: #ff7eb3;
   color: var(--text-primary);
   box-shadow: 0 0 15px rgba(255, 126, 179, 0.1);
 }
 
-.cat-pill:hover i, .cat-pill.active i {
+.cat-pill:hover i,
+.cat-pill.active i {
   color: #ff7eb3;
 }
 
 /* Games Grid */
-.games-grid-section { margin-bottom: 50px; }
+.games-grid-section {
+  margin-bottom: 50px;
+}
 
-.section-title { 
-    font-size: 1.2rem; font-weight: 700;
-    display: flex; align-items: center; gap: 10px; color: var(--text-secondary);
-    margin-bottom: 24px;
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
 }
 
 .games-grid {
@@ -627,13 +741,14 @@ const categories = [
   overflow: hidden;
   transition: all 0.3s;
   position: relative;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .game-card-neon:hover {
   transform: translateY(-8px);
-  border-color: rgba(255,255,255,0.2);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .card-image {
@@ -642,39 +757,80 @@ const categories = [
   overflow: hidden;
 }
 
-.card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
-.game-card-neon:hover .card-image img { transform: scale(1.1); }
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+.game-card-neon:hover .card-image img {
+  transform: scale(1.1);
+}
 
 .card-overlay {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(18,12,24,0.8);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity 0.3s;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(18, 12, 24, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
   backdrop-filter: blur(2px);
 }
-.game-card-neon:hover .card-overlay { opacity: 1; }
+.game-card-neon:hover .card-overlay {
+  opacity: 1;
+}
 
 .btn-view {
   background: transparent;
-  border: 1px solid #ff7eb3; color: #ff7eb3;
-  padding: 10px 24px; border-radius: 30px;
-  font-weight: 700; cursor: pointer;
+  border: 1px solid #ff7eb3;
+  color: #ff7eb3;
+  padding: 10px 24px;
+  border-radius: 30px;
+  font-weight: 700;
+  cursor: pointer;
   transition: all 0.3s;
 }
-.btn-view:hover { background: #ff7eb3; color: white; box-shadow: 0 0 20px rgba(255, 126, 179, 0.4); }
-
-.card-info { padding: 20px; flex: 1; display: flex; flex-direction: column; }
-.card-info h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: var(--text-primary); }
-
-.card-meta { 
-    display: flex; justify-content: space-between; align-items: center; 
-    margin-top: auto; 
+.btn-view:hover {
+  background: #ff7eb3;
+  color: white;
+  box-shadow: 0 0 20px rgba(255, 126, 179, 0.4);
 }
-.genre { 
-    font-size: 0.8rem; color: var(--text-secondary); 
-    background: var(--glass-border); padding: 4px 10px; border-radius: 6px;
-}
-.price { color: #ff7eb3; font-weight: 700; }
-.price.free { color: #ff7eb3; }
 
+.card-info {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card-info h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+.genre {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--glass-border);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.price {
+  color: #ff7eb3;
+  font-weight: 700;
+}
+.price.free {
+  color: #ff7eb3;
+}
 </style>

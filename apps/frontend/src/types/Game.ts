@@ -22,4 +22,5 @@ export interface Game {
   publisher?: string;
   releaseDate?: string;
   rating?: number;
+  isFavorite?: boolean;
 }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 export const useThemeStore = defineStore('theme', () => {
   // State
@@ -8,6 +8,14 @@ export const useThemeStore = defineStore('theme', () => {
 
   // Plugins (Mock for now, as per request to add the section)
   const plugins = ref(JSON.parse(localStorage.getItem('vext_plugins') || '[]'));
+
+  // Brand Assets
+  const CLOUDINARY_BASE = 'https://res.cloudinary.com/dzglyaqmf/image/upload/v1768824813/assets';
+  const defaultGameImg = computed(() => {
+    return darkMode.value
+      ? `${CLOUDINARY_BASE}/vext-game-black.svg`
+      : `${CLOUDINARY_BASE}/vext-game-white.svg`;
+  });
 
   // Actions
   function setTheme(theme: string) {
@@ -64,6 +72,7 @@ export const useThemeStore = defineStore('theme', () => {
     currentTheme,
     darkMode,
     plugins,
+    defaultGameImg,
     setTheme,
     toggleDarkMode,
     addPlugin,

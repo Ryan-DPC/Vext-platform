@@ -3,8 +3,8 @@ import { ref, onMounted } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import axios from 'axios';
 // import defaultGameImg from '@/assets/images/default-game.svg'
-import { getApiUrl } from '../utils/url';
-const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
+import { useThemeStore } from '../stores/themeStore';
+const themeStore = useThemeStore();
 import { useUserStore } from '@/stores/userStore';
 import { useAlertStore } from '@/stores/alertStore';
 import { useGameLauncher } from '../composables/useGameLauncher';
@@ -373,17 +373,19 @@ onMounted(async () => {
       const requests = [];
 
       // 1. Check Ownership
-      requests.push((async () => {
-        try {
-          const libraryResponse = await axios.get('/library/my-games');
-          const myGames = libraryResponse.data;
-          userOwnsGame.value = myGames.some(
-            (g: any) => g._id === game.value._id || g.folder_name === game.value.folder_name
-          );
-        } catch (e) {
-          console.error('Error checking ownership:', e);
-        }
-      })());
+      requests.push(
+        (async () => {
+          try {
+            const libraryResponse = await axios.get('/library/my-games');
+            const myGames = libraryResponse.data;
+            userOwnsGame.value = myGames.some(
+              (g: any) => g._id === game.value._id || g.folder_name === game.value.folder_name
+            );
+          } catch (e) {
+            console.error('Error checking ownership:', e);
+          }
+        })()
+      );
 
       // 2. Installation (Tauri)
       if ((window as any).__TAURI__) {
@@ -425,10 +427,10 @@ onMounted(async () => {
       <div class="hero-section">
         <div class="hero-bg">
           <img
-            :src="game.imageUrl || defaultGameImg"
+            :src="game.imageUrl || themeStore.defaultGameImg"
             :alt="game.gameName"
             class="hero-image"
-            @error="($event.target as HTMLImageElement).src = defaultGameImg"
+            @error="($event.target as HTMLImageElement).src = themeStore.defaultGameImg"
           />
           <div class="hero-overlay"></div>
         </div>
@@ -518,7 +520,11 @@ onMounted(async () => {
               <div v-for="review in reviews" :key="review.id" class="review-card glass-panel">
                 <div class="review-header">
                   <div class="user-info">
-                    <img :src="review.user?.profile_pic || defaultGameImg" class="avatar-sm" />
+                    <img
+                      :src="review.user?.profile_pic || themeStore.defaultGameImg"
+                      class="avatar-sm"
+                      @error="($event.target as HTMLImageElement).src = themeStore.defaultGameImg"
+                    />
                     <span class="username">{{ review.user?.username || 'Utilisateur' }}</span>
                   </div>
                   <div class="rating-display">

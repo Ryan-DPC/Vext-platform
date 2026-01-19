@@ -5,27 +5,22 @@
         <h3>📁 Configuration du dossier d'installation</h3>
         <button @click="close" class="close-btn">&times;</button>
       </div>
-      
+
       <div class="modal-body">
         <p>Choisissez où installer vos jeux VEXT.</p>
         <p class="info">Un sous-dossier "VEXT" sera créé automatiquement.</p>
-        
+
         <div class="form-group">
           <label for="install-path">Chemin d'installation</label>
           <div class="input-with-button">
-            <input 
+            <input
               id="install-path"
-              v-model="installPath" 
-              type="text" 
+              v-model="installPath"
+              type="text"
               placeholder="C:/Games ou D:/MesJeux"
               @keyup.enter="confirm"
-            >
-            <button 
-              v-if="isDesktop" 
-              @click="browseFolder" 
-              type="button"
-              class="btn-browse"
-            >
+            />
+            <button v-if="isDesktop" @click="browseFolder" type="button" class="btn-browse">
               📁 Parcourir...
             </button>
           </div>
@@ -35,12 +30,8 @@
         </div>
 
         <div class="form-actions">
-          <button @click="confirm" class="btn-primary" :disabled="!installPath">
-            Confirmer
-          </button>
-          <button @click="close" class="btn-secondary">
-            Annuler
-          </button>
+          <button @click="confirm" class="btn-primary" :disabled="!installPath">Confirmer</button>
+          <button @click="close" class="btn-secondary">Annuler</button>
         </div>
       </div>
     </div>
@@ -48,58 +39,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted } from 'vue';
 import tauriAPI from '../tauri-adapter';
 
-const isVisible = ref(false)
-const installPath = ref('')
-const resolveCallback = ref<((value: string | null) => void) | null>(null)
-const isDesktop = ref(false)
+const isVisible = ref(false);
+const installPath = ref('');
+const resolveCallback = ref<((value: string | null) => void) | null>(null);
+const isDesktop = ref(false);
 
 onMounted(async () => {
   // Check if running in Tauri
   if ((window as any).__TAURI__) {
-    isDesktop.value = true
+    isDesktop.value = true;
   }
-})
+});
 
 const show = (): Promise<string | null> => {
-  installPath.value = ''
-  isVisible.value = true
-  
+  installPath.value = '';
+  isVisible.value = true;
+
   return new Promise((resolve) => {
-    resolveCallback.value = resolve
-  })
-}
+    resolveCallback.value = resolve;
+  });
+};
 
 const close = () => {
-  isVisible.value = false
+  isVisible.value = false;
   if (resolveCallback.value) {
-    resolveCallback.value(null)
-    resolveCallback.value = null
+    resolveCallback.value(null);
+    resolveCallback.value = null;
   }
-}
+};
 
 const confirm = () => {
-  if (!installPath.value) return
-  
-  isVisible.value = false
+  if (!installPath.value) return;
+
+  isVisible.value = false;
   if (resolveCallback.value) {
-    resolveCallback.value(installPath.value)
-    resolveCallback.value = null
+    resolveCallback.value(installPath.value);
+    resolveCallback.value = null;
   }
-}
+};
 
 const browseFolder = async () => {
-  if (!(window as any).__TAURI__) return
-  
-  const selectedPath = await tauriAPI.selectFolder()
-  if (selectedPath) {
-    installPath.value = selectedPath
-  }
-}
+  if (!(window as any).__TAURI__) return;
 
-defineExpose({ show, close })
+  const selectedPath = await tauriAPI.selectFolder();
+  if (selectedPath) {
+    installPath.value = selectedPath;
+  }
+};
+
+defineExpose({ show, close });
 </script>
 
 <style scoped>
@@ -117,32 +108,36 @@ defineExpose({ show, close })
 }
 
 .modal-content {
-  background: #1e1e1e;
-  border-radius: 12px;
+  background: #1a1b26;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
   width: 90%;
   max-width: 600px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #333;
+  padding: 25px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.3rem;
-  color: #fff;
+  font-size: 1.2rem;
+  color: white;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 2rem;
-  color: #888;
+  font-size: 1.8rem;
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -150,10 +145,11 @@ defineExpose({ show, close })
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.2s;
 }
 
 .close-btn:hover {
-  color: #fff;
+  color: white;
 }
 
 .modal-body {
@@ -189,34 +185,37 @@ defineExpose({ show, close })
 
 .form-group input {
   flex: 1;
-  padding: 12px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 1rem;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  transition: all 0.2s;
 }
 
 .btn-browse {
   padding: 12px 20px;
-  background: #333;
-  border: 1px solid #444;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
 }
 
 .btn-browse:hover {
-  background: #444;
-  border-color: #555;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #4a9eff;
+  border-color: white;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .hint {
@@ -232,39 +231,48 @@ defineExpose({ show, close })
   margin-top: 24px;
 }
 
-.btn-primary, .btn-secondary {
+.btn-primary,
+.btn-secondary {
   flex: 1;
   padding: 12px 24px;
   border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: 50px; /* Pill shape */
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .btn-primary {
-  background: #4a9eff;
-  color: white;
+  background: white;
+  color: #120c18;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #3a8eef;
+  transform: scale(1.02);
+  background: #f0f0f0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 .btn-primary:disabled {
-  background: #333;
-  color: #666;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secondary {
-  background: #333;
-  color: #ccc;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .btn-secondary:hover {
-  background: #444;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 </style>
