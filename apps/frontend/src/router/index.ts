@@ -16,6 +16,11 @@ const router = createRouter({
       component: () => import('../views/Register.vue'),
     },
     {
+      path: '/verify-code',
+      name: 'verify-code',
+      component: () => import('../views/VerifyCode.vue'),
+    },
+    {
       path: '/forgot-password',
       name: 'forgot-password',
       component: () => import('../views/ForgotPassword.vue'),
@@ -141,8 +146,8 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  // If going to login/register, check auth state
-  if (to.path === '/login' || to.path === '/register') {
+  // If going to login/register/verify-code, check auth state
+  if (to.path === '/login' || to.path === '/register' || to.path === '/verify-code') {
     if (userStore.isAuthenticated) {
       next('/home');
     } else {

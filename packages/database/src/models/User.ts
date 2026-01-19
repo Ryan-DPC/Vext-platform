@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema, Model, ClientSession } from 'mongoose';
+import { sendMail, getVerificationEmailHtml } from '../utils/email';
 
 export interface IUserBalances {
   chf: number;
@@ -26,6 +27,7 @@ export interface IUser extends Document {
   github_id?: string | null;
   github_username?: string | null;
   isAdmin: boolean;
+  isVerified: boolean;
   tokens: number;
   currency: 'CHF' | 'EUR' | 'USD' | 'GBP';
   language: string;
@@ -43,6 +45,9 @@ export interface IUser extends Document {
   bio: string;
   social_links: ISocialLinks;
   notification_preferences: INotificationPreferences;
+  codeVerified: string;
+  select: false;
+  codeVerifiedExpires: Date;
   created_at: Date;
   updated_at: Date;
 }
@@ -55,6 +60,9 @@ const userSchema = new Schema<IUser>(
     github_id: { type: String, default: null, index: true },
     github_username: { type: String, default: null },
     isAdmin: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
+    codeVerified: { type: String, select: false },
+    codeVerifiedExpires: { type: Date, $gt: Date.now() },
     tokens: { type: Number, default: 1000 },
     currency: { type: String, enum: ['CHF', 'EUR', 'USD', 'GBP'], default: 'CHF' },
     language: { type: String, default: 'English' },
@@ -110,9 +118,32 @@ export class Users {
   static async createUser(userData: any): Promise<any> {
     // Hashing should be done before calling this
     const doc = await UserModel.create(userData);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    doc.codeVerified = code;
+    doc.codeVerifiedExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await doc.save();
+    // send email to user with code
+    const username = doc.username.split('#')[0]; // Get username without tag
+    await sendMail({
+      email: doc.email,
+      subject: 'Vérifie ton email - VEXT',
+      text: `Ton code de vérification est: ${code}`,
+      html: getVerificationEmailHtml(code, username),
+    });
     return { id: doc._id.toString(), username: doc.username, email: doc.email, tokens: doc.tokens };
   }
 
+  static async verifyCode(email: string, code: string): Promise<boolean> {
+    const doc = await UserModel.findOne({ email }).select('+codeVerified');
+    if (!doc) return false;
+    if (doc.codeVerified !== code) return false;
+    if (doc.codeVerifiedExpires && doc.codeVerifiedExpires < new Date()) return false;
+    doc.codeVerified = null as any;
+    doc.codeVerifiedExpires = null as any;
+    doc.isVerified = true;
+    await doc.save();
+    return true;
+  }
   static async getUserByUsername(username: string): Promise<any | null> {
     const doc = await UserModel.findOne({ username }).lean();
     if (!doc) return null;

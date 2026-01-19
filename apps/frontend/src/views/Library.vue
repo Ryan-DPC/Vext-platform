@@ -56,7 +56,7 @@ onMounted(async () => {
     friendsStore.fetchFriends(),
     groupStore.fetchMyGroups(),
   ]);
-  
+
   // Setup WS listeners after fetching
   groupStore.setupWebSocketListeners();
 
@@ -420,12 +420,20 @@ const handleAddFriendFromGroup = async (username: string) => {
 
         <!-- All Games Grid -->
         <section class="section">
-          <h3><i class="fas fa-th"></i> All Games Filtered</h3>
+          <h3><i class="fas fa-th"></i> All Games</h3>
           <div class="games-grid">
-            <div v-for="game in filteredGames" :key="game._id" class="grid-card" @click="goToGameDetails(game._id || game.folder_name)">
+            <div
+              v-for="game in filteredGames"
+              :key="game._id"
+              class="grid-card"
+              @click="goToGameDetails(game._id || game.folder_name)"
+            >
               <div class="card-poster">
                 <img :src="game.image_url || defaultGameImg" />
-                <div class="poster-overlay" :class="{ 'active-install': installingGameId === (game._id || game.folder_name) }">
+                <div
+                  class="poster-overlay"
+                  :class="{ 'active-install': installingGameId === (game._id || game.folder_name) }"
+                >
                   <div
                     v-if="installingGameId === (game._id || game.folder_name)"
                     class="install-status"

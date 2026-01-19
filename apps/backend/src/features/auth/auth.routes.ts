@@ -124,4 +124,41 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         password: t.String(),
       }),
     }
+  )
+  .post(
+    '/verify-code',
+    async ({ body, jwt, set }) => {
+      const { email, code } = body as any;
+
+      const isValid = await Users.verifyCode(email, code);
+      if (!isValid) {
+        set.status = 400;
+        return { success: false, message: 'Code invalide ou expiré.' };
+      }
+
+      // Get user and generate token for auto-login
+      const user = await Users.getUserByEmail(email);
+      if (!user) {
+        set.status = 404;
+        return { success: false, message: 'Utilisateur non trouvé.' };
+      }
+
+      const token = await jwt.sign({
+        id: user.id,
+        username: user.username,
+        isAdmin: user.isAdmin,
+      });
+
+      return {
+        success: true,
+        token,
+        user,
+      };
+    },
+    {
+      body: t.Object({
+        email: t.String(),
+        code: t.String(),
+      }),
+    }
   );
