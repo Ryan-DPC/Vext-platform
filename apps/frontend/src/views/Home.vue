@@ -5,9 +5,11 @@ import { useRouter } from 'vue-router';
 import { useThemeStore } from '../stores/themeStore';
 // import defaultGameImg from '@/assets/images/default-game.svg'
 const themeStore = useThemeStore();
-import heroBg from '@/assets/images/hero-bg.png';
-import heroBg2 from '@/assets/images/hero-bg-2.png';
-import heroBg3 from '@/assets/images/hero-bg-3.png';
+const heroBgDefault = 'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/hero';
+// Hero backgrounds from Cloudinary
+const heroBgGaming = `${heroBgDefault}/hero-bg-gaming`;
+const heroBgCity = `${heroBgDefault}/hero-bg-city`;
+const heroBgGirl = `${heroBgDefault}/hero-bg-girl`;
 
 const router = useRouter();
 const gameStore = useGameStore();
@@ -38,21 +40,21 @@ const slides = [
     id: 1,
     title: 'VEXT CHESS:\nSTRATEGY EVOLVED',
     desc: 'Master the board in this futuristic take on the classic game. Ranked matches available now.',
-    image: heroBg,
+    image: heroBgGaming,
     badge: 'FEATURED',
   },
   {
     id: 2,
     title: 'CYBER LEGENDS:\nARENA',
     desc: 'Join the ultimate battle for supremacy in the neon-soaked arena.',
-    image: heroBg2,
+    image: heroBgCity,
     badge: 'NEW SEASON',
   },
   {
     id: 3,
     title: 'NEON RACER:\nOVERDRIVE',
     desc: 'High-speed racing through the digital cityscape. Customize your ride.',
-    image: heroBg3,
+    image: heroBgGirl,
     badge: 'EARLY ACCESS',
   },
 ];
