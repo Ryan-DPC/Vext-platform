@@ -29,13 +29,12 @@ const petals = Array.from({ length: 40 }).map((_, i) => ({
 
 <style scoped>
 .sakura-container {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: -1; /* Behind everything */
+  pointer-events: none !important;
   overflow: hidden;
   background: var(--bg-primary); 
   transition: background 0.3s ease;

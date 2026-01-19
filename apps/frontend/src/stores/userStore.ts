@@ -4,9 +4,17 @@ import { socketService } from '../services/socket';
 import { getApiUrl } from '../utils/url';
 
 function sanitizeUser(user: any) {
-  if (user && user.profile_pic) {
-    // Replace localhost:3001 with the correct API URL
-    user.profile_pic = user.profile_pic.replace('http://localhost:3001', getApiUrl());
+  if (user) {
+    const apiUrl = getApiUrl();
+    if (user.profile_pic && user.profile_pic.includes('localhost:3001')) {
+      user.profile_pic = user.profile_pic.replace('http://localhost:3001', apiUrl);
+    }
+    if (user.frame_url && user.frame_url.includes('localhost:3001')) {
+      user.frame_url = user.frame_url.replace('http://localhost:3001', apiUrl);
+    }
+    if (user.banner_url && user.banner_url.includes('localhost:3001')) {
+      user.banner_url = user.banner_url.replace('http://localhost:3001', apiUrl);
+    }
   }
   return user;
 }

@@ -127,6 +127,8 @@ const filteredGames = computed(() => {
 
   if (filterStatus.value === 'installed') {
     games = games.filter((g: any) => g.installed);
+  } else if (filterStatus.value === 'favorites') {
+    games = games.filter((g: any) => g.isFavorite);
   }
 
   return games;
@@ -354,13 +356,17 @@ const handleAddFriendFromGroup = async (username: string) => {
 };
 
 const toggleFavorite = (game: any) => {
-  // Optimistic UI update - TODO: Persist to backend
-  game.isFavorite = !game.isFavorite;
-  alertStore.showAlert({
-    title: game.isFavorite ? 'Added to Favorites' : 'Removed from Favorites',
-    message: `${game.game_name} has been ${game.isFavorite ? 'added to' : 'removed from'} your favorites.`,
-    type: 'success', // Could be 'info'
-  });
+  const gameId = game._id || game.folder_name;
+  gameStore.toggleFavorite(gameId);
+  
+  // Note: Optimistic update happened in store, but we can alert here
+  if (game.isFavorite) {
+     alertStore.showAlert({
+        title: 'Added to Favorites',
+        message: `${game.game_name} added to favorites`,
+        type: 'success'
+     });
+  }
 };
 </script>
 
@@ -383,6 +389,12 @@ const toggleFavorite = (game: any) => {
             @click="filterStatus = 'installed'"
           >
             Installed
+          </button>
+          <button
+            :class="{ active: filterStatus === 'favorites' }"
+            @click="filterStatus = 'favorites'"
+          >
+            Favorites
           </button>
           <button class="btn-icon" @click="showAddGameModal = true" title="Redeem Key">
             <i class="fas fa-key"></i>

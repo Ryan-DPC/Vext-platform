@@ -17,9 +17,20 @@ export class UsersService {
       return {
         ...(user.toObject ? user.toObject() : user),
         games_owned: gamesOwned,
+        favorites: user.favorites || []
       };
     } catch (error: any) {
       throw new Error(`Erreur lors de la récupération du profil utilisateur : ${error.message}`);
+    }
+  }
+
+  static async toggleFavorite(userId: string, gameId: string) {
+    try {
+      // @ts-ignore - toggleFavorite is a custom static we added to the schema
+      const favorites = await Users.toggleFavorite(userId, gameId);
+      return { favorites };
+    } catch (error: any) {
+      throw new Error(`Failed to toggle favorite: ${error.message}`);
     }
   }
 

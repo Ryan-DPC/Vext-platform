@@ -4,14 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/userStore'
 import { useThemeStore } from '../stores/themeStore' // Import Theme Store
 import tauriAPI from '../tauri-adapter'
-// import { useItemStore } from '../stores/itemStore'   // Import Item Store
-import logoImage from '@/assets/images/Logo.svg'
-import SakuraBackground from '@/components/SakuraBackground.vue'
+import { useItemStore } from '../stores/itemStore'   // Import Item Store
+import logoImage from '@/assets/images/vext_logo_abstract.png'
+
 
 const logo = logoImage
 const userStore = useUserStore()
 const themeStore = useThemeStore()
-// const itemStore = useItemStore()
+const itemStore = useItemStore()
 const { t, locale } = useI18n()
 
 
@@ -147,18 +147,16 @@ const availableThemes = [
 ]
 
 const selectTheme = (themeId: string) => {
-    /* 
-       // Logic for Item Check (commented out for functionality demo, can be enabled if items exist)
-       const theme = availableThemes.find(t => t.id === themeId);
-       if (theme?.requiredItem) {
-           const hasItem = itemStore.myItems.find(i => i.name === theme.requiredItem);
-           if (!hasItem) {
-               statusMessage.value = `You need to own '${theme.requiredItem}' to use this theme!`;
-               statusType.value = 'error';
-               return;
-           }
-       }
-    */
+    // Logic for Item Check
+    const theme = availableThemes.find(t => t.id === themeId);
+    if (theme?.requiredItem) {
+        const hasItem = itemStore.myItems.find(i => i.name === theme.requiredItem);
+        if (!hasItem) {
+            statusMessage.value = `You need to own '${theme.requiredItem}' to use this theme!`;
+            statusType.value = 'error';
+            return;
+        }
+    }
     themeStore.setTheme(themeId);
 }
 
@@ -239,7 +237,6 @@ const saveLibraryPaths = () => {
 
 <template>
   <div class="settings-page">
-    <SakuraBackground />
 
     <div class="settings-container">
       <!-- Sidebar -->
@@ -721,10 +718,7 @@ const saveLibraryPaths = () => {
 
 .toggle-desc {
     font-size: 0.85rem;
-.toggle-desc {
-    font-size: 0.85rem;
     color: var(--text-secondary);
-}
 }
 
 .switch {

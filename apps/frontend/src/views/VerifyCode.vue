@@ -115,7 +115,7 @@ const handleVerify = async () => {
 
     <div class="verify-card">
       <div class="logo-header">
-        <img src="@/assets/images/logo.png" alt="VEXT" class="verify-logo" />
+        <img src="@/assets/images/logo-bg.svg" alt="VEXT" class="verify-logo" />
         <h1>Vérification</h1>
         <p class="subtitle">Entrez le code à 6 chiffres envoyé à</p>
         <p class="email-display">{{ email }}</p>

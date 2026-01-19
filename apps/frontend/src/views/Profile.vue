@@ -77,11 +77,13 @@ const badges = computed(() => {
 })
 
 const equippedBanner = computed(() => {
+  if (userStore.user?.banner_url) return userStore.user.banner_url
   const equipped = itemStore.myItems.find((i: any) => i.item?.item_type === 'banner' && i.is_equipped)
   return equipped?.item?.image_url || null
 })
 
 const equippedFrame = computed(() => {
+  if (userStore.user?.frame_url) return userStore.user.frame_url
   const equipped = itemStore.myItems.find((i: any) => i.item?.item_type === 'avatar_frame' && i.is_equipped)
   return equipped?.item?.image_url || null
 })

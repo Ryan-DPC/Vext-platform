@@ -5,7 +5,7 @@ import { RouterLink } from 'vue-router'
 <template>
   <footer>
     <div class="footer-logo">
-      <img src="@/assets/images/Logo.svg" alt="Mini Games Store Logo">
+      <img src="@/assets/images/logo-bg.svg" alt="Mini Games Store Logo">
     </div>
     <ul>
       <li><RouterLink to="/home">Accueil</RouterLink></li>

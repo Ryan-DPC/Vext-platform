@@ -50,26 +50,47 @@ onMounted(async () => {
 </script>
 
 <template>
-  <TitleBar />
-  <!-- Add TitleBar -->
-  <div class="app-content">
-    <RouterView />
+  <div id="app-background">
+    <SakuraBackground />
   </div>
-  <SakuraBackground />
-  <SakuraBackground />
-  <ToastNotification />
-  <AlertModal />
 
-  <Transition name="chat-pop">
-    <ChatPopup
-      v-if="userStore.isAuthenticated && chatStore.activeChatFriend"
-      :friend="chatStore.activeChatFriend"
-      @close="chatStore.closeChat()"
-    />
-  </Transition>
+  <div id="app-layout">
+    <TitleBar />
+    <div class="app-content">
+      <RouterView />
+    </div>
+    <ToastNotification />
+    <AlertModal />
+
+    <Transition name="chat-pop">
+      <ChatPopup
+        v-if="userStore.isAuthenticated && chatStore.activeChatFriend"
+        :friend="chatStore.activeChatFriend"
+        @close="chatStore.closeChat()"
+      />
+    </Transition>
+  </div>
 </template>
 
 <style>
+#app-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#app-layout {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  isolation: isolate; /* Create new stacking context */
+}
+
 .app-content {
   padding-top: 32px;
   height: 100vh;

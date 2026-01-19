@@ -145,14 +145,14 @@ export class ItemsService {
           id: d._id.toString(),
           item: item
             ? {
-                id: item._id ? item._id.toString() : item.id,
-                name: item.name,
-                description: item.description,
-                price: item.price,
-                image_url: d.user_image_url || item.image_url,
-                item_type: item.item_type,
-                rarity: item.rarity,
-              }
+              id: item._id ? item._id.toString() : item.id,
+              name: item.name,
+              description: item.description,
+              price: item.price,
+              image_url: d.user_image_url || item.image_url,
+              item_type: item.item_type,
+              rarity: item.rarity,
+            }
             : null,
           purchased_at: d.purchased_at,
           is_equipped: d.is_equipped,
@@ -362,14 +362,35 @@ export class ItemsService {
 
       const item = await this.getItemById(itemId);
       const newProfilePicUrl = item && item.item_type === 'profile_picture' ? item.image_url : null;
+      const newFrameUrl = item && item.item_type === 'avatar_frame' ? item.image_url : null;
+      const newBannerUrl = item && item.item_type === 'banner' ? item.image_url : null;
 
       if (newProfilePicUrl) {
         await Users.updateUserProfilePic(userId, newProfilePicUrl);
       }
 
+      // We need to implement these update methods in Users model or use generic update
+      // For now, let's assume we can update the user directly here if we had the model, 
+      // but ItemsService imports Users wrapper. Let's check Users wrapper in database package.
+      // Actually, let's use the Users.updateUser... methods. 
+      // If they don't exist, we might need to add them or use a generic update.
+      // Looking at Users.ts (viewed in previous turns/assumed), let's see if we have update methods.
+      // Ideally we should add `updateUserFrame` and `updateUserBanner` to Users class in database package.
+      // But to save turn, let's try to update via mongoose model directly if possible or add the methods. 
+      // Wait, `ItemsService` imports `Users` from `@vext/database`.
+
+      if (newFrameUrl) {
+        await Users.updateUserFrame(userId, newFrameUrl);
+      }
+      if (newBannerUrl) {
+        await Users.updateUserBanner(userId, newBannerUrl);
+      }
+
       return {
         success: true,
         profile_pic_url: newProfilePicUrl,
+        frame_url: newFrameUrl,
+        banner_url: newBannerUrl
       };
     } catch (error) {
       logger.error("Erreur lors de l'équipement de l'item :", error);

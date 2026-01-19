@@ -7,6 +7,7 @@ export const useGameStore = defineStore('game', {
     myGames: [] as any[],
     newGames: [] as any[],
     featuredGames: [] as any[],
+    favoriteIds: new Set<string>(), // Local cache of favored game IDs
     isLoading: false,
   }),
   getters: {
@@ -19,6 +20,45 @@ export const useGameStore = defineStore('game', {
     },
   },
   actions: {
+    // Load favorites from backend (via user profile)
+    async loadFavorites() {
+      try {
+        const userStore = (await import('./userStore')).useUserStore();
+        if (userStore.user?.favorites) {
+          this.favoriteIds = new Set(userStore.user.favorites);
+        }
+      } catch (e) {
+        console.error('Failed to load favorites from user store', e);
+      }
+    },
+
+    async toggleFavorite(gameId: string) {
+      // Optimistic update
+      if (this.favoriteIds.has(gameId)) {
+        this.favoriteIds.delete(gameId);
+      } else {
+        this.favoriteIds.add(gameId);
+      }
+
+      // Update myGames state local reflection
+      const game = this.myGames.find((g) => (g._id === gameId || g.folder_name === gameId));
+      if (game) {
+        game.isFavorite = this.favoriteIds.has(gameId);
+      }
+
+      // Sync with backend
+      try {
+        await axios.post('/users/api/users/favorites/toggle', { gameId });
+        // Also update user store to keep it in sync
+        const userStore = (await import('./userStore')).useUserStore();
+        // Force refresh profile silently to get latest favorites
+        await userStore.fetchProfile();
+      } catch (e) {
+        console.error('Failed to save favorites to backend', e);
+        // TODO: Revert optimistic update on failure?
+      }
+    },
+
     async fetchHomeData() {
       this.isLoading = true;
       try {
@@ -37,9 +77,14 @@ export const useGameStore = defineStore('game', {
     },
     async fetchMyGames() {
       this.isLoading = true;
+      this.loadFavorites(); // Ensure favorites are loaded
       try {
         const response = await axios.get('/library/my-games');
-        this.myGames = response.data || [];
+        this.myGames = response.data.map((g: any) => ({
+          ...g,
+          isFavorite: this.favoriteIds.has(g._id) || this.favoriteIds.has(g.folder_name)
+        })) || [];
+
         // Immediately check installation status after fetching
         this.checkInstallationStatus();
       } catch (error) {

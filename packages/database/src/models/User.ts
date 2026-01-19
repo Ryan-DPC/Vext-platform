@@ -33,12 +33,15 @@ export interface IUser extends Document {
   language: string;
   balances: IUserBalances;
   profile_pic?: string | null;
+  frame_url?: string | null;
+  banner_url?: string | null;
   elo: number;
   socket_id?: string | null;
   xp: number;
   level: number;
   status_message: string;
   favorite_games: mongoose.Types.ObjectId[];
+  favorites: string[]; // Explicit favorites list
   wishlist: mongoose.Types.ObjectId[];
   resetPasswordToken?: string | null;
   resetPasswordExpires?: Date | null;
@@ -72,7 +75,18 @@ const userSchema = new Schema<IUser>(
       usd: { type: Number, default: 0 },
       gbp: { type: Number, default: 0 },
     },
-    profile_pic: { type: String, default: null },
+    profile_pic: {
+      type: String,
+      default: null,
+    },
+    frame_url: {
+      type: String,
+      default: null,
+    },
+    banner_url: {
+      type: String,
+      default: null,
+    },
     elo: { type: Number, default: 1600 },
     socket_id: { type: String, default: null, index: true },
     xp: { type: Number, default: 0 },
@@ -88,6 +102,7 @@ const userSchema = new Schema<IUser>(
       discord: { type: String, default: '' },
       website: { type: String, default: '' },
     },
+    favorites: [{ type: String }], // Array of game IDs (folder_name or _id)
     notification_preferences: {
       email_updates: { type: Boolean, default: true },
       push_notifications: { type: Boolean, default: true },
@@ -96,6 +111,30 @@ const userSchema = new Schema<IUser>(
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+
+// --- Static Methods ---
+
+userSchema.statics.toggleFavorite = async function (userId: string, gameId: string) {
+  const user = await this.findById(userId);
+  if (!user) throw new Error('User not found');
+
+  // Initialize if undefined
+  if (!user.favorites) user.favorites = [];
+
+  const index = user.favorites.indexOf(gameId);
+  if (index > -1) {
+    user.favorites.splice(index, 1); // Remove
+  } else {
+    user.favorites.push(gameId); // Add
+  }
+
+  await user.save();
+  return user.favorites;
+};
+
+userSchema.statics.getUserById = async function (id: string) {
+  return this.findById(id).select('-password');
+};
 
 // Note: Bun.password usage is removed from the Model definition to keep the package environment-agnostic or strictly database focused.
 // Hashing logic should ideally live in a service or controller, OR we can keep it if we ensure Bun types are available.
@@ -326,6 +365,16 @@ export class Users {
 
   static async updateUserProfilePic(id: string, profile_pic: string): Promise<number> {
     const res = await UserModel.updateOne({ _id: id }, { $set: { profile_pic } });
+    return res.modifiedCount;
+  }
+
+  static async updateUserFrame(id: string, frame_url: string): Promise<number> {
+    const res = await UserModel.updateOne({ _id: id }, { $set: { frame_url } });
+    return res.modifiedCount;
+  }
+
+  static async updateUserBanner(id: string, banner_url: string): Promise<number> {
+    const res = await UserModel.updateOne({ _id: id }, { $set: { banner_url } });
     return res.modifiedCount;
   }
 

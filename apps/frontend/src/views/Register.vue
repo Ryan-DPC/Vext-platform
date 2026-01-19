@@ -73,7 +73,7 @@ const handleRegister = async () => {
 
     <div class="register-card">
       <div class="logo-header">
-        <img src="@/assets/images/logo.png" alt="VEXT" class="register-logo" />
+        <img src="@/assets/images/logo-bg.svg" alt="VEXT" class="register-logo" />
         <h1>Join VEXT</h1>
         <p class="subtitle">Create your account</p>
       </div>

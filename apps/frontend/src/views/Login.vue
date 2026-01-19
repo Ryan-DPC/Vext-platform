@@ -51,7 +51,7 @@ const handleLogin = async () => {
 
     <div class="login-card">
       <div class="logo-header">
-        <img src="@/assets/images/logo.png" alt="VEXT" class="login-logo" />
+        <img src="@/assets/images/logo-bg.svg" alt="VEXT" class="login-logo" />
         <h1>Welcome Back</h1>
         <p class="subtitle">Enter VEXT</p>
       </div>
@@ -65,7 +65,7 @@ const handleLogin = async () => {
               invalid: email && !isEmailValid && isEmailInput,
             }"
           >
-            <i class="fas" :class="isEmailInput ? 'fa-envelope' : 'fa-user'"></i>
+            <i class="fas input-icon" :class="isEmailInput ? 'fa-envelope' : 'fa-user'"></i>
             <input
               type="text"
               v-model="email"
@@ -125,11 +125,11 @@ const handleLogin = async () => {
 
 <style scoped>
 .login-container {
-  position: fixed;
+  position: absolute; /* Changed from fixed to absolute to respect #app-layout context */
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -138,7 +138,7 @@ const handleLogin = async () => {
   background-color: transparent;
   color: white;
   overflow: hidden;
-  z-index: 9999;
+  z-index: 10;
 }
 
 /* Ambient Glows */
@@ -227,6 +227,7 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   transition: all 0.3s ease;
+  pointer-events: auto; /* Ensure interactable */
 }
 
 .input-wrapper:focus-within {
@@ -257,6 +258,10 @@ input {
   color: white;
   font-size: 1rem;
   outline: none;
+  user-select: text !important;
+  pointer-events: auto !important;
+  z-index: 20; /* Ensure it's above the wrapper */
+  position: relative;
 }
 
 .toggle-password {
@@ -328,6 +333,7 @@ input::placeholder {
   cursor: pointer;
   transition: all 0.3s;
   text-transform: uppercase;
+  pointer-events: auto; /* Ensure interactable */
   letter-spacing: 1px;
   margin-top: 1rem;
   box-shadow: 0 4px 15px rgba(255, 118, 136, 0.3);

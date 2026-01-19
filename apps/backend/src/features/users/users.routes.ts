@@ -60,6 +60,25 @@ export const usersRoutes: any = new Elysia({ prefix: '/api/users' })
     }
   )
 
+  // Favorites Toggle
+  .post(
+    '/favorites/toggle',
+    async ({ user, body, set }) => {
+      try {
+        const { gameId } = body;
+        return await UsersService.toggleFavorite(user!.id as string, gameId);
+      } catch (error: any) {
+        set.status = 500;
+        return { message: error.message };
+      }
+    },
+    {
+      body: t.Object({
+        gameId: t.String(),
+      }),
+    }
+  )
+
   // Upload Avatar (simplified via JSON for now, assuming external upload service or separate multipart handler)
   // Note: The original used multipart/form-data. For now, we assume frontend sends URL after upload.
   // If multipart upload is needed within Elysia, it requires specific plugin.
