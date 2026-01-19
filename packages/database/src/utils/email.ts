@@ -18,7 +18,7 @@ interface EmailOptions {
 
 const sendMail = async (options: EmailOptions) => {
   const { data, error } = await resend.emails.send({
-    from: 'onboarding@resend.dev',
+    from: 'VEXT <onboarding@resend.dev>',
     to: options.email,
     subject: options.subject,
     text: options.text || '',
