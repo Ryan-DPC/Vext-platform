@@ -144,6 +144,12 @@ export class Users {
     await doc.save();
     return true;
   }
+
+  static async deleteUser(userId: string): Promise<boolean> {
+    const res = await UserModel.deleteOne({ _id: userId });
+    return res.deletedCount > 0;
+  }
+
   static async getUserByUsername(username: string): Promise<any | null> {
     const doc = await UserModel.findOne({ username }).lean();
     if (!doc) return null;
@@ -356,6 +362,7 @@ export class Users {
     return { ...doc, id: (doc as any)._id.toString() };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async addToWishlist(userId: string, gameId: string): Promise<any> {
     // Mock implementation for dependency loop break in simple migration phase
     // const { default: Games } = await import('../games/games.model');
@@ -365,10 +372,12 @@ export class Users {
     return await UserModel.updateOne({ _id: userId }, { $addToSet: { wishlist: gameId } });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async removeFromWishlist(userId: string, gameId: string): Promise<any> {
     return await UserModel.updateOne({ _id: userId }, { $pull: { wishlist: gameId } });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async getWishlist(userId: string): Promise<any[]> {
     const doc = await UserModel.findById(userId).populate('wishlist').lean();
     return doc ? (doc.wishlist as any[]) : [];

@@ -4,7 +4,8 @@ import { Users } from '@vext/database';
 
 // Helper to generate a token
 // Note: We'll access the `jwt` plugin instance from the handler context
-export const authRoutes = new Elysia({ prefix: '/api/auth' })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
   .use(
     jwt({
       name: 'jwt',
@@ -30,19 +31,36 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       ]);
 
       if (existingUser) {
-        set.status = 409;
-        return { success: false, message: 'Username with this tag is already taken.' };
+        if (existingUser.isVerified) {
+          set.status = 409;
+          return { success: false, message: 'Username with this tag is already taken.' };
+        } else {
+          // Cleanup unverified account to allow re-registration
+          await Users.deleteUser(existingUser.id);
+        }
       }
+
       if (existingEmail) {
-        set.status = 409;
-        return { success: false, message: 'Email is already used.' };
+        if (existingEmail.isVerified) {
+          set.status = 409;
+          return { success: false, message: 'Email is already used.' };
+        } else {
+          // Cleanup unverified account to allow re-registration (if different from above)
+          // Check if we didn't already delete it by ID (in case username and email belonged to same doc)
+          // But since deleteUser is by ID, it's safe to call again or check ID match.
+          // However, if we deleted `existingUser`, and `existingEmail` refers to the same doc, `deleteUser` will just return false (0 deleted).
+          // If they are different docs (unlikely if username unique), we delete both.
+          if (!existingUser || existingUser.id !== existingEmail.id) {
+            await Users.deleteUser(existingEmail.id);
+          }
+        }
       }
 
       // Random avatar logic
       const defaultAvatars = ['avatar_blue.svg', 'avatar_green.svg', 'avatar_red.svg'];
       const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
       // Hardcoding backend URL for now or use env
-      const backendUrl = process.env.BACKEND_URL || 'https://vext-backend-yj77.onrender.com';
+      const backendUrl = process.env.BACKEND_URL;
       const profile_pic = `${backendUrl}/public/avatars/${randomAvatar}`;
 
       const hashedPassword = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 });
@@ -56,7 +74,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       const token = await jwt.sign({
         id: newUser.id,
         username: newUser.username,
-        isAdmin: false,
+        isAdmin: newUser.isAdmin,
       });
 
       return {

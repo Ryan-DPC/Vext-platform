@@ -428,42 +428,59 @@ const handleAddFriendFromGroup = async (username: string) => {
               class="grid-card"
               @click="goToGameDetails(game._id || game.folder_name)"
             >
-              <div class="card-poster">
-                <img :src="game.image_url || defaultGameImg" />
+              <div class="card-image-wrapper">
+                <img :src="game.image_url || defaultGameImg" loading="lazy" />
+
+                <!-- Hover Overlay -->
                 <div
-                  class="poster-overlay"
+                  class="card-overlay"
                   :class="{ 'active-install': installingGameId === (game._id || game.folder_name) }"
                 >
+                  <!-- Title (visible on hover) -->
+                  <h4 class="overlay-title">{{ game.game_name }}</h4>
+
+                  <!-- Install Progress -->
                   <div
                     v-if="installingGameId === (game._id || game.folder_name)"
                     class="install-status"
                   >
-                    <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
+                    <div class="spinner-ring"></div>
+                    <span>{{ installProgress.progress }}%</span>
                   </div>
-                  <div v-else-if="game.installed" class="play-actions">
-                    <button @click.stop="launchGame(game.folder_name)" class="btn-grid-play">
-                      <i class="fas fa-play"></i>
-                    </button>
+
+                  <!-- Actions -->
+                  <div v-else class="overlay-actions">
                     <button
+                      v-if="game.installed"
+                      @click.stop="launchGame(game.folder_name)"
+                      class="btn-neon-play"
+                    >
+                      <i class="fas fa-play"></i> PLAY
+                    </button>
+
+                    <button v-else @click.stop="installGame(game)" class="btn-neon-install">
+                      <i class="fas fa-download"></i> INSTALL
+                    </button>
+
+                    <button
+                      v-if="game.installed"
                       @click.stop="handleUninstall(game)"
-                      class="btn-grid-uninstall"
+                      class="btn-icon-sm"
                       title="Uninstall"
                     >
                       <i class="fas fa-trash"></i>
                     </button>
                   </div>
-                  <button v-else @click.stop="installGame(game)" class="btn-grid-install">
-                    <i class="fas fa-download"></i>
-                  </button>
+
+                  <!-- Badges -->
+                  <div class="overlay-badges">
+                    <span v-if="game.installed" class="badge-dot installed"></span>
+                    <span class="badge-text">{{ game.genre || 'Game' }}</span>
+                  </div>
                 </div>
               </div>
-              <div class="card-details">
-                <h4>{{ game.game_name }}</h4>
-                <div class="card-badges">
-                  <span v-if="game.installed" class="badge-installed">INSTALLED</span>
-                  <span class="badge-genre">{{ game.genre || 'Game' }}</span>
-                </div>
-              </div>
+
+              <!-- Active Neon Border (pseudo-element handled in CSS) -->
             </div>
           </div>
         </section>
@@ -898,116 +915,197 @@ const handleAddFriendFromGroup = async (username: string) => {
   color: #ff4d4d;
 }
 
-/* Grid */
+/* --- NEW: CLASSIC GRID STYLES --- */
 .games-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px;
-}
-.grid-card {
-  background: var(--glass-bg);
-  border-radius: 12px;
-  padding: 10px;
-  border: 1px solid var(--glass-border);
-  transition: all 0.2s;
-}
-.grid-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-4px);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 25px;
+  padding-bottom: 40px;
 }
 
-.card-poster {
-  height: 200px;
-  border-radius: 8px;
+.grid-card {
+  position: relative;
+  aspect-ratio: 2/3; /* Classic Poster Ratio */
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  background: #1a1b26; /* Fallback for missing img */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.card-image-wrapper {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
   overflow: hidden;
   position: relative;
-  margin-bottom: 10px;
+  /* Neon Border effect handled via wrapper pseudo or box-shadow */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1;
 }
-.card-poster img {
+
+.card-image-wrapper img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.4s ease;
 }
-.poster-overlay {
+
+/* Hover Effects */
+.grid-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  z-index: 5;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(122, 252, 255, 0.2),
+    /* Cyan Glow */ 0 0 0 2px rgba(122, 252, 255, 0.5); /* Cyan Border */
+}
+
+/* Alternate Glow for variety or random based on genre? 
+   For now, simple cyan. Could toggle between #ff7eb3 and #7afcff 
+*/
+
+.grid-card:hover img {
+  transform: scale(1.1);
+  filter: brightness(0.6); /* Dim image to make text pop */
+}
+
+/* Overlay */
+.card-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-end; /* Align bottom */
+  padding: 20px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s ease;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.2) 60%, transparent);
 }
-.grid-card:hover .poster-overlay {
+
+.grid-card:hover .card-overlay,
+.card-overlay.active-install {
   opacity: 1;
 }
 
-.btn-grid-play,
-.btn-grid-install {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn-grid-play {
-  background: #ff7eb3;
+.overlay-title {
+  font-size: 1.1rem;
+  font-weight: 700;
   color: white;
-  box-shadow: 0 0 15px rgba(255, 126, 179, 0.5);
-}
-.btn-grid-install {
-  background: #7afcff;
-  color: #120c18;
-  box-shadow: 0 0 15px rgba(122, 252, 255, 0.5);
-}
-.btn-grid-uninstall {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.5);
-  color: #ccc;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.btn-grid-uninstall:hover {
-  background: #ff4d4d;
-  color: white;
-}
-
-.card-details h4 {
-  margin: 0 0 6px 0;
-  font-size: 0.95rem;
+  margin-bottom: 12px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  /* Truncate if too long */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.card-badges {
+
+.overlay-actions {
   display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* Buttons */
+.btn-neon-play {
+  flex: 1;
+  background: linear-gradient(135deg, #ff7eb3, #ff5a9e);
+  border: none;
+  color: white;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  font-size: 0.7rem;
+  box-shadow: 0 4px 12px rgba(255, 126, 179, 0.4);
+  transition: transform 0.2s;
 }
-.badge-installed {
+.btn-neon-play:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px #ff7eb3;
+}
+
+.btn-neon-install {
+  flex: 1;
+  background: rgba(122, 252, 255, 0.15);
+  border: 1px solid #7afcff;
   color: #7afcff;
-  background: rgba(122, 252, 255, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
 }
-.badge-genre {
-  color: var(--text-secondary);
-  background: var(--glass-border);
-  padding: 2px 6px;
-  border-radius: 4px;
+.btn-neon-install:hover {
+  background: #7afcff;
+  color: #120c18;
+  box-shadow: 0 0 15px rgba(122, 252, 255, 0.5);
+}
+
+.btn-icon-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.btn-icon-sm:hover {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ff4d4d;
+}
+
+/* Install Status */
+.install-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #7afcff;
+  font-weight: bold;
+}
+.spinner-ring {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(122, 252, 255, 0.3);
+  border-top-color: #7afcff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Badges */
+.overlay-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #ccc;
+}
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.badge-dot.installed {
+  background: #7afcff;
+  box-shadow: 0 0 5px #7afcff;
 }
 
 /* Sidebar */

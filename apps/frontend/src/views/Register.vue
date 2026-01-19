@@ -9,7 +9,6 @@ const userTag = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
-const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 const profilePic = ref<File | null>(null);
 const error = ref('');
@@ -133,16 +132,13 @@ const handleRegister = async () => {
           <div class="input-wrapper">
             <i class="fas fa-lock input-icon"></i>
             <input
-              :type="showPassword ? 'text' : 'password'"
+              type="password"
               v-model="password"
               required
               placeholder="Choose a password"
               name="new-password"
               autocomplete="new-password"
             />
-            <button type="button" class="toggle-password" @click="showPassword = !showPassword">
-              <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-            </button>
           </div>
         </div>
         <div class="form-group">
@@ -184,6 +180,12 @@ const handleRegister = async () => {
 </template>
 
 <style scoped>
+/* Hide browser default password reveal */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 .register-container {
   position: fixed;
   top: 0;

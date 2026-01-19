@@ -1,6 +1,13 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+
+// Load backend env
+dotenv.config({ path: path.resolve(__dirname, '../../apps/backend/.env') });
+
+// Use RESEND_API_KEY or fallback to SMTP_PASSWORD (which is often the API key in existing configs)
+const apiKey = process.env.RESEND_API_KEY;
+const resend = new Resend(apiKey);
 
 interface EmailOptions {
   email: string;
@@ -10,23 +17,23 @@ interface EmailOptions {
 }
 
 const sendMail = async (options: EmailOptions) => {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: true,
-    auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
-
-  await transporter.sendMail({
-    from: `"VEXT" <${process.env.SMTP_FROM}>`,
+  const { data, error } = await resend.emails.send({
+    from: 'VEXT <onboarding@resend.dev>',
     to: options.email,
     subject: options.subject,
-    text: options.text,
-    html: options.html,
+    text: options.text || '',
+    html: options.html || '',
   });
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('❌ Resend Error:', error);
+    throw new Error(error.message);
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('✅ Email sent:', data);
+  return data;
 };
 
 const getVerificationEmailHtml = (code: string, username: string) => {
