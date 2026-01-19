@@ -54,7 +54,15 @@ export class ItemsService {
     // For now, let's keep it simple or delegate to CloudinaryService if possible, or stub it if not critical for backend migration immediate runtime.
     // The original method used `cloudinary.api.resources` which is Admin API.
     // We can create a Cloudinary instance here if needed if we import v2.
-    const { v2: cloudinary } = require('cloudinary'); // Dynamic require akin to original
+    const { v2: cloudinary } = require('cloudinary');
+
+    if (process.env.CLOUDINARY_CLOUD_NAME) {
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+    }
 
     try {
       const result = await cloudinary.api.resources({
@@ -69,12 +77,12 @@ export class ItemsService {
         const filename = pathParts[pathParts.length - 1];
 
         let itemType = 'other';
-        if (folderName === 'banners') itemType = 'banner';
-        else if (folderName === 'avatar_frames') itemType = 'avatar_frame';
-        else if (folderName === 'profile_pictures' || folderName === 'avatars')
+        if (folderName === 'banners' || folderName === 'banner') itemType = 'banner';
+        else if (folderName === 'avatar_frames' || folderName === 'frames' || folderName === 'frame') itemType = 'avatar_frame';
+        else if (folderName === 'profile_pictures' || folderName === 'avatars' || folderName === 'avatar' || folderName === 'profile_pic')
           itemType = 'profile_picture';
-        else if (folderName === 'badges') itemType = 'badge';
-        else if (folderName === 'backgrounds') itemType = 'background';
+        else if (folderName === 'badges' || folderName === 'badge') itemType = 'badge';
+        else if (folderName === 'backgrounds' || folderName === 'background') itemType = 'background';
         else itemType = 'other';
 
         const rarities = ['common', 'rare', 'epic', 'legendary'];
