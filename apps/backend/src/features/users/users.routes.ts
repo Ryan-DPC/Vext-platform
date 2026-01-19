@@ -3,7 +3,7 @@ import { jwt } from '@elysiajs/jwt';
 import { UsersService } from './users.service';
 import { GameOwnershipService } from '../game-ownership/game-ownership.service';
 
-export const usersRoutes = new Elysia({ prefix: '/api/users' })
+export const usersRoutes: any = new Elysia({ prefix: '/api/users' })
   .use(
     jwt({
       name: 'jwt',
