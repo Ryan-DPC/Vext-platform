@@ -36,7 +36,7 @@ const uploadFile = async (fileName: string, publicId: string) => {
   try {
     const result = await cloudinary.uploader.upload(filePath, {
       ...configData,
-      folder: 'assets/avatars',
+      folder: 'assets/hero',
       public_id: publicId,
       overwrite: true,
       resource_type: 'image',

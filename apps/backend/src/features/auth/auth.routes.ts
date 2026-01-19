@@ -66,16 +66,12 @@ export const authRoutes: any = new Elysia({ prefix: '/api/auth' })
         }
       }
 
-      // Random avatar logic - using Cloudinary circular avatars
-      const defaultAvatars = [
-        'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/avatars/avatar_circle_blue.svg',
-        'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/avatars/avatar_circle_purple.svg',
-        'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/avatars/avatar_circle_green.svg',
-        'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/avatars/avatar_circle_orange.svg',
-        'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/avatars/avatar_circle_red.svg',
-        'https://res.cloudinary.com/dzglyaqmf/image/upload/v1/assets/avatars/avatar_circle_cyan.svg',
-      ];
-      const profile_pic = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
+      // Random avatar logic
+      const defaultAvatars = ['avatar_blue.svg', 'avatar_green.svg', 'avatar_red.svg'];
+      const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
+      // Hardcoding backend URL for now or use env
+      const backendUrl = process.env.BACKEND_URL;
+      const profile_pic = `${backendUrl}/public/avatars/${randomAvatar}`;
 
       const hashedPassword = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 });
       const newUser = await Users.createUser({

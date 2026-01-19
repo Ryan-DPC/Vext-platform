@@ -17,51 +17,22 @@ interface EmailOptions {
 }
 
 const sendMail = async (options: EmailOptions) => {
-  const emailPayload = {
+  const { data, error } = await resend.emails.send({
     from: 'VEXT <onboarding@resend.dev>',
     to: options.email,
     subject: options.subject,
     text: options.text || '',
     html: options.html || '',
-  };
-
-  // eslint-disable-next-line no-console
-  console.log(
-    '📧 Sending email with payload:',
-    JSON.stringify(
-      {
-        from: emailPayload.from,
-        to: emailPayload.to,
-        subject: emailPayload.subject,
-        htmlLength: emailPayload.html.length,
-      },
-      null,
-      2
-    )
-  );
-
-  const { data, error } = await resend.emails.send(emailPayload);
+  });
 
   if (error) {
     // eslint-disable-next-line no-console
-    console.error('❌ Resend Error:', JSON.stringify(error, null, 2));
+    console.error('❌ Resend Error:', error);
     throw new Error(error.message);
   }
 
   // eslint-disable-next-line no-console
-  console.log(
-    '✅ Email sent successfully:',
-    JSON.stringify(
-      {
-        id: data?.id,
-        to: options.email,
-        subject: options.subject,
-      },
-      null,
-      2
-    )
-  );
-
+  console.log('✅ Email sent:', data);
   return data;
 };
 
