@@ -181,7 +181,6 @@ const unequipItem = async (itemId: string) => {
             <div class="level-badge">
               <span class="label">Level</span>
               <span class="value">{{ userStore.user?.level || 1 }}</span>
-              <div class="xp-circle">XP</div>
             </div>
             <div class="header-actions">
               <button class="btn-cyber" @click="activeTab = 'profile'">Edit Profile</button>
@@ -197,21 +196,7 @@ const unequipItem = async (itemId: string) => {
         <!-- LEFT COLUMN (Main Content) -->
         <div class="main-col">
           
-          <!-- Level & XP Bar -->
-          <div class="cyber-panel level-panel">
-            <div class="panel-header">
-              <h3>Level & XP</h3>
-            </div>
-            <div class="xp-container">
-              <div class="xp-bar">
-                <div class="xp-fill" :style="{ width: ((userStore.user?.xp || 0) / 100) * 100 + '%' }"></div>
-              </div>
-              <div class="xp-stats">
-                <span>{{ userStore.user?.xp || 0 }} XP</span>
-                <span>{{ userStore.user?.xp || 0 }} / 100 XP</span>
-              </div>
-            </div>
-          </div>
+
 
           <!-- Gaming Stats & Activity -->
           <div class="cyber-panel stats-panel" v-if="globalStats">
@@ -303,23 +288,7 @@ const unequipItem = async (itemId: string) => {
             </div>
           </div>
 
-          <!-- Friends List -->
-          <div class="cyber-panel friends-panel">
-            <div class="panel-header">
-              <h3>Friends List</h3>
-            </div>
-            <div class="friends-list">
-              <div v-for="friend in friends" :key="friend.id" class="friend-item">
-                <img :src="friend.profile_pic || defaultGameImg" class="friend-pic">
-                <div class="friend-info">
-                  <span class="f-name">{{ friend.username }}</span>
-                  <span class="f-status">{{ friend.status || 'Online' }}</span>
-                </div>
-                <div class="f-level">{{ friend.level || 1 }}</div>
-              </div>
-              <div v-if="friends.length === 0" class="no-friends">No friends yet</div>
-            </div>
-          </div>
+
 
           <!-- Groups -->
           <div class="cyber-panel groups-panel">
@@ -396,19 +365,15 @@ const unequipItem = async (itemId: string) => {
 }
 
 .cyber-profile-page {
-  background-color: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(211, 0, 197, 0.1) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(5, 217, 232, 0.1) 0%, transparent 40%);
-  background-size: cover;
-  background-attachment: fixed;
-  background-position: center;
+  /* Base background - dark but allow global bg to show through if transparent */
+  background-color: transparent; 
+  /* Subtle gradient if no global BG */
+  background-image: linear-gradient(to bottom, transparent, rgba(0,0,0,0.4));
   min-height: 100%;
   color: var(--text-primary);
   font-family: 'Rajdhani', sans-serif;
   padding: 20px;
   overflow-y: auto;
-  transition: background-image 0.5s ease;
 }
 
 .cyber-profile-page.has-global-bg {
@@ -543,41 +508,107 @@ const unequipItem = async (itemId: string) => {
   gap: 20px;
 }
 
+/* PANELS - Elegant Glassmorphism */
 .cyber-panel {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  background: rgba(20, 20, 30, 0.4); /* More transparent */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Subtle border */
+  border-radius: 16px; /* Slightly more rounded */
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.cyber-panel:hover {
+  border-color: rgba(255, 255, 255, 0.3); /* White outline on hover */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
 }
 
 .panel-header {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--glass-border);
-  display: flex; justify-content: space-between;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 20px 25px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex; justify-content: space-between; align-items: center;
 }
 
 .panel-header h3 {
   margin: 0;
   font-family: 'Orbitron', sans-serif;
-  font-size: 1rem;
-  color: var(--text-primary);
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  color: white;
+  text-shadow: 0 0 10px rgba(255,255,255,0.2);
 }
 
-/* XP BAR */
-.xp-container { padding: 20px; }
-.xp-bar {
-  height: 12px;
-  background: rgba(0,0,0,0.5);
+/* BUTTONS */
+.btn-cyber {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 10px 24px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   border-radius: 6px;
+}
+
+.btn-cyber:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff; /* White outline on hover */
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Header Specific Redesign */
+.cyber-header {
+  background: rgba(20, 20, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 30px;
+  position: relative;
   overflow: hidden;
-  margin-bottom: 8px;
+  backdrop-filter: blur(10px);
 }
-.xp-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan));
-  box-shadow: 0 0 10px var(--neon-purple);
+
+.user-info h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  margin: 0;
+  background: linear-gradient(135deg, #fff 0%, #a5f3fc 100%); /* Slight Ice tint */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(5, 217, 232, 0.3);
 }
+
+.level-badge {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(0,0,0,0.3);
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.level-badge .value {
+  font-size: 2rem;
+  color: var(--neon-pink); /* Sakura accent */
+  font-family: 'Orbitron', sans-serif;
+  line-height: 1;
+}
+
+.level-badge .label {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Remove old XP CSS */
+
 .btn-cyber {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid var(--glass-border);
