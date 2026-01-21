@@ -357,7 +357,7 @@ const unequipItem = async (itemId: string) => {
              <div class="inventory-controls">
                 <select v-model="typeFilter" class="cyber-select">
                   <option value="">All Items</option>
-                  <option value="profile_picture">Avatars</option>
+                  <option value="avatar">Avatars</option>
                   <option value="badge">Badges</option>
                   <option value="banner">Banners</option>
                   <option value="background">Backgrounds</option>

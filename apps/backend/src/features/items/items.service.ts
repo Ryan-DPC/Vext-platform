@@ -80,8 +80,9 @@ export class ItemsService {
         if (folderName === 'banners' || folderName === 'banner') itemType = 'banner';
         else if (folderName === 'avatar_frames' || folderName === 'frames' || folderName === 'frame') itemType = 'avatar_frame';
         else if (folderName === 'profile_pictures' || folderName === 'avatars' || folderName === 'avatar' || folderName === 'profile_pic')
-          itemType = 'profile_picture';
+          itemType = 'avatar';
         else if (folderName === 'badges' || folderName === 'badge') itemType = 'badge';
+        else if (folderName === 'titles' || folderName === 'title') itemType = 'title';
         else if (folderName === 'backgrounds' || folderName === 'background') itemType = 'background';
         else itemType = 'other';
 
@@ -91,8 +92,9 @@ export class ItemsService {
         let description = 'Un objet cosmétique';
         if (itemType === 'banner') description = 'Bannière de profil';
         if (itemType === 'avatar_frame') description = "Cadre d'avatar";
-        if (itemType === 'profile_picture') description = 'Photo de profil';
+        if (itemType === 'avatar') description = 'Avatar';
         if (itemType === 'badge') description = 'Badge honorifique';
+        if (itemType === 'title') description = 'Titre honorifique';
         if (itemType === 'background') description = 'Arrière-plan de profil';
 
         return {
@@ -369,7 +371,7 @@ export class ItemsService {
       await this.equipItem(userId, itemId);
 
       const item = await this.getItemById(itemId);
-      const newProfilePicUrl = item && item.item_type === 'profile_picture' ? item.image_url : null;
+      const newProfilePicUrl = item && item.item_type === 'avatar' ? item.image_url : null;
       const newFrameUrl = item && item.item_type === 'avatar_frame' ? item.image_url : null;
       const newBannerUrl = item && item.item_type === 'banner' ? item.image_url : null;
 

@@ -23,8 +23,8 @@ const itemSchema = new Schema<IItem>(
     game_id: { type: Schema.Types.ObjectId, ref: 'Game', default: null, index: true },
     item_type: {
       type: String,
-      enum: ['badge', 'banner', 'profile_picture', 'avatar_frame', 'background', 'other'],
-      default: 'other',
+      enum: ['avatar_frame', 'profile_picture', 'avatar', 'banner', 'badge', 'background', 'other', 'title'],
+      required: true,
     },
     rarity: { type: String, enum: ['common', 'rare', 'epic', 'legendary'], default: 'common' },
     cloudinary_id: { type: String, default: null, index: true },
