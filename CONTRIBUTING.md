@@ -1,39 +1,97 @@
-# 🤝 Contributing to Vext Platform
+# Contributing to Vext
 
-We welcome contributions! To maintain a high-quality codebase, please follow these guidelines.
+First off, thanks for taking the time to contribute! 🎉
 
-## 🌿 Branching Strategy
+The following is a set of guidelines for contributing to Vext. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
 
-We use a simplified Feature Branch workflow:
+## 🛠️ Project Architecture
 
-1.  **`main`**: Production-ready code. Do not push directly here.
-2.  **`develop`** (Optional): Integration branch for next release.
-3.  **`feat/feature-name`**: For new features (e.g., `feat/inventory-system`).
-4.  **`fix/bug-name`**: For bug fixes (e.g., `fix/turn-order-crash`).
-5.  **`refactor/component`**: For code cleanup without logic changes.
+Vext is a monorepo managed with **Bun Workspaces**.
 
-**Workflow:**
-1. Create a branch: `git checkout -b feat/new-skill-system`
-2. Commit often.
-3. Open a Pull Request (PR).
+- **apps/frontend**: Desktop application built with **Tauri** + **Vue 3**.
+- **apps/backend**: Main REST API built with **Elysia.js**.
+- **apps/server**: WebSocket server for real-time features.
+- **packages/database**: Shared MongoDB schemas and connection logic.
+- **infra**: Docker configurations for local development.
 
-## 🦀 Coding Standards (Rust)
+## 🚀 Getting Started
 
-- **Formatting**: Always run `cargo fmt` before committing.
-- **Linting**: Ensure `cargo check` passes without warnings. We aim for 0 warnings.
-- **Variable Naming**: Use `snake_case` for variables/functions, `CamelCase` for Structs/Enums.
-- **Comments**: Comment complex logic, specifically in `turn.rs` and `main.rs`.
+### Prerequisites
 
-## 📁 Asset Management
+- **Docker Desktop** (running)
+- **Bun** (latest version)
+- **Rust** (for Tauri frontend)
 
-- **Characters**: New characters must follow the Markdown template in `games/aether_strike/assets/character/_template.md` (if exists) or copy an existing one.
-- **Images**: Optimize PNGs before adding them to keep repo size low.
+### Setup
 
-## 🧪 Testing
+1.  **Clone the repository**
 
-- If you modify the **Turn System**, test:
-    1. Single player logic (Speed sorting).
-    2. Dead entity removal (Kill a minion, ensure valid next turn).
-    3. Round reset functionality.
+    ```bash
+    git clone https://github.com/your-username/vext.git
+    cd vext
+    ```
 
-Thank you for building Vext with us!
+2.  **Install Dependencies**
+
+    ```bash
+    bun install
+    ```
+
+3.  **Environment Variables**
+    Copy `.env.example` to `.env` in `apps/frontend`, `apps/backend`, and root if necessary.
+
+4.  **Start Development**
+    - **Frontend (Default)**:
+      Connects to the remote Render backend. Perfect for UI/UX work.
+
+      ```bash
+      cd apps/frontend && bun run tauri dev
+      ```
+
+    - **Backend / Full Stack**:
+      Required only if you are modifying the API or Database schemas.
+
+      ```bash
+      # Start Infrastructure
+      docker-compose -f docker-compose.infra.yml up -d
+
+      # Start Services
+      cd apps/backend && bun run dev
+      cd apps/server && bun run dev
+      ```
+
+## 🤝 Workflow
+
+1.  **Fork the repository**.
+2.  **Create a branch** for your feature or fix:
+    - `feat/new-awesome-feature`
+    - `fix/annoying-bug`
+    - `docs/improve-readme`
+3.  **Commit your changes** using [Conventional Commits](https://www.conventionalcommits.org/):
+    - `feat: add user profile page`
+    - `fix: resolve websocket connection timeout`
+4.  **Push to your branch**.
+5.  **Submit a Pull Request**.
+
+## 🎨 Coding Standards
+
+- **TypeScript**: We use strict typing. Avoid `any` whenever possible.
+- **Formatting**: We use **Prettier**. Please run standard formatting before committing.
+- **Linting**: We use **ESLint**. logic should be clean and readable.
+
+## 🐛 Reporting Bugs
+
+Bugs are tracked as GitHub issues. When filing an issue, please include:
+
+- A clear title and description.
+- Steps to reproduce.
+- Expected vs. actual behavior.
+- Use the **Bug Report** issue template.
+
+## 💡 Feature Requests
+
+Have an idea? We'd love to hear it! Open an issue using the **Feature Request** template.
+
+---
+
+Thank you for contributing to Vext! 💜
