@@ -33,24 +33,3 @@ services:
       - key: BACKEND_URL
         value: https://vext-backend-yj77.onrender.com
 
-
-  # --------------------------------------------------------------------------------
-  # GAME SERVER (Dedicated Aether Strike) - apps/game-server
-  # --------------------------------------------------------------------------------
-  - type: web
-    name: vext-game-server
-    region: frankfurt
-    env: rust
-    plan: free
-    rootDir: .
-    buildCommand: cd apps/game-server && cargo build --release
-    startCommand: cd apps/game-server && ./target/release/game-server
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: BACKEND_URL
-        value: https://vext-backend-yj77.onrender.com/api
-      - key: PORT
-        sync: false
-      - key: JWT_SECRET
-        sync: false
