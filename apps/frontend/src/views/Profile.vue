@@ -5,7 +5,7 @@ import { useItemStore } from '../stores/itemStore';
 import { useLayoutStore } from '../stores/layoutStore';
 import axios from 'axios';
 import { getApiUrl } from '../utils/url';
-import StatsChart from '../components/StatsChart.vue';
+
 import { statsService } from '../services/stats.service';
 
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
@@ -330,14 +330,41 @@ const unequipItem = async (itemId: string) => {
                 v-for="item in filteredInventory"
                 :key="item.item?.id"
                 class="inv-card"
-                :class="{ equipped: item.is_equipped }"
+                :class="{ equipped: item.is_equipped, [item.item?.rarity || 'common']: true }"
               >
-                <div class="inv-img-wrapper" :class="item.item?.rarity">
-                  <img :src="item.item?.image_url" />
+                <!-- Image Container -->
+                <div class="inv-img-container">
+                  <img :src="item.item?.image_url" alt="Item image" />
+                  <div class="equipped-badge" v-if="item.is_equipped">
+                    <i class="fas fa-check"></i>
+                  </div>
                 </div>
-                <span class="inv-name">{{ item.item?.name }}</span>
-                <button v-if="!item.is_equipped" @click="equipItem(item.item?.id)">Equip</button>
-                <button v-else @click="unequipItem(item.item?.id)" class="unequip">Unequip</button>
+
+                <!-- Info Section -->
+                <div class="inv-info">
+                  <div class="inv-text-content">
+                    <span class="inv-name" :title="item.item?.name">{{ item.item?.name }}</span>
+                    <span class="inv-type">{{ item.item?.item_type }}</span>
+                  </div>
+
+                  <!-- Actions (Always visible or simpler hover) -->
+                  <div class="inv-actions-inline">
+                    <button
+                      v-if="!item.is_equipped"
+                      @click.stop="equipItem(item.item?.id)"
+                      class="btn-action equip"
+                    >
+                      Equip
+                    </button>
+                    <button
+                      v-else
+                      @click.stop="unequipItem(item.item?.id)"
+                      class="btn-action unequip"
+                    >
+                      Unequip
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -484,6 +511,7 @@ const unequipItem = async (itemId: string) => {
   font-size: 1.8rem;
   margin: 0;
   background: linear-gradient(135deg, #fff, #a5f3fc);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -697,47 +725,146 @@ const unequipItem = async (itemId: string) => {
 }
 .inv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 15px;
-}
-.inv-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 10px;
+}
+
+.inv-card {
+  position: relative;
+  background: rgba(30, 30, 40, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  text-align: center;
+  overflow: hidden; /* Keep rounded corners */
+  display: flex;
+  flex-direction: column;
+  transition:
+    transform 0.2s,
+    background 0.2s;
+  /* Removed aspect-ratio to let content dictate height, 
+     but added min-height for consistency */
+  min-height: 250px;
 }
+
+.inv-card:hover {
+  transform: translateY(-2px);
+  background: rgba(40, 40, 50, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
 .inv-card.equipped {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 15px rgba(5, 217, 232, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(40, 45, 60, 0.7);
 }
-.inv-img-wrapper {
-  height: 90px;
-  margin-bottom: 10px;
+
+/* Image Section */
+.inv-img-container {
+  height: 140px; /* Fixed height for image area */
+  width: 100%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
 }
+
 .inv-card img {
   max-width: 100%;
-  max-height: 90px;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
 }
-.inv-card button {
-  width: 100%;
-  border: none;
-  padding: 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  cursor: pointer;
-  margin-top: 5px;
-}
-.inv-card button:hover {
+
+/* Equipped Badge - Simplified */
+.equipped-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
   background: #fff;
   color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
 }
-.inv-card button.unequip {
-  background: var(--neon-pink);
+
+/* Info Section */
+.inv-info {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Push actions to bottom */
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inv-text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #fff;
+  /* Prevent clipping but allow truncation */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inv-type {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Inline Actions (No overlay) */
+.inv-actions-inline {
+  width: 100%;
+  margin-top: auto;
+}
+
+.btn-action {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  transition: all 0.2s;
+  text-transform: none; /* Removed uppercase */
+}
+
+.btn-action:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-action.equip:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-action.unequip {
+  background: rgba(255, 50, 50, 0.1);
+  border-color: rgba(255, 50, 50, 0.3);
+  color: #ffcccc;
+}
+.btn-action.unequip:hover {
+  background: rgba(255, 50, 50, 0.2);
+  border-color: rgba(255, 50, 50, 0.5);
 }
 
 .cyber-select {
