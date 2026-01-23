@@ -53,18 +53,18 @@ target/
 *.swp
 
 # Unity
-/[Ll]ibrary/
-/[Tt]emp/
-/[Oo]bj/
-/[Bb]uild/
-/[Bb]uilds/
-/[Ll]ogs/
-/[Uu]ser[Ss]ettings/
-/[Mm]emoryCaptures/
-!/[Aa]ssets/**/*.meta
-/[Aa]ssets/Plugins/Editor/JetBrains*
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+![Aa]ssets/**/*.meta
+[Aa]ssets/Plugins/Editor/JetBrains*
 .vs/
-/ExportedObj/
+ExportedObj/
 .consulo/
 *.csproj
 *.unityproj
