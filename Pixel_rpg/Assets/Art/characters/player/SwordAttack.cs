@@ -17,7 +17,7 @@ public class SwordAttack : MonoBehaviour
     {
         if (other.CompareTag("Enemy"))
         {
-            Enemy enemyScript = other.GetComponent<Enemy>();
+            Slime enemyScript = other.GetComponent<Slime>();
             if (enemyScript != null)
             {
                 enemyScript.TakeDamage(damage);
