@@ -5,56 +5,100 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 1f;
-
-    // Correction ici : collisionOffset est un chiffre (float)
     public float collisionOffset = 0.05f;
-
-    // Correction ici : il manquait le filtre pour les collisions
     public ContactFilter2D movementFilter;
 
     private Vector2 movementInput;
     private Rigidbody2D rb;
-    List<RaycastHit2D> castCollisions = new List<RaycastHit2D>();
+    private Animator animator;
+    private List<RaycastHit2D> castCollisions = new List<RaycastHit2D>();
+
+    // Contrôle si le joueur peut bouger (bloqué pendant l'attaque)
+    bool canMove = true;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
     }
 
     private void FixedUpdate()
     {
-        if (movementInput != Vector2.zero)
+        if (canMove && movementInput != Vector2.zero)
         {
-            // 1. Essayer de bouger normalement (X et Y)
-            int count = rb.Cast(movementInput, movementFilter, castCollisions, moveSpeed * Time.fixedDeltaTime + collisionOffset);
+            // MISE À JOUR DES PARAMÈTRES DU BLEND TREE
+            animator.SetFloat("Horizontal", movementInput.x);
+            animator.SetFloat("Vertical", movementInput.y);
 
-            if (count == 0)
+            // GESTION DU FLIP (localScale pour inclure la Hitbox)
+            if (movementInput.x < 0)
             {
-                rb.MovePosition(rb.position + movementInput * moveSpeed * Time.fixedDeltaTime);
+                transform.localScale = new Vector3(-1, 1, 1);
             }
-            else
+            else if (movementInput.x > 0)
             {
-                // 2. Si bloqué, essayer de bouger UNIQUEMENT en X
-                Vector2 moveX = new Vector2(movementInput.x, 0);
-                count = rb.Cast(moveX, movementFilter, castCollisions, moveSpeed * Time.fixedDeltaTime + collisionOffset);
-                if (count == 0 && movementInput.x != 0)
-                {
-                    rb.MovePosition(rb.position + moveX * moveSpeed * Time.fixedDeltaTime);
-                }
+                transform.localScale = new Vector3(1, 1, 1);
+            }
 
-                // 3. Sinon, essayer de bouger UNIQUEMENT en Y
-                Vector2 moveY = new Vector2(0, movementInput.y);
-                count = rb.Cast(moveY, movementFilter, castCollisions, moveSpeed * Time.fixedDeltaTime + collisionOffset);
-                if (count == 0 && movementInput.y != 0)
+            // LOGIQUE DE MOUVEMENT AVEC GLISSEMENT CONTRE LES MURS
+            bool success = TryMove(movementInput);
+
+            if (!success)
+            {
+                success = TryMove(new Vector2(movementInput.x, 0));
+
+                if (!success)
                 {
-                    rb.MovePosition(rb.position + moveY * moveSpeed * Time.fixedDeltaTime);
+                    success = TryMove(new Vector2(0, movementInput.y));
                 }
             }
+            animator.SetBool("isMoving", success);
+        }
+        else
+        {
+            animator.SetBool("isMoving", false);
         }
     }
 
+    private bool TryMove(Vector2 direction)
+    {
+        if (direction == Vector2.zero) return false;
+
+        // On vérifie les collisions avant de se déplacer
+        int count = rb.Cast(
+            direction,
+            movementFilter,
+            castCollisions,
+            moveSpeed * Time.fixedDeltaTime + collisionOffset);
+
+        if (count == 0)
+        {
+            rb.MovePosition(rb.position + direction * moveSpeed * Time.fixedDeltaTime);
+            return true;
+        }
+        return false;
+    }
+
+    // REÇOIT L'INPUT DE DÉPLACEMENT
     void OnMove(InputValue movementValue)
     {
         movementInput = movementValue.Get<Vector2>();
+    }
+
+    // DÉCLENCHE L'ATTAQUE
+    void OnAttack()
+    {
+        animator.SetTrigger("swordAttack");
+    }
+
+    // ÉVÉNEMENTS D'ANIMATION (À placer dans tes clips d'attaque)
+    public void LockMovement()
+    {
+        canMove = false;
+    }
+
+    public void UnlockMovement()
+    {
+        canMove = true;
     }
 }
