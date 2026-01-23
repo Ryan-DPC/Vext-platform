@@ -6,7 +6,7 @@ AnimationClip:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: attack_top
+  m_Name: e_slime_hurt_back
   serializedVersion: 7
   m_Legacy: 0
   m_Compressed: 0
@@ -21,16 +21,13 @@ AnimationClip:
   - serializedVersion: 2
     curve:
     - time: 0
-      value: {fileID: 1910719979137897025, guid: 237293472208278449520e48722a14ae,
+      value: {fileID: 5393504945755175844, guid: be516ec2a705c9947be7836913cf4c74,
         type: 3}
     - time: 0.1
-      value: {fileID: -4065140288915962496, guid: 237293472208278449520e48722a14ae,
+      value: {fileID: 6978149572950723015, guid: be516ec2a705c9947be7836913cf4c74,
         type: 3}
     - time: 0.2
-      value: {fileID: -959359598807138626, guid: 237293472208278449520e48722a14ae,
-        type: 3}
-    - time: 0.3
-      value: {fileID: 6581714141959652647, guid: 237293472208278449520e48722a14ae,
+      value: {fileID: -4728640487036593085, guid: be516ec2a705c9947be7836913cf4c74,
         type: 3}
     attribute: m_Sprite
     path: 
@@ -54,16 +51,15 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     pptrCurveMapping:
-    - {fileID: 1910719979137897025, guid: 237293472208278449520e48722a14ae, type: 3}
-    - {fileID: -4065140288915962496, guid: 237293472208278449520e48722a14ae, type: 3}
-    - {fileID: -959359598807138626, guid: 237293472208278449520e48722a14ae, type: 3}
-    - {fileID: 6581714141959652647, guid: 237293472208278449520e48722a14ae, type: 3}
+    - {fileID: 5393504945755175844, guid: be516ec2a705c9947be7836913cf4c74, type: 3}
+    - {fileID: 6978149572950723015, guid: be516ec2a705c9947be7836913cf4c74, type: 3}
+    - {fileID: -4728640487036593085, guid: be516ec2a705c9947be7836913cf4c74, type: 3}
   m_AnimationClipSettings:
     serializedVersion: 2
     m_AdditiveReferencePoseClip: {fileID: 0}
     m_AdditiveReferencePoseTime: 0
     m_StartTime: 0
-    m_StopTime: 0.4
+    m_StopTime: 0.3
     m_OrientationOffsetY: 0
     m_Level: 0
     m_CycleOffset: 0
@@ -82,18 +78,4 @@ AnimationClip:
   m_EulerEditorCurves: []
   m_HasGenericRootTransform: 0
   m_HasMotionFloatCurves: 0
-  m_Events:
-  - time: 0
-    functionName: LockMovement
-    data: 
-    objectReferenceParameter: {fileID: 0}
-    floatParameter: 0
-    intParameter: 0
-    messageOptions: 0
-  - time: 0
-    functionName: UnlockMovement
-    data: 
-    objectReferenceParameter: {fileID: 0}
-    floatParameter: 0
-    intParameter: 0
-    messageOptions: 0
+  m_Events: []

@@ -1,38 +1,27 @@
-using System.Diagnostics;
 using UnityEngine;
 
 public class SwordAttack : MonoBehaviour
 {
-    // Référence au collider de la hitbox (le rectangle vert)
-    public Collider2D swordCollider;
     public float damage = 3f;
+    public Collider2D swordAttack;
 
-    private void Start()
+    void Start()
     {
-        // Si tu n'as pas glissé le collider dans l'inspecteur, on le cherche
-        if (swordCollider == null)
-        {
-            swordCollider = GetComponent<Collider2D>();
-        }
-
-        // On s'assure qu'elle est éteinte au début du jeu
-        StopAttack();
+        if (swordAttack == null) swordAttack = GetComponent<Collider2D>();
+        // On s'assure que IsTrigger est coché
+        swordAttack.isTrigger = true;
+        swordAttack.enabled = false;
     }
 
-    // Version simplifiée : une seule fonction pour activer l'attaque
-    // Car ton PlayerController s'occupe déjà de tourner l'objet
-    public void StartAttack()
-    {
-        swordCollider.enabled = true;
-    }
-
-    public void StopAttack()
-    {
-        swordCollider.enabled = false;
-    }
-
-    // C'est ici qu'on détecte si on touche un ennemi
     private void OnTriggerEnter2D(Collider2D other)
     {
+        if (other.CompareTag("Enemy"))
+        {
+            Enemy enemyScript = other.GetComponent<Enemy>();
+            if (enemyScript != null)
+            {
+                enemyScript.TakeDamage(damage);
+            }
+        }
     }
 }
