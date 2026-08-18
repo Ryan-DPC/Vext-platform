@@ -20,6 +20,6 @@ COPY apps/backend ./apps/backend
 WORKDIR /app/apps/backend
 
 # Build/Expose
-EXPOSE 3000
+EXPOSE ${PORT:-3001}
 
 CMD ["bun", "run", "src/index.ts"]

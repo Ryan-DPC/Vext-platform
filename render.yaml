@@ -29,6 +29,14 @@ services:
         sync: false
       - key: PORT
         sync: false
+      - key: BACKEND_URL
+        value: https://vext-backend.onrender.com
+      - key: FRONTEND_URL
+        value: https://vext-frontend.onrender.com
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
 
   # --------------------------------------------------------------------------------
   # WEBSOCKET SERVER (Socket.io/Elysia)

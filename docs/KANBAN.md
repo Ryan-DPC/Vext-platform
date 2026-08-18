@@ -19,24 +19,24 @@ Ce document centralise les tâches, bugs et améliorations pour le projet **Vext
 | Priorité | Titre | Description Technique | Fichiers Affectés |
 | :---: | --- | --- | --- |
 | 🔴 | **Notifications Push Desktop** | Implémenter les notifications système via l'API Tauri `notification` lorsque l'app est en arrière-plan (nouveau message, invitation). | `apps/frontend/src-tauri/*`<br>`apps/frontend/src/services/OneSignal.ts` |
-| 🟡 | **Recherche Avancée Marketplace** | Ajouter des filtres (Genre, Prix min/max, Note) dans l'API (`games.routes.ts`) et le Frontend. Indexer ces champs dans Mongo. | `apps/backend-elysia/src/features/games` <br> `apps/frontend/src/views/Store.vue` |
-| 🟡 | **Système de Badges** | Créer un modèle `Badge` et un système d'attribution automatique (ex: "Early Adopter", "Big Spender") basé sur les stats utilisateur. | `apps/backend-elysia/src/features/users`<br>`packages/database/src/models/Badge.ts` |
+| 🟡 | **Recherche Avancée Marketplace** | Ajouter des filtres (Genre, Prix min/max, Note) dans l'API (`games.routes.ts`) et le Frontend. Indexer ces champs dans Mongo. | `apps/backend/src/features/games` <br> `apps/frontend/src/views/Store.vue` |
+| 🟡 | **Système de Badges** | Créer un modèle `Badge` et un système d'attribution automatique (ex: "Early Adopter", "Big Spender") basé sur les stats utilisateur. | `apps/backend/src/features/users`<br>`packages/database/src/models/Badge.ts` |
 | 🟢 | **Mode Clair / Sombre** | Permettre le basculement du thème via Tailwind (`darkMode: 'class'`) et sauvegarder la préférence dans `localStorage`. | `apps/frontend/tailwind.config.js`<br>`apps/frontend/src/App.vue` |
 
 ### 🐛 Bugs & Maintenance
 
 | Priorité | Titre | Description Technique | Fichiers Affectés |
 | :---: | --- | --- | --- |
-| 🔴 | **Activer Version Checker** | Le job `version-checker.job.ts` est commenté dans `index.ts`. Il faut l'activer, tester la CRON et vérifier la logique de comparaison de version. | `apps/server/src/jobs/version-checker.job.ts`<br>`apps/server/src/index.ts` |
-| 🟡 | **Validation des Inputs (Zod)** | Ajouter un middleware de validation strict (Elysia `t.Object` / Zod) sur tous les endpoints `POST`/`PUT` pour éviter les données corrompues. | `apps/backend-elysia/src/features/*` |
-| 🟡 | **Standardisation des Erreurs** | S'assurer que TOUTES les routes retournent un format d'erreur constant : `{ success: false, code: 'ERR_TYPE', message: '...' }`. | `apps/backend-elysia/src/utils/error.ts` |
+| ✅ | **~~Activer Version Checker~~** | Activé dans `index.ts`. CRON job opérationnel. | `apps/server/src/jobs/version-checker.job.ts`<br>`apps/server/src/index.ts` |
+| 🟡 | **Validation des Inputs (Zod)** | Ajouter un middleware de validation strict (Elysia `t.Object` / Zod) sur tous les endpoints `POST`/`PUT` pour éviter les données corrompues. | `apps/backend/src/features/*` |
+| 🟡 | **Standardisation des Erreurs** | S'assurer que TOUTES les routes retournent un format d'erreur constant : `{ success: false, code: 'ERR_TYPE', message: '...' }`. | `apps/backend/src/utils/error.ts` |
 | 🟢 | **Audit Sécurité WebSocket** | Vérifier que le rate-limiting est actif sur les sockets pour éviter le spam de broadcast `chat:global`. | `apps/server/src/socket.handlers.ts` |
 
 ### ⚡ Performance & DevOps
 
 | Priorité | Titre | Description Technique | Fichiers Affectés |
 | :---: | --- | --- | --- |
-| 🔴 | **Cache Redis (Invalidation)** | Mettre en place une stratégie d'invalidation du cache (supprimer clés `games:*`) lors de la modification d'un jeu admin. | `apps/backend-elysia/src/services/redis.service.ts` |
+| 🔴 | **Cache Redis (Invalidation)** | Mettre en place une stratégie d'invalidation du cache (supprimer clés `games:*`) lors de la modification d'un jeu admin. | `apps/backend/src/services/redis.service.ts` |
 | 🟡 | **Lazy Loading Frontend** | Utiliser `defineAsyncComponent` de Vue 3 pour les composants lourds (ex: `GameDetails.vue`, `ChatWidget.vue`) pour accélérer le FCP. | `apps/frontend/src/router/index.ts` |
 | 🟡 | **CI/CD Tests** | Ajouter une étape `npm test` dans le workflow GitHub Actions avant le build Tauri. | `.github/workflows/build.yml` |
 

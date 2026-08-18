@@ -33,54 +33,52 @@ services:
       - vext-net
 
   server:
-    build: ./server
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
     container_name: vext_server
     ports:
       - "3002:3002"
     env_file:
-      - .env
+      - ../../.env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/vext
+      - MONGODB_URI=mongodb://mongo:27017/vext
       - REDIS_URL=redis://redis:6379
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-vext_finance}
       - WS_PORT=3002
-      - SERVER_ROLE=launcher # Role identifier
+      - SERVER_ROLE=launcher
     depends_on:
       - mongo
       - redis
       - postgres
-    volumes:
-      - ./server:/app
-      - /app/node_modules
     networks:
       - vext-net
 
   games-server:
-    build: ./server
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
     container_name: vext_games_server
     ports:
       - "3003:3003"
     env_file:
-      - .env
+      - ../../.env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/vext
+      - MONGODB_URI=mongodb://mongo:27017/vext
       - REDIS_URL=redis://redis:6379
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-vext_finance}
       - WS_PORT=3003
-      - SERVER_ROLE=games # Role identifier
+      - SERVER_ROLE=games
     depends_on:
       - mongo
       - redis
       - postgres
-    volumes:
-      - ./server:/app
-      - /app/node_modules
     networks:
       - vext-net
 
