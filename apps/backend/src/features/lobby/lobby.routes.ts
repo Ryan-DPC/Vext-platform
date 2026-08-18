@@ -2,11 +2,12 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { lobbyService } from './lobby.service';
+import { JWT_SECRET } from '../../config/jwt';
 
 export const lobbyRoutes = new Elysia({ prefix: '/api/lobby' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .derive(async ({ headers, jwt }) => {
         const auth = headers['authorization'];
@@ -17,38 +18,73 @@ export const lobbyRoutes = new Elysia({ prefix: '/api/lobby' })
         const payload = await jwt.verify(token);
         return { user: payload };
     })
-    // Lobby Management (Socket ID based usually, but here exposing via REST for initial actions or fallbacks)
-    .post('/create', ({ body }) => {
-        const { socketId } = body as any;
-        return { lobbyId: lobbyService.createLobby(socketId) };
+    .onBeforeHandle(({ user, set }) => {
+        if (!user) {
+            set.status = 401;
+            return { message: 'Authentication required' };
+        }
     })
-    .post('/join', ({ body }) => {
-        const { lobbyId, socketId } = body as any;
-        const joined = lobbyService.joinLobby(lobbyId, socketId);
-        return { success: joined };
+    .post('/create', ({ body, user }) => {
+        const { gameId, gameName } = body as any;
+        const userId = (user as any).id;
+        const lobbyId = lobbyService.createLobby(userId);
+        const lobby = lobbyService.getLobby(lobbyId);
+        return {
+            success: true,
+            lobby: {
+                id: lobbyId,
+                gameId,
+                gameName,
+                hostId: userId,
+                players: [{
+                    userId,
+                    username: (user as any).username,
+                    isHost: true
+                }],
+                maxPlayers: 4,
+                createdAt: new Date().toISOString()
+            }
+        };
+    }, {
+        body: t.Object({
+            gameId: t.String(),
+            gameName: t.String()
+        })
     })
-    .post('/leave', ({ body }) => {
-        const { socketId } = body as any;
-        const lobbyId = lobbyService.leaveLobby(socketId);
+    .post('/join', ({ body, user }) => {
+        const { lobbyId } = body as any;
+        const userId = (user as any).id;
+        const joined = lobbyService.joinLobby(lobbyId, userId);
+        if (!joined) {
+            return { success: false, message: 'Lobby not found or full' };
+        }
+        const players = lobbyService.getPlayers(lobbyId);
+        return {
+            success: true,
+            lobby: {
+                id: lobbyId,
+                players: players.map((pid: string, i: number) => ({
+                    userId: pid,
+                    isHost: i === 0
+                }))
+            }
+        };
+    }, {
+        body: t.Object({
+            lobbyId: t.String()
+        })
+    })
+    .post('/leave', ({ body, user }) => {
+        const userId = (user as any).id;
+        const lobbyId = lobbyService.leaveLobby(userId);
         return { success: !!lobbyId, lobbyId };
     })
     .get('/:lobbyId/players', ({ params: { lobbyId } }) => {
         return lobbyService.getPlayers(lobbyId);
     })
-    .post('/remove-player', ({ body }) => {
-        const { socketId } = body as any;
-        const lobbyId = lobbyService.removePlayer(socketId);
-        return { success: !!lobbyId, lobbyId };
-    })
 
     // Game Session Management (Protected)
     .group('/session', (app) => app
-        .onBeforeHandle(({ user, set }) => {
-            if (!user) {
-                set.status = 401;
-                return { message: 'Unauthorized' };
-            }
-        })
         .post('/create', async ({ body, user, set }) => {
             const { gameId, gameFolderName, ownershipToken } = body as any;
             try {

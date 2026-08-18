@@ -132,9 +132,26 @@ const changePassword = async () => {
         statusType.value = 'error'
         return
     }
-    // TODO: Implement password change endpoint
-    statusMessage.value = 'Password change not yet implemented.'
-    statusType.value = 'info'
+    if (passwordForm.newPassword.length < 6) {
+        statusMessage.value = 'New password must be at least 6 characters.'
+        statusType.value = 'error'
+        return
+    }
+    try {
+        const axios = (await import('axios')).default
+        await axios.post('/auth/change-password', {
+            currentPassword: passwordForm.currentPassword,
+            newPassword: passwordForm.newPassword
+        })
+        statusMessage.value = 'Password changed successfully.'
+        statusType.value = 'success'
+        passwordForm.currentPassword = ''
+        passwordForm.newPassword = ''
+        passwordForm.confirmPassword = ''
+    } catch (err: any) {
+        statusMessage.value = err.response?.data?.message || 'Failed to change password.'
+        statusType.value = 'error'
+    }
 }
 
 // === Theme & Plugins Logic ===

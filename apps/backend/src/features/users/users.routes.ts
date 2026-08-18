@@ -2,11 +2,12 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { UsersService } from './users.service';
+import { JWT_SECRET } from '../../config/jwt';
 
 export const usersRoutes = new Elysia({ prefix: '/api/users' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .derive(async ({ headers, jwt }) => {
         const auth = headers['authorization'];

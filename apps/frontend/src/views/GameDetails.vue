@@ -122,19 +122,24 @@ onMounted(async () => {
 })
 
 const checkInstallationStatus = async () => {
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath || !game.value) return
 
-    // Check if folder exists
     const isFolderExists = await tauriAPI.checkGameInstalled(installPath, game.value.slug)
     
     if (isFolderExists) {
-        // TODO: Read installed.json to check version
-        // For now, assume installed if folder exists
         isInstalled.value = true
         
-        // If we could read installed.json, we would compare versions here
-        // hasUpdate.value = installedVersion.value !== game.value.version
+        try {
+            const { readTextFile } = await import('@tauri-apps/plugin-fs')
+            const manifestRaw = await readTextFile(`${installPath}/VEXT/${game.value.slug}/manifest.json`)
+            const manifest = JSON.parse(manifestRaw)
+            const installedVersion = manifest.version || '1.0.0'
+            const latestVersion = game.value.version || game.value.latestVersion || '1.0.0'
+            hasUpdate.value = installedVersion !== latestVersion
+        } catch {
+            hasUpdate.value = false
+        }
     }
 }
 
@@ -161,7 +166,7 @@ const setupInstallListeners = () => {
             isInstalled.value = true
             hasUpdate.value = false
             
-            new Notification('Ether Desktop', {
+            new Notification('VEXT', {
                 body: `✅ ${data.gameName} installé avec succès!`,
                 silent: false
             })
@@ -194,10 +199,8 @@ const installGame = async () => {
 
     try {
         // 1. Get Install Path
-        let installPath = localStorage.getItem('etherInstallPath')
+        let installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
         if (!installPath) {
-            // Show path selector (we need to add the component to template)
-            // For now, alert if not set
             alertStore.showAlert({
                 title: 'Configuration requise',
                 message: 'Veuillez d\'abord définir un dossier d\'installation dans la bibliothèque',
@@ -246,7 +249,7 @@ const installGame = async () => {
 const launchGame = async () => {
     if (!(window as any).__TAURI__) return
     
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) return
 
     try {
@@ -294,7 +297,7 @@ const purchaseGame = async () => {
 
 const uninstallGame = async () => {
     if (!(window as any).__TAURI__ || !game.value) return
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) return
 
     if (await alertStore.showConfirm({

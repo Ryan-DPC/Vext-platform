@@ -9,24 +9,15 @@ import router from '../router';
 
 // Get WebSocket URL based on environment
 const getSocketUrl = () => {
-    // Check environment variable first
-    if (import.meta.env.VITE_WEBSOCKET_URL) {
-        return import.meta.env.VITE_WEBSOCKET_URL;
-    }
-
-    const prodUrl = import.meta.env.VITE_WEBSOCKET_URL;
     const isTauri = !!(window as any).__TAURI__;
+    const prodUrl = import.meta.env.VITE_WEBSOCKET_URL || 'wss://vext-ws-server.onrender.com';
 
-    let baseUrl = import.meta.env.VITE_API_URL; // Default to Elysia port 3000
-
-    // In Production or Tauri, use production server
     if (import.meta.env.PROD || isTauri) {
-        baseUrl = prodUrl;
+        return prodUrl.replace(/^http/, 'ws');
     }
 
-    // Convert http/https to ws/wss
-    const wsUrl = baseUrl.replace('http', 'ws');
-    return `${wsUrl}/ws`; // Append /ws path defined in backend
+    // Dev: local WS server
+    return 'ws://localhost:3002';
 }
 
 class SocketService {

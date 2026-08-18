@@ -7,6 +7,14 @@ import { setWebSocketServer } from './services/websocket.service';
 import { handleWsMessage, handleWsDisconnect } from './socket.handlers';
 import { VersionCheckerJob } from './jobs/version-checker.job';
 
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error(
+        'FATAL: JWT_SECRET environment variable is not set. ' +
+        'Set it in your .env file or environment before starting the server.'
+    );
+}
+
 // Initialize and start VersionChecker
 const versionChecker = new VersionCheckerJob();
 versionChecker.start();
@@ -28,7 +36,7 @@ const app = new Elysia()
     }))
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .ws('/', {
         async open(ws) {

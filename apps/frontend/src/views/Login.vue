@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { getApiUrl } from '../utils/url'
+
+const githubAuthUrl = computed(() => `${getApiUrl()}/api/auth/github`)
 
 const email = ref('')
 const password = ref('')
@@ -10,10 +13,15 @@ const rememberMe = ref(false)
 const error = ref('')
 const userStore = useUserStore()
 const router = useRouter()
-
+const route = useRoute()
 
 onMounted(async () => {
-    // Check for token in URL (from GitHub callback) logic removed
+    const token = route.query.token as string
+    if (token && route.query.github === 'true') {
+        localStorage.setItem('token', token)
+        await userStore.fetchProfile()
+        router.push('/home')
+    }
 })
 
 const handleLogin = async () => {
@@ -88,6 +96,12 @@ const handleLogin = async () => {
                 <button type="submit" :disabled="userStore.isLoading" class="btn-primary">
                     {{ userStore.isLoading ? 'AUTHENTICATING...' : 'LOGIN' }}
                 </button>
+
+                <div class="divider"><span>or</span></div>
+
+                <a :href="githubAuthUrl" class="btn-github">
+                    <i class="fab fa-github"></i> Continue with GitHub
+                </a>
                 
                 <div class="register-link">
                     New to VEXT? 

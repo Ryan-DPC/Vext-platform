@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     environment:
-      - MONGO_URI=${MONGO_URI:-mongodb://vext_mongo:27017/vext}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://vext_mongo:27017/vext}
       - REDIS_URL=${REDIS_URL:-redis://vext_redis:6379}
       - WS_URL=${WS_URL:-http://vext_server:3002}
       - CENTRAL_WEBSOCKET_URL=${CENTRAL_WEBSOCKET_URL:-http://vext_server:3002}

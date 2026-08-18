@@ -30,25 +30,31 @@ export class FinanceService {
     }
 
     static async deposit(userId: string, amount: number, currency: any, method: string = 'CREDIT_CARD') {
+        if (amount <= 0) {
+            throw new Error('Deposit amount must be positive');
+        }
+        if (amount > 10000) {
+            throw new Error('Maximum deposit amount is 10,000');
+        }
+
         const session = await mongoose.startSession();
         session.startTransaction();
 
         try {
-            // 1. Create Transaction (Mongoose)
+            // Create a PENDING transaction — funds are NOT credited until payment is confirmed
             const transaction = await TransactionModel.create([{
                 userId,
                 amount,
                 currency,
                 type: 'DEPOSIT',
-                status: 'COMPLETED',
+                status: 'PENDING',
                 description: `Deposit via ${method}`,
-                referenceId: crypto.randomUUID(), // Native UUID in Bun/Node
+                referenceId: crypto.randomUUID(),
                 metadata: { method }
             }], { session });
 
             const txDoc = transaction[0];
 
-            // 2. Create Invoice
             await InvoiceModel.create([{
                 userId,
                 transactionId: txDoc._id,
@@ -58,11 +64,11 @@ export class FinanceService {
                 billingDetails: { method }
             }], { session });
 
-            // 3. Update User Balance (Mongo)
-            await Users.incrementBalance(userId, currency, amount, session);
-
             await session.commitTransaction();
             session.endSession();
+
+            // Return the pending transaction — a payment provider webhook
+            // (e.g. Stripe) should call confirmDeposit() to complete it
             return { ...txDoc.toObject(), id: txDoc._id.toString() };
 
         } catch (error) {
@@ -72,12 +78,39 @@ export class FinanceService {
         }
     }
 
-    static async withdraw(userId: string, amount: number, currency: any, method: string = 'BANK_TRANSFER') {
+    static async confirmDeposit(transactionId: string) {
         const session = await mongoose.startSession();
         session.startTransaction();
 
         try {
-            // 1. Check and atomic deduct
+            const tx = await TransactionModel.findById(transactionId).session(session);
+            if (!tx) throw new Error('Transaction not found');
+            if (tx.status !== 'PENDING') throw new Error('Transaction is not pending');
+
+            tx.status = 'COMPLETED';
+            await tx.save({ session });
+
+            await Users.incrementBalance(tx.userId, tx.currency, tx.amount, session);
+
+            await session.commitTransaction();
+            session.endSession();
+            return { ...tx.toObject(), id: tx._id.toString() };
+        } catch (error) {
+            await session.abortTransaction();
+            session.endSession();
+            throw error;
+        }
+    }
+
+    static async withdraw(userId: string, amount: number, currency: any, method: string = 'BANK_TRANSFER') {
+        if (amount <= 0) {
+            throw new Error('Withdrawal amount must be positive');
+        }
+
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
             const hasFunds = await Users.decrementBalanceIfSufficient(userId, currency, amount, session);
 
             if (!hasFunds) {
