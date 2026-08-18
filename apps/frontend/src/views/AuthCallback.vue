@@ -1,17 +1,30 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '../stores/userStore'
+import { getApiUrl } from '../utils/url'
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 
-onMounted(() => {
+onMounted(async () => {
+    const token = route.query.token as string
+    const isGithub = route.query.github === 'true'
+
+    if (token && isGithub) {
+        // Token was returned from backend GitHub OAuth callback
+        localStorage.setItem('token', token)
+        await userStore.fetchProfile()
+        router.push('/home')
+        return
+    }
+
     const code = route.query.code as string
     if (code) {
-        // Redirect to backend with the code
-        window.location.href = `https://vext-backend.onrender.com/api/auth/github/callback?code=${code}`
+        window.location.href = `${getApiUrl()}/api/auth/github/callback?code=${code}`
     } else {
-        // If no code, go back to login
-        window.location.href = '/login?error=No+code+received'
+        router.push('/login?error=No+code+received')
     }
 })
 </script>
@@ -41,7 +54,7 @@ onMounted(() => {
 
 .spinner {
     border: 4px solid rgba(255, 255, 255, 0.1);
-    border-left-color: #4CAF50;
+    border-left-color: #00dc82;
     border-radius: 50%;
     width: 40px;
     height: 40px;
