@@ -86,7 +86,7 @@ onMounted(async () => {
           game.status = 'installed'
         }
 
-        new Notification('Ether Desktop', { body: `✅ ${data.gameName} installed successfully!` })
+        new Notification('VEXT', { body: `✅ ${data.gameName} installed successfully!` })
         installingGameId.value = null
         await gameStore.fetchMyGames()
       } catch (error) {
@@ -194,12 +194,12 @@ const installGame = async (game: any) => {
       return
     }
 
-    let installPath = localStorage.getItem('etherInstallPath')
+    let installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) {
       const selectedPath = await pathSelector.value?.show()
       installPath = selectedPath || null
       if (!installPath) return
-      localStorage.setItem('etherInstallPath', installPath)
+      localStorage.setItem('vextInstallPath', installPath)
     }
 
     const gameId = game._id || game.folder_name
@@ -237,7 +237,7 @@ const launchGame = async (folderName: string) => {
   if (!(window as any).__TAURI__) return
 
   try {
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) {
       alertStore.showAlert({
         title: 'Configuration Error',

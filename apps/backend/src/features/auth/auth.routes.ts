@@ -2,13 +2,14 @@
 import { t, Elysia } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { Users } from '@vext/database';
+import { JWT_SECRET } from '../../config/jwt';
 
 // Helper to generate a token
 // Note: We'll access the `jwt` plugin instance from the handler context
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .post('/register', async ({ body, jwt, set }) => {
         const { username, email, password, tag } = body as any;

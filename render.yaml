@@ -6,7 +6,7 @@ services:
     name: vext-backend
     region: frankfurt
     env: node
-    plan: free # Change to starter/standard for production
+    plan: starter
     rootDir: . # Root context for Monorepo
     # Build: Install all dependencies, then build backend
     buildCommand: npm install -g bun && bun install && cd apps/backend && bun run build
@@ -37,7 +37,7 @@ services:
     name: vext-ws-server
     region: frankfurt
     env: node
-    plan: free
+    plan: starter
     rootDir: . # Root context for Monorepo
     # Build: Install all dependencies
     buildCommand: npm install -g bun && bun install
