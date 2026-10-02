@@ -1,0 +1,21 @@
+{
+  "name": "vext-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vext smoke & e2e test suite (Playwright)",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:api": "playwright test tests/api --grep @smoke",
+    "test:ui": "playwright test tests/ui",
+    "test:full": "playwright test",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install chromium --with-deps",
+    "mock:api": "bun run scripts/mock-api.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "dotenv": "^16.4.5"
+  }
+}
