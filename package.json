@@ -5,7 +5,12 @@
     "packages/*"
   ],
   "scripts": {
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "test:unit": "bun --cwd apps/frontend run test -- --run",
+    "test:smoke": "bun --cwd apps/e2e run test:smoke",
+    "test:e2e": "bun --cwd apps/e2e run test:full",
+    "test:api": "bun --cwd apps/e2e run test:api",
+    "test": "bun run test:unit && bun run test:smoke"
   },
   "devDependencies": {
     "eslint": "^8.56.0",
