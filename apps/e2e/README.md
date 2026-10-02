@@ -81,6 +81,11 @@ cd apps/frontend && bun run dev
 
 Tauri desktop is out of scope for headless CI; UI smoke targets Vite on port 5173.
 
-## CI
+## Dry-run without a real backend
 
-Workflow `.github/workflows/smoke.yml` runs API smoke against `API_URL` (secret or default). Skips gracefully when the target is unreachable unless `REQUIRE_API=1`.
+```bash
+bun run mock:api   # terminal 1 — http://127.0.0.1:3001
+API_URL=http://127.0.0.1:3001 E2E_USER=e2euser E2E_PASSWORD=e2epass bun run test:api
+```
+
+The mock implements only the smoke endpoints (health, auth validation, catalogue, auth gates). Use a real `apps/backend` for true integration.

@@ -1,3 +1,6 @@
 # Keep directory for local screenshots / recordings referenced in PRs
 *
 !.gitignore
+!*.png
+!*.webm
+!*.md
