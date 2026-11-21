@@ -1,17 +1,29 @@
 <script setup>
+import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import ToastNotification from './components/ToastNotification.vue'
 import AlertModal from './components/AlertModal.vue'
+import UpdateModal from './components/UpdateModal.vue'
 import SakuraBackground from './components/SakuraBackground.vue'
 import ChatPopup from '@/components/ChatPopup.vue'
 import TitleBar from '@/components/TitleBar.vue' // Import TitleBar
 import { useUserStore } from '@/stores/userStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useUpdaterStore } from '@/stores/updaterStore'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
 const themeStore = useThemeStore() // Initialize theme
+const updaterStore = useUpdaterStore()
+
+onMounted(() => {
+  updaterStore.init()
+  // Verification silencieuse des mises a jour 3s apres l'ouverture
+  setTimeout(() => {
+    updaterStore.checkForUpdates(true)
+  }, 3000)
+})
 </script>
 
 <template>
@@ -23,6 +35,7 @@ const themeStore = useThemeStore() // Initialize theme
   <SakuraBackground />
   <ToastNotification />
   <AlertModal />
+  <UpdateModal />
   
   <Transition name="chat-pop">
     <ChatPopup 

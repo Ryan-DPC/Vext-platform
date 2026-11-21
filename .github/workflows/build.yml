@@ -38,6 +38,8 @@ jobs:
       env:
         VITE_API_URL: 'https://hoopslive.ch/vext'
         VITE_WEBSOCKET_URL: 'wss://hoopslive.ch/vext'
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
@@ -46,6 +48,10 @@ jobs:
         retention-days: 7
         path: |
           apps/frontend/src-tauri/target/release/bundle/nsis/*.exe
+          apps/frontend/src-tauri/target/release/bundle/nsis/*.exe.sig
+          apps/frontend/src-tauri/target/release/bundle/nsis/*.zip
+          apps/frontend/src-tauri/target/release/bundle/nsis/*.zip.sig
           apps/frontend/src-tauri/target/release/bundle/msi/*.msi
+          apps/frontend/src-tauri/target/release/bundle/msi/*.msi.sig
           apps/frontend/src-tauri/target/release/*.exe
         if-no-files-found: warn

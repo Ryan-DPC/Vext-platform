@@ -9,7 +9,8 @@ const messages = {
                 Profile: 'Profile',
                 Security: 'Security',
                 Notifications: 'Notifications',
-                Appearance: 'Appearance'
+                Appearance: 'Appearance',
+                Updates: 'Updates'
             },
             account: {
                 username: 'Username',
@@ -49,7 +50,8 @@ const messages = {
                 Profile: 'Profil',
                 Security: 'Sécurité',
                 Notifications: 'Notifications',
-                Appearance: 'Apparence'
+                Appearance: 'Apparence',
+                Updates: 'Mises à jour'
             },
             account: {
                 username: 'Nom d\'utilisateur',
@@ -89,7 +91,8 @@ const messages = {
                 Profile: 'Perfil',
                 Security: 'Seguridad',
                 Notifications: 'Notificaciones',
-                Appearance: 'Apariencia'
+                Appearance: 'Apariencia',
+                Updates: 'Actualizaciones'
             },
             account: {
                 username: 'Nombre de usuario',

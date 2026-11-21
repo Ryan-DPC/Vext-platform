@@ -15,6 +15,13 @@ export interface SteamGameItem {
     genre: string;
 }
 
+export interface UpdateInfo {
+    version: string;
+    current_version: string;
+    body?: string;
+    date?: string;
+}
+
 // Define the interface match existing usage if possible, or just strict typing
 interface TauriAPI {
     selectFolder: () => Promise<string | null>;
@@ -26,6 +33,9 @@ interface TauriAPI {
     launchSteamGame: (appId: string) => Promise<string>;
     installSteamGame: (appId: string) => Promise<string>;
     uninstallSteamGame: (appId: string) => Promise<string>;
+    checkForUpdate: () => Promise<UpdateInfo | null>;
+    downloadAndInstallUpdate: () => Promise<void>;
+    onUpdateProgress: (callback: (data: { downloaded: number; total: number; percentage: number }) => void) => void;
     onInstallProgress: (callback: (data: any) => void) => void;
     onInstallComplete: (callback: (data: any) => void) => void;
     onInstallError: (callback: (data: any) => void) => void;
@@ -216,6 +226,28 @@ const tauriAPI: TauriAPI = {
             return `Triggered steam://uninstall/${appId}`;
         }
         return (await invoke('uninstall_steam_game', { appId, app_id: appId })) as string;
+    },
+
+    checkForUpdate: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) return null;
+        try {
+            return (await invoke('check_for_update')) as UpdateInfo | null;
+        } catch (e) {
+            console.warn('check_for_update failed:', e);
+            return null;
+        }
+    },
+
+    downloadAndInstallUpdate: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) throw new Error('Not running in Tauri');
+        return await invoke('download_and_install_update');
+    },
+
+    onUpdateProgress: (callback) => {
+        if (!(window as any).__TAURI_INTERNALS__) return;
+        listen('update-progress', (event: any) => {
+            callback(event.payload);
+        }).catch(e => console.warn('Failed to listen to update-progress', e));
     },
 
     onInstallProgress: (callback) => {

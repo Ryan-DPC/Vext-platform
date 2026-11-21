@@ -3,19 +3,19 @@ import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/userStore'
 import { useThemeStore } from '../stores/themeStore' // Import Theme Store
-// import { useItemStore } from '../stores/itemStore'   // Import Item Store
+import { useUpdaterStore } from '../stores/updaterStore'
 import logoImage from '@/assets/images/Logo.svg'
 import SakuraBackground from '@/components/SakuraBackground.vue'
 
 const logo = logoImage
 const userStore = useUserStore()
 const themeStore = useThemeStore()
-// const itemStore = useItemStore()
+const updaterStore = useUpdaterStore()
 const { t, locale } = useI18n()
 
 
 const activeTab = ref('Account')
-const tabs = ['Account', 'Profile', 'Security', 'Notifications', 'Appearance'] // Added Appearance tab
+const tabs = ['Account', 'Profile', 'Security', 'Notifications', 'Appearance', 'Updates']
 
 const form = reactive({
   username: '',
@@ -338,7 +338,73 @@ const addNewPlugin = () => {
             </div>
         </div>
 
-        <button v-if="activeTab !== 'Security'" class="save-btn" @click="saveChanges" :disabled="userStore.isLoading">
+        <!-- UPDATES TAB -->
+        <div v-if="activeTab === 'Updates'" class="tab-content">
+            <div class="updates-card">
+                <div class="app-brand-info">
+                    <img :src="logo" alt="VEXT" class="app-logo-small" />
+                    <div>
+                        <h3 class="app-name">VEXT Gaming Client</h3>
+                        <div class="app-version-badge">Version v0.1.0 &bull; Canal Stable (GitHub)</div>
+                    </div>
+                </div>
+
+                <div class="update-status-row">
+                    <div class="status-indicator">
+                        <template v-if="updaterStore.status === 'checking'">
+                            <i class="fas fa-spinner fa-spin icon-spin"></i>
+                            <span>Recherche de mises à jour en cours...</span>
+                        </template>
+                        <template v-else-if="updaterStore.status === 'available'">
+                            <i class="fas fa-arrow-alt-circle-up icon-available"></i>
+                            <span>Nouvelle version <strong>v{{ updaterStore.updateInfo?.version }}</strong> disponible !</span>
+                        </template>
+                        <template v-else-if="updaterStore.status === 'downloading'">
+                            <i class="fas fa-cloud-download-alt icon-downloading"></i>
+                            <span>Téléchargement en cours ({{ updaterStore.progress }}%)...</span>
+                        </template>
+                        <template v-else-if="updaterStore.status === 'error'">
+                            <i class="fas fa-exclamation-circle icon-error"></i>
+                            <span>{{ updaterStore.errorMessage || 'Impossible de vérifier les mises à jour.' }}</span>
+                        </template>
+                        <template v-else>
+                            <i class="fas fa-check-circle icon-success"></i>
+                            <span>Votre client VEXT est à jour.</span>
+                        </template>
+                    </div>
+                </div>
+
+                <div v-if="updaterStore.status === 'downloading'" class="updates-progress-bar">
+                    <div class="progress-fill" :style="{ width: updaterStore.progress + '%' }"></div>
+                </div>
+
+                <div v-if="updaterStore.updateInfo?.body" class="release-preview">
+                    <h4>Notes de version :</h4>
+                    <div class="notes-body">{{ updaterStore.updateInfo.body }}</div>
+                </div>
+
+                <div class="updates-actions">
+                    <button 
+                        class="btn-check-updates" 
+                        :disabled="updaterStore.status === 'checking' || updaterStore.status === 'downloading'" 
+                        @click="updaterStore.checkForUpdates(false)"
+                    >
+                        <i class="fas fa-sync-alt" :class="{ 'fa-spin': updaterStore.status === 'checking' }"></i>
+                        Rechercher des mises à jour
+                    </button>
+
+                    <button 
+                        v-if="updaterStore.status === 'available'" 
+                        class="btn-install-now" 
+                        @click="updaterStore.startUpdate()"
+                    >
+                        <i class="fas fa-download"></i> Installer v{{ updaterStore.updateInfo?.version }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button v-if="activeTab !== 'Security' && activeTab !== 'Updates'" class="save-btn" @click="saveChanges" :disabled="userStore.isLoading">
           {{ userStore.isLoading ? t('settings.saving') : t('settings.save_btn') }}
         </button>
         
@@ -770,5 +836,150 @@ input:checked + .slider:before {
 .add-plugin-btn:hover {
     border-color: var(--accent-color);
     color: var(--accent-color);
+}
+
+/* Updates Tab */
+.updates-card {
+    background: rgba(30, 25, 45, 0.6);
+    border: 1px solid rgba(255, 126, 179, 0.2);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.app-brand-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-logo-small {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+}
+
+.app-name {
+    margin: 0;
+    font-size: 1.15rem;
+    color: white;
+    font-weight: 700;
+}
+
+.app-version-badge {
+    font-size: 0.85rem;
+    color: #ff7eb3;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.update-status-row {
+    padding: 14px 18px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95rem;
+    color: #d1d5db;
+}
+
+.icon-spin { color: #7afcff; font-size: 1.1rem; }
+.icon-available { color: #7afcff; font-size: 1.2rem; }
+.icon-downloading { color: #ff7eb3; font-size: 1.2rem; }
+.icon-error { color: #ef4444; font-size: 1.1rem; }
+.icon-success { color: #00e676; font-size: 1.1rem; }
+
+.updates-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff7eb3, #7afcff);
+    transition: width 0.2s ease;
+    box-shadow: 0 0 10px rgba(122, 252, 255, 0.5);
+}
+
+.release-preview {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 14px;
+}
+.release-preview h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.8rem;
+    color: #ff7eb3;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.notes-body {
+    font-size: 0.84rem;
+    color: #cbd5e1;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.updates-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.btn-check-updates {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.btn-check-updates:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+.btn-check-updates:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-install-now {
+    background: linear-gradient(135deg, #ff7eb3, #ff5c9e);
+    border: none;
+    color: white;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 15px rgba(255, 126, 179, 0.4);
+    transition: all 0.2s;
+}
+.btn-install-now:hover {
+    box-shadow: 0 0 22px rgba(255, 126, 179, 0.7);
+    transform: translateY(-1px);
 }
 </style>

@@ -4,10 +4,12 @@
 mod installation;
 mod launcher;
 mod steam;
+mod updater;
 
 use installation::{install_game, uninstall_game, is_game_installed, select_folder};
 use launcher::launch_game;
 use steam::{scan_steam_games, launch_steam_game, install_steam_game, uninstall_steam_game};
+use updater::{check_for_update, download_and_install_update};
 
 fn main() {
     // Ignore SSL certificate errors for development (self-signed certs)
@@ -20,6 +22,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -73,7 +76,9 @@ fn main() {
             scan_steam_games,
             launch_steam_game,
             install_steam_game,
-            uninstall_steam_game
+            uninstall_steam_game,
+            check_for_update,
+            download_and_install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
