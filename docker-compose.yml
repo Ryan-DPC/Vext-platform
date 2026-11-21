@@ -1,0 +1,29 @@
+services:
+  vext-backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: vext-backend
+    restart: unless-stopped
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://admin:33cfc90fdc61d136e7806ccaab279fee@mongodb:27017/vext_db?authSource=admin
+      - REDIS_URL=redis://:4b3126019668be9eb1acfd1f1d4ad3fa@redis:6379
+      - JWT_SECRET=vext_jwt_secret_token_secure_2026
+      - CLOUDINARY_URL=cloudinary://446121212916352:NS2HcivqI_tHllCfMMrHxHxJPH8@dzglyaqmf
+      - WS_URL=http://vext-backend:3001
+      - BACKEND_URL=https://hoopslive.ch/vext
+      - STORAGE_PATH=/app/storage
+      - STORAGE_PUBLIC_URL=https://hoopslive.ch/vext/storage
+    volumes:
+      - /opt/vext/storage:/app/storage
+    networks:
+      - db-network
+      - hoopslive-slim_hoopslive-slim
+
+networks:
+  db-network:
+    external: true
+  hoopslive-slim_hoopslive-slim:
+    external: true
