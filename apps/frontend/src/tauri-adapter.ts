@@ -75,7 +75,115 @@ const tauriAPI: TauriAPI = {
     },
 
     scanSteamGames: async () => {
-        if (!(window as any).__TAURI_INTERNALS__) return [];
+        if (!(window as any).__TAURI_INTERNALS__) {
+            // Mode aperçu navigateur : retourne les vrais jeux détectés sur le PC
+            return [
+                {
+                    id: 'steam_2651280',
+                    app_id: '2651280',
+                    name: "Marvel's Spider-Man 2",
+                    platform: 'steam',
+                    folder_name: "Marvel's Spider-Man 2",
+                    install_path: "D:\\SteamLibrary\\steamapps\\common\\Marvel's Spider-Man 2",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2651280/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2651280/library_hero.jpg',
+                    launch_url: 'steam://run/2651280',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_1817190',
+                    app_id: '1817190',
+                    name: "Marvel's Spider-Man: Miles Morales",
+                    platform: 'steam',
+                    folder_name: "Marvel's Spider-Man: Miles Morales",
+                    install_path: "D:\\SteamLibrary\\steamapps\\common\\Marvel's Spider-Man: Miles Morales",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1817190/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1817190/library_hero.jpg',
+                    launch_url: 'steam://run/1817190',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_2878980',
+                    app_id: '2878980',
+                    name: "NBA 2K25",
+                    platform: 'steam',
+                    folder_name: "NBA 2K25",
+                    install_path: "D:\\SteamLibrary\\steamapps\\common\\NBA 2K25",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2878980/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2878980/library_hero.jpg',
+                    launch_url: 'steam://run/2878980',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_2358720',
+                    app_id: '2358720',
+                    name: "Black Myth: Wukong",
+                    platform: 'steam',
+                    folder_name: "Black Myth Wukong",
+                    install_path: "D:\\SteamLibrary\\steamapps\\common\\Black Myth Wukong",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2358720/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2358720/library_hero.jpg',
+                    launch_url: 'steam://run/2358720',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_271590',
+                    app_id: '271590',
+                    name: "Grand Theft Auto V",
+                    platform: 'steam',
+                    folder_name: "Grand Theft Auto V",
+                    install_path: "D:\\SteamLibrary\\steamapps\\common\\Grand Theft Auto V",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/271590/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/271590/library_hero.jpg',
+                    launch_url: 'steam://run/271590',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_367520',
+                    app_id: '367520',
+                    name: "Hollow Knight",
+                    platform: 'steam',
+                    folder_name: "Hollow Knight",
+                    install_path: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Knight",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/library_hero.jpg',
+                    launch_url: 'steam://run/367520',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_4000',
+                    app_id: '4000',
+                    name: "Garry's Mod",
+                    platform: 'steam',
+                    folder_name: "GarrysMod",
+                    install_path: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\GarrysMod",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4000/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4000/library_hero.jpg',
+                    launch_url: 'steam://run/4000',
+                    installed: true,
+                    genre: 'Steam'
+                },
+                {
+                    id: 'steam_550',
+                    app_id: '550',
+                    name: "Left 4 Dead 2",
+                    platform: 'steam',
+                    folder_name: "Left 4 Dead 2",
+                    install_path: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Left 4 Dead 2",
+                    image_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/550/library_600x900.jpg',
+                    hero_url: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/550/library_hero.jpg',
+                    launch_url: 'steam://run/550',
+                    installed: true,
+                    genre: 'Steam'
+                }
+            ];
+        }
         try {
             return (await invoke('scan_steam_games')) as SteamGameItem[];
         } catch (e) {
@@ -85,7 +193,10 @@ const tauriAPI: TauriAPI = {
     },
 
     launchSteamGame: async (appId: string) => {
-        if (!(window as any).__TAURI_INTERNALS__) throw new Error('Not running in Tauri');
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.location.href = `steam://run/${appId}`;
+            return `Launched steam://run/${appId}`;
+        }
         return (await invoke('launch_steam_game', { appId, app_id: appId })) as string;
     },
 

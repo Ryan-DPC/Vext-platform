@@ -1,4 +1,6 @@
 import { Elysia, t } from 'elysia';
+import dotenv from 'dotenv';
+dotenv.config();
 import { cors } from '@elysiajs/cors';
 import { jwt } from '@elysiajs/jwt';
 import { connectDB } from './config/db';

@@ -128,6 +128,13 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
     const userStore = useUserStore()
 
+    // En mode dev local, on injecte un profil mock pour pouvoir tester l'interface directement
+    if (import.meta.env.DEV && !userStore.isAuthenticated && !localStorage.getItem('token')) {
+        userStore.user = { id: 'dev-user', username: 'Ryan-DPC', email: 'ryan@vext.io', isAdmin: true }
+        userStore.isAuthenticated = true
+        localStorage.setItem('token', 'dev-local-token')
+    }
+
     // Check if we have a token but not authenticated yet
     const token = localStorage.getItem('token') || sessionStorage.getItem('token')
     if (token && !userStore.isAuthenticated) {
