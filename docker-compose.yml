@@ -16,6 +16,12 @@ services:
       - BACKEND_URL=https://hoopslive.ch/vext
       - STORAGE_PATH=/app/storage
       - STORAGE_PUBLIC_URL=https://hoopslive.ch/vext/storage
+      - SMTP_HOST=mail.infomaniak.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=false
+      - SMTP_USER=noreply@hoopslive.ch
+      - SMTP_PASS=R6Q%s*krq242JY&0
+      - SMTP_FROM=VEXT <noreply@hoopslive.ch>
     volumes:
       - /opt/vext/storage:/app/storage
     networks:
