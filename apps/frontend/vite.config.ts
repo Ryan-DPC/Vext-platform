@@ -32,21 +32,20 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false
         }
-      },
-      build: {
-        target: 'esnext', // Use modern JS features for smaller/faster code
-        minify: 'esbuild', // Fast minification
-        cssCodeSplit: true,
-        rollupOptions: {
-          output: {
-            manualChunks: {
-              'vendor': ['vue', 'vue-router', 'pinia', 'axios'],
-              'ui': ['@fortawesome/fontawesome-free']
-            }
-          }
-        },
-        chunkSizeWarningLimit: 1000
       }
+    },
+    build: {
+      target: 'esnext', // Use modern JS features for smaller/faster code
+      minify: 'esbuild', // Fast minification
+      cssCodeSplit: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor': ['vue', 'vue-router', 'pinia', 'axios']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000
     }
   }
 })
