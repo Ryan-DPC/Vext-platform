@@ -11,7 +11,7 @@ COPY packages ./packages
 COPY apps/backend/package.json ./apps/backend/
 
 # Install dependencies from root
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy source code
 COPY apps/backend ./apps/backend
@@ -20,6 +20,6 @@ COPY apps/backend ./apps/backend
 WORKDIR /app/apps/backend
 
 # Build/Expose
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["bun", "run", "src/index.ts"]
