@@ -24,6 +24,8 @@ interface TauriAPI {
     launchGame: (installPath: string, folderName: string, userData: any) => Promise<any>;
     scanSteamGames: () => Promise<SteamGameItem[]>;
     launchSteamGame: (appId: string) => Promise<string>;
+    installSteamGame: (appId: string) => Promise<string>;
+    uninstallSteamGame: (appId: string) => Promise<string>;
     onInstallProgress: (callback: (data: any) => void) => void;
     onInstallComplete: (callback: (data: any) => void) => void;
     onInstallError: (callback: (data: any) => void) => void;
@@ -198,6 +200,22 @@ const tauriAPI: TauriAPI = {
             return `Launched steam://run/${appId}`;
         }
         return (await invoke('launch_steam_game', { appId, app_id: appId })) as string;
+    },
+
+    installSteamGame: async (appId: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.location.href = `steam://install/${appId}`;
+            return `Triggered steam://install/${appId}`;
+        }
+        return (await invoke('install_steam_game', { appId, app_id: appId })) as string;
+    },
+
+    uninstallSteamGame: async (appId: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.location.href = `steam://uninstall/${appId}`;
+            return `Triggered steam://uninstall/${appId}`;
+        }
+        return (await invoke('uninstall_steam_game', { appId, app_id: appId })) as string;
     },
 
     onInstallProgress: (callback) => {

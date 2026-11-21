@@ -136,16 +136,26 @@ onMounted(async () => {
 })
 
 // Computed Properties
+const installedGamesCount = computed(() => {
+  return (gameStore.allUnifiedGames || []).filter((g: any) => g.installed).length
+})
+
+const uninstalledGamesCount = computed(() => {
+  return (gameStore.allUnifiedGames || []).filter((g: any) => !g.installed).length
+})
+
 const filteredGames = computed(() => {
   let games = gameStore.allUnifiedGames || []
   
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    games = games.filter((g: any) => g.game_name.toLowerCase().includes(query))
+    games = games.filter((g: any) => (g.game_name || g.name || '').toLowerCase().includes(query))
   }
 
   if (filterStatus.value === 'installed') {
     games = games.filter((g: any) => g.installed)
+  } else if (filterStatus.value === 'uninstalled') {
+    games = games.filter((g: any) => !g.installed)
   }
 
   if (filterPlatform.value === 'vext') {
@@ -282,6 +292,48 @@ const installGame = async (game: any) => {
     alertStore.showAlert({
       title: 'Installation Error',
       message: error.message || 'Installation error',
+      type: 'error'
+    })
+  }
+}
+
+const installSteamGame = async (game: any) => {
+  if (!game?.app_id) return
+  try {
+    await tauriAPI.installSteamGame(game.app_id)
+    alertStore.showAlert({
+      title: 'Installation Steam',
+      message: `Téléchargement lancé dans Steam pour ${game.game_name || game.name} !`,
+      type: 'info'
+    })
+    setTimeout(() => {
+      gameStore.scanSteamGames()
+    }, 4000)
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Erreur Installation',
+      message: `Erreur: ${error.message || error}`,
+      type: 'error'
+    })
+  }
+}
+
+const uninstallSteamGame = async (game: any) => {
+  if (!game?.app_id) return
+  try {
+    await tauriAPI.uninstallSteamGame(game.app_id)
+    alertStore.showAlert({
+      title: 'Désinstallation Steam',
+      message: `Demande de désinstallation envoyée à Steam pour ${game.game_name || game.name}.`,
+      type: 'info'
+    })
+    setTimeout(() => {
+      gameStore.scanSteamGames()
+    }, 4000)
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Erreur Désinstallation',
+      message: `Erreur: ${error.message || error}`,
       type: 'error'
     })
   }
@@ -431,14 +483,17 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <button :class="{ active: filterPlatform === 'all' && filterStatus === 'all' }" @click="filterPlatform = 'all'; filterStatus = 'all'">
                     All Games ({{ gameStore.allUnifiedGames.length }})
                 </button>
-                <button :class="{ active: filterPlatform === 'vext' }" @click="filterPlatform = 'vext'">
-                    Vext ({{ gameStore.myGames.length }})
+                <button :class="{ active: filterStatus === 'installed' }" @click="filterStatus = (filterStatus === 'installed' ? 'all' : 'installed')">
+                    Installed ({{ installedGamesCount }})
                 </button>
-                <button :class="{ active: filterPlatform === 'steam' }" @click="filterPlatform = 'steam'" class="btn-steam-tab">
+                <button :class="{ active: filterStatus === 'uninstalled' }" @click="filterStatus = (filterStatus === 'uninstalled' ? 'all' : 'uninstalled')">
+                    Not Installed ({{ uninstalledGamesCount }})
+                </button>
+                <button :class="{ active: filterPlatform === 'steam' && filterStatus === 'all' }" @click="filterPlatform = 'steam'; filterStatus = 'all'" class="btn-steam-tab">
                     <i class="fab fa-steam"></i> Steam ({{ gameStore.steamGames.length }})
                 </button>
-                <button :class="{ active: filterStatus === 'installed' }" @click="filterStatus = (filterStatus === 'installed' ? 'all' : 'installed')">
-                    Installed
+                <button :class="{ active: filterPlatform === 'vext' && filterStatus === 'all' }" @click="filterPlatform = 'vext'; filterStatus = 'all'">
+                    VEXT ({{ gameStore.myGames.length }})
                 </button>
                 <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningSteam }" @click="handleScanSteam" title="Rescan Steam Games">
                     <i class="fas fa-sync-alt" :class="{ 'fa-spin': gameStore.isScanningSteam }"></i>
@@ -500,15 +555,22 @@ const handleAddFriendFromGroup = async (username: string) => {
                                 <div v-if="installingGameId === (game._id || game.folder_name)" class="install-status">
                                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
                                 </div>
-                                <button v-else-if="game.installed" @click="launchGame(game)" class="btn-grid-play" :title="game.platform === 'steam' ? 'Play on Steam' : 'Play'"><i class="fas fa-play"></i></button>
-                                <button v-else @click="installGame(game)" class="btn-grid-install"><i class="fas fa-download"></i></button>
+                                <template v-else-if="game.installed">
+                                    <button @click="launchGame(game)" class="btn-grid-play" :title="game.platform === 'steam' ? 'Play on Steam' : 'Play'"><i class="fas fa-play"></i></button>
+                                    <button v-if="game.platform === 'steam'" @click.stop="uninstallSteamGame(game)" class="btn-grid-uninstall" title="Désinstaller de Steam"><i class="fas fa-trash-alt"></i></button>
+                                </template>
+                                <template v-else>
+                                    <button v-if="game.platform === 'steam'" @click="installSteamGame(game)" class="btn-grid-install" title="Installer via Steam"><i class="fas fa-download"></i></button>
+                                    <button v-else @click="installGame(game)" class="btn-grid-install" title="Install"><i class="fas fa-download"></i></button>
+                                </template>
                             </div>
                         </div>
                         <div class="card-details">
                             <h4 :title="game.game_name">{{ game.game_name }}</h4>
                             <div class="card-badges">
                                 <span v-if="game.platform === 'steam'" class="badge-steam"><i class="fab fa-steam"></i> STEAM</span>
-                                <span v-else-if="game.installed" class="badge-installed">INSTALLED</span>
+                                <span v-if="game.installed" class="badge-installed">INSTALLED</span>
+                                <span v-else class="badge-not-installed">NOT INSTALLED</span>
                                 <span class="badge-genre">{{ game.genre || 'Game' }}</span>
                             </div>
                         </div>
@@ -853,8 +915,9 @@ const handleAddFriendFromGroup = async (username: string) => {
 }
 .poster-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.65);
     display: flex; align-items: center; justify-content: center;
+    gap: 12px;
     opacity: 0; transition: opacity 0.2s;
 }
 .grid-card:hover .poster-overlay { opacity: 1; }
@@ -863,8 +926,10 @@ const handleAddFriendFromGroup = async (username: string) => {
     width: 48px; height: 48px; border-radius: 50%;
     border: none; font-size: 1.15rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
 }
 .btn-grid-play { background: #ff7eb3; color: white; box-shadow: 0 0 15px rgba(255, 126, 179, 0.5); }
+.btn-grid-play:hover { transform: scale(1.08); box-shadow: 0 0 20px rgba(255, 126, 179, 0.8); }
 .btn-grid-play i, .btn-play-sm i {
     font-size: 1.15rem;
     color: #ffffff;
@@ -872,10 +937,37 @@ const handleAddFriendFromGroup = async (username: string) => {
 }
 .btn-grid-play i { margin-left: 2px; }
 .btn-grid-install { background: #7afcff; color: #120c18; box-shadow: 0 0 15px rgba(122, 252, 255, 0.5); }
+.btn-grid-install:hover { transform: scale(1.08); box-shadow: 0 0 20px rgba(122, 252, 255, 0.8); }
+
+.btn-grid-uninstall {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.btn-grid-uninstall:hover {
+    background: rgba(239, 68, 68, 0.85);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
 
 .card-details h4 { margin: 0 0 6px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-badges { display: flex; gap: 6px; font-size: 0.7rem; align-items: center; }
 .badge-installed { color: #7afcff; background: rgba(122, 252, 255, 0.1); padding: 2px 6px; border-radius: 4px; }
+.badge-not-installed {
+    color: #94a3b8;
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
 .badge-genre { color: var(--text-secondary); background: var(--glass-border); padding: 2px 6px; border-radius: 4px; }
 .badge-steam {
     display: inline-flex;

@@ -25,7 +25,7 @@ export const useGameStore = defineStore('game', {
                 game_name: sg.name,
                 image_url: sg.image_url,
                 hero_url: sg.hero_url,
-                installed: true,
+                installed: sg.installed ?? false,
                 platform: 'steam',
                 app_id: sg.app_id,
                 folder_name: sg.folder_name,
