@@ -1,6 +1,20 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
+export interface SteamGameItem {
+    id: string;
+    app_id: string;
+    name: string;
+    platform: string;
+    folder_name: string;
+    install_path: string;
+    image_url: string;
+    hero_url: string;
+    launch_url: string;
+    installed: boolean;
+    genre: string;
+}
+
 // Define the interface match existing usage if possible, or just strict typing
 interface TauriAPI {
     selectFolder: () => Promise<string | null>;
@@ -8,6 +22,8 @@ interface TauriAPI {
     checkGameInstalled: (installPath: string, folderName: string) => Promise<boolean>;
     uninstallGame: (installPath: string, folderName: string) => Promise<boolean>;
     launchGame: (installPath: string, folderName: string, userData: any) => Promise<any>;
+    scanSteamGames: () => Promise<SteamGameItem[]>;
+    launchSteamGame: (appId: string) => Promise<string>;
     onInstallProgress: (callback: (data: any) => void) => void;
     onInstallComplete: (callback: (data: any) => void) => void;
     onInstallError: (callback: (data: any) => void) => void;
@@ -56,6 +72,21 @@ const tauriAPI: TauriAPI = {
     launchGame: (installPath, folderName, userData) => {
         if (!(window as any).__TAURI_INTERNALS__) return Promise.reject('Not running in Tauri');
         return invoke('launch_game', { installPath, folderName, userData });
+    },
+
+    scanSteamGames: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) return [];
+        try {
+            return (await invoke('scan_steam_games')) as SteamGameItem[];
+        } catch (e) {
+            console.warn('scan_steam_games failed:', e);
+            return [];
+        }
+    },
+
+    launchSteamGame: async (appId: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) throw new Error('Not running in Tauri');
+        return (await invoke('launch_steam_game', { appId, app_id: appId })) as string;
     },
 
     onInstallProgress: (callback) => {

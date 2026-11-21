@@ -3,9 +3,11 @@
 
 mod installation;
 mod launcher;
+mod steam;
 
 use installation::{install_game, uninstall_game, is_game_installed, select_folder};
 use launcher::launch_game;
+use steam::{scan_steam_games, launch_steam_game};
 
 fn main() {
     // Ignore SSL certificate errors for development (self-signed certs)
@@ -61,7 +63,9 @@ fn main() {
             uninstall_game,
             is_game_installed,
             launch_game,
-            select_folder
+            select_folder,
+            scan_steam_games,
+            launch_steam_game
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

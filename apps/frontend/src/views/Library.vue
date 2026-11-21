@@ -26,6 +26,7 @@ const newGameName = ref('')
 const pathSelector = ref<InstanceType<typeof InstallPathSelector> | null>(null)
 const searchQuery = ref('')
 const filterStatus = ref('all') // 'all', 'installed', 'favorites'
+const filterPlatform = ref<'all' | 'vext' | 'steam'>('all')
 
 // Social Sidebar State
 const newFriendUsername = ref('')
@@ -51,10 +52,13 @@ const installProgress = ref({
 })
 
 onMounted(async () => {
-  await gameStore.fetchMyGames()
-  await categoryStore.fetchCategories()
-  await friendsStore.fetchFriends()
-  await groupStore.fetchMyGroups()
+  await Promise.allSettled([
+    gameStore.fetchMyGames(),
+    gameStore.scanSteamGames(),
+    categoryStore.fetchCategories(),
+    friendsStore.fetchFriends(),
+    groupStore.fetchMyGroups()
+  ])
   groupStore.setupWebSocketListeners()
 
   // Setup Tauri listeners
@@ -105,7 +109,7 @@ onMounted(async () => {
 
 // Computed Properties
 const filteredGames = computed(() => {
-  let games = gameStore.myGames || []
+  let games = gameStore.allUnifiedGames || []
   
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -116,18 +120,40 @@ const filteredGames = computed(() => {
     games = games.filter((g: any) => g.installed)
   }
 
+  if (filterPlatform.value === 'vext') {
+    games = games.filter((g: any) => g.platform !== 'steam')
+  } else if (filterPlatform.value === 'steam') {
+    games = games.filter((g: any) => g.platform === 'steam')
+  }
+
   return games
 })
 
 const recentlyPlayed = computed(() => {
-  // Mock logic: take first 3 installed games or just first 3
-  return gameStore.myGames.filter((g: any) => g.installed).slice(0, 3)
+  return (gameStore.allUnifiedGames || []).filter((g: any) => g.installed).slice(0, 3)
 })
 
 const featuredLibrary = computed(() => {
     // Only show games marked as favorite
-    return gameStore.myGames.filter((g: any) => g.favorite)
+    return (gameStore.myGames || []).filter((g: any) => g.favorite)
 })
+
+const handleScanSteam = async () => {
+  try {
+    await gameStore.scanSteamGames()
+    alertStore.showAlert({
+      title: 'Steam Scanner',
+      message: `${gameStore.steamGames.length} jeux Steam détectés et synchronisés !`,
+      type: 'success'
+    })
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Steam Scanner',
+      message: `Erreur lors de la détection Steam: ${error.message || error}`,
+      type: 'error'
+    })
+  }
+}
 
 const filteredFriends = computed(() => {
   let friends = friendsStore.friends
@@ -233,7 +259,30 @@ const installGame = async (game: any) => {
   }
 }
 
-const launchGame = async (folderName: string) => {
+const launchGame = async (gameOrFolder: any) => {
+  const game = typeof gameOrFolder === 'object' 
+    ? gameOrFolder 
+    : (gameStore.allUnifiedGames || []).find((g: any) => g.folder_name === gameOrFolder || g._id === gameOrFolder || g.app_id === gameOrFolder)
+
+  if (game?.platform === 'steam' || game?.app_id) {
+    try {
+      await tauriAPI.launchSteamGame(game.app_id)
+      runningGameId.value = game.folder_name || game.app_id
+      alertStore.showAlert({
+        title: 'Steam',
+        message: `Lancement de ${game.game_name}...`,
+        type: 'info'
+      })
+    } catch (error: any) {
+      alertStore.showAlert({
+        title: 'Launch Error',
+        message: `Erreur lors du lancement Steam: ${error.message || error}`,
+        type: 'error'
+      })
+    }
+    return
+  }
+
   if (!(window as any).__TAURI__) return
 
   try {
@@ -247,6 +296,7 @@ const launchGame = async (folderName: string) => {
       return
     }
 
+    const folderName = typeof gameOrFolder === 'string' ? gameOrFolder : gameOrFolder?.folder_name
     const userStore = useUserStore()
     const token = localStorage.getItem('token')
     const plainUser = userStore.user ? JSON.parse(JSON.stringify(userStore.user)) : null;
@@ -350,8 +400,21 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <input v-model="searchQuery" placeholder="Search your games...">
             </div>
             <div class="filters">
-                <button :class="{ active: filterStatus === 'all' }" @click="filterStatus = 'all'">All Games</button>
-                <button :class="{ active: filterStatus === 'installed' }" @click="filterStatus = 'installed'">Installed</button>
+                <button :class="{ active: filterPlatform === 'all' && filterStatus === 'all' }" @click="filterPlatform = 'all'; filterStatus = 'all'">
+                    All Games ({{ gameStore.allUnifiedGames.length }})
+                </button>
+                <button :class="{ active: filterPlatform === 'vext' }" @click="filterPlatform = 'vext'">
+                    Vext ({{ gameStore.myGames.length }})
+                </button>
+                <button :class="{ active: filterPlatform === 'steam' }" @click="filterPlatform = 'steam'" class="btn-steam-tab">
+                    <i class="fab fa-steam"></i> Steam ({{ gameStore.steamGames.length }})
+                </button>
+                <button :class="{ active: filterStatus === 'installed' }" @click="filterStatus = (filterStatus === 'installed' ? 'all' : 'installed')">
+                    Installed
+                </button>
+                <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningSteam }" @click="handleScanSteam" title="Rescan Steam Games">
+                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': gameStore.isScanningSteam }"></i>
+                </button>
                 <button class="btn-icon" @click="showAddGameModal = true" title="Redeem Key"><i class="fas fa-key"></i></button>
             </div>
         </div>
@@ -362,15 +425,18 @@ const handleAddFriendFromGroup = async (username: string) => {
             <section v-if="recentlyPlayed.length > 0" class="section">
                 <h3><i class="fas fa-clock"></i> Recently Played</h3>
                 <div class="recent-row">
-                    <div v-for="game in recentlyPlayed" :key="game._id" class="recent-card">
+                    <div v-for="game in recentlyPlayed" :key="game._id || game.app_id" class="recent-card">
                         <div class="recent-bg" :style="{ backgroundImage: `url(${game.image_url || defaultGameImg})` }"></div>
                         <div class="recent-content">
-                            <img :src="game.image_url || defaultGameImg" class="recent-logo">
+                            <img :src="game.image_url || defaultGameImg" class="recent-logo" @error="(e: any) => e.target.src = defaultGameImg">
                             <div class="recent-info">
                                 <h4>{{ game.game_name }}</h4>
-                                <span class="status-text">Ready to Play</span>
+                                <span class="status-text">
+                                    <i v-if="game.platform === 'steam'" class="fab fa-steam"></i>
+                                    {{ game.platform === 'steam' ? 'Steam' : 'Ready to Play' }}
+                                </span>
                             </div>
-                            <button @click="launchGame(game.folder_name)" class="btn-play-sm">
+                            <button @click="launchGame(game)" class="btn-play-sm" :title="'Play ' + game.game_name">
                                 <i class="fas fa-play"></i>
                             </button>
                         </div>
@@ -382,11 +448,11 @@ const handleAddFriendFromGroup = async (username: string) => {
             <section v-if="featuredLibrary.length > 0" class="section">
                 <h3><i class="fas fa-star"></i> Featured</h3>
                 <div class="featured-row">
-                    <div v-for="game in featuredLibrary" :key="game._id" class="feat-card">
-                        <img :src="game.image_url || defaultGameImg">
+                    <div v-for="game in featuredLibrary" :key="game._id || game.app_id" class="feat-card">
+                        <img :src="game.image_url || defaultGameImg" @error="(e: any) => e.target.src = defaultGameImg">
                         <div class="feat-overlay">
                             <h4>{{ game.game_name }}</h4>
-                            <button v-if="game.installed" @click="launchGame(game.folder_name)" class="btn-action">PLAY</button>
+                            <button v-if="game.installed" @click="launchGame(game)" class="btn-action">PLAY</button>
                             <button v-else @click="installGame(game)" class="btn-action install-icon" title="Install">
                                 <i class="fas fa-download"></i>
                             </button>
@@ -397,23 +463,24 @@ const handleAddFriendFromGroup = async (username: string) => {
 
             <!-- All Games Grid -->
             <section class="section">
-                <h3><i class="fas fa-th"></i> All Games Filtered</h3>
+                <h3><i class="fas fa-th"></i> All Games ({{ filteredGames.length }})</h3>
                 <div class="games-grid">
-                    <div v-for="game in filteredGames" :key="game._id" class="grid-card">
+                    <div v-for="game in filteredGames" :key="game._id || game.app_id" class="grid-card">
                         <div class="card-poster">
-                            <img :src="game.image_url || defaultGameImg">
+                            <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @error="(e: any) => e.target.src = defaultGameImg">
                             <div class="poster-overlay">
                                 <div v-if="installingGameId === (game._id || game.folder_name)" class="install-status">
                                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
                                 </div>
-                                <button v-else-if="game.installed" @click="launchGame(game.folder_name)" class="btn-grid-play"><i class="fas fa-play"></i></button>
+                                <button v-else-if="game.installed" @click="launchGame(game)" class="btn-grid-play" :title="game.platform === 'steam' ? 'Play on Steam' : 'Play'"><i class="fas fa-play"></i></button>
                                 <button v-else @click="installGame(game)" class="btn-grid-install"><i class="fas fa-download"></i></button>
                             </div>
                         </div>
                         <div class="card-details">
-                            <h4>{{ game.game_name }}</h4>
+                            <h4 :title="game.game_name">{{ game.game_name }}</h4>
                             <div class="card-badges">
-                                <span v-if="game.installed" class="badge-installed">INSTALLED</span>
+                                <span v-if="game.platform === 'steam'" class="badge-steam"><i class="fab fa-steam"></i> STEAM</span>
+                                <span v-else-if="game.installed" class="badge-installed">INSTALLED</span>
                                 <span class="badge-genre">{{ game.genre || 'Game' }}</span>
                             </div>
                         </div>
@@ -616,7 +683,7 @@ const handleAddFriendFromGroup = async (username: string) => {
     color: #b0b9c3;
 }
 
-.filters { display: flex; gap: 10px; }
+.filters { display: flex; gap: 10px; align-items: center; }
 .filters button {
     background: transparent;
     border: 1px solid var(--glass-border);
@@ -625,11 +692,20 @@ const handleAddFriendFromGroup = async (username: string) => {
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 .filters button:hover, .filters button.active {
     background: rgba(255, 126, 179, 0.1);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
+}
+.filters button.btn-steam-tab:hover,
+.filters button.btn-steam-tab.active {
+    background: rgba(102, 192, 244, 0.12) !important;
+    border-color: #66c0f4 !important;
+    color: #66c0f4 !important;
 }
 
 .scroll-area {
@@ -744,9 +820,23 @@ const handleAddFriendFromGroup = async (username: string) => {
 .btn-grid-install { background: #7afcff; color: #120c18; box-shadow: 0 0 15px rgba(122, 252, 255, 0.5); }
 
 .card-details h4 { margin: 0 0 6px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-badges { display: flex; gap: 6px; font-size: 0.7rem; }
+.card-badges { display: flex; gap: 6px; font-size: 0.7rem; align-items: center; }
 .badge-installed { color: #7afcff; background: rgba(122, 252, 255, 0.1); padding: 2px 6px; border-radius: 4px; }
 .badge-genre { color: var(--text-secondary); background: var(--glass-border); padding: 2px 6px; border-radius: 4px; }
+.badge-steam {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #66c0f4;
+    background: rgba(27, 40, 56, 0.9);
+    border: 1px solid rgba(102, 192, 244, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 8px rgba(102, 192, 244, 0.15);
+}
 
 /* Sidebar */
 .friends-sidebar {
