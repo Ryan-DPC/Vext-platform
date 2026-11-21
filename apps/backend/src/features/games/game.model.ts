@@ -1,8 +1,8 @@
 
 import mongoose from 'mongoose';
-import { GameModel, IGame } from '@vext/database';
+import { GameModel, type IGame } from '@vext/database';
 
-export { GameModel, IGame };
+export { GameModel, type IGame };
 
 export default class Games {
     static async getAllGames(): Promise<any[]> {

@@ -8,7 +8,7 @@ const getBaseURL = () => {
         return `${import.meta.env.VITE_API_URL}/api`
     }
 
-    const prodUrl = 'https://vext-backend.onrender.com/api'
+    const prodUrl = 'https://hoopslive.ch/vext/api'
 
     // Hardcoded production fallback for Desktop App or Production Mode
     if (import.meta.env.PROD || isTauri) {

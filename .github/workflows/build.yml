@@ -36,8 +36,8 @@ jobs:
       working-directory: ./apps/frontend
       run: bun run tauri build
       env:
-        VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://vext-backend.onrender.com' }}
-        VITE_WEBSOCKET_URL: ${{ secrets.VITE_WEBSOCKET_URL || 'https://vext-ws-server.onrender.com' }}
+        VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://hoopslive.ch/vext' }}
+        VITE_WEBSOCKET_URL: ${{ secrets.VITE_WEBSOCKET_URL || 'wss://hoopslive.ch/vext' }}
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4

@@ -4,10 +4,10 @@ export const getApiUrl = () => {
 
     if (isTauri) {
         if (!url) {
-            return 'https://vext-backend.onrender.com';
+            return 'https://hoopslive.ch/vext';
         }
     }
 
     if (url) return url;
-    return 'https://vext-backend.onrender.com'; // Default to production instead of relative/empty
+    return 'https://hoopslive.ch/vext'; // Default to production instead of relative/empty
 }
