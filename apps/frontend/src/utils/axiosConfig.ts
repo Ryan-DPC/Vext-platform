@@ -53,8 +53,8 @@ axios.interceptors.response.use(
         return response
     },
     (error) => {
-        // Handle 401 Unauthorized - redirect to login
-        if (error.response?.status === 401) {
+        // Handle 401 Unauthorized - redirect to login (except on login itself)
+        if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
             console.warn('⚠️ Unauthorized access, redirecting to login...')
             localStorage.removeItem('token')
             sessionStorage.removeItem('token')
