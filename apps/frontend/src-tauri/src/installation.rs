@@ -26,7 +26,7 @@ pub async fn install_game(
     game_name: String,
 ) -> Result<String, String> {
     let client = Client::new();
-    let game_dir = Path::new(&install_path).join("Ether").join(&folder_name);
+    let game_dir = Path::new(&install_path).join("VEXT").join(&folder_name);
     
     // Create directory
     fs::create_dir_all(&game_dir).map_err(|e| e.to_string())?;
@@ -150,7 +150,7 @@ pub async fn select_folder() -> Option<String> {
 
 #[tauri::command]
 pub fn uninstall_game(install_path: String, folder_name: String) -> Result<bool, String> {
-    let game_dir = Path::new(&install_path).join("Ether").join(folder_name);
+    let game_dir = Path::new(&install_path).join("VEXT").join(folder_name);
     if game_dir.exists() {
         fs::remove_dir_all(game_dir).map_err(|e| e.to_string())?;
         Ok(true)
@@ -162,7 +162,7 @@ pub fn uninstall_game(install_path: String, folder_name: String) -> Result<bool,
 #[tauri::command]
 pub fn is_game_installed(install_path: String, folder_name: String) -> bool {
     let manifest_path = Path::new(&install_path)
-        .join("Ether")
+        .join("VEXT")
         .join(folder_name)
         .join("manifest.json");
     manifest_path.exists()

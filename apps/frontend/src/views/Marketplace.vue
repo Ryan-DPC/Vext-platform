@@ -93,13 +93,13 @@ const handleSellGame = async () => {
     await marketplaceStore.sellGame(selectedGameForSale.value, sellPrice.value)
     
     if ((window as any).__TAURI__) {
-      const installPath = localStorage.getItem('etherInstallPath')
+      const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
       const game = marketplaceStore.ownedGames.find((g: any) => g.game_key === selectedGameForSale.value)
       
       if (installPath && game) {
         try {
           await tauriAPI.uninstallGame(installPath, game.game_key)
-          new Notification('Ether Desktop', { body: `🗑️ ${game.game_name} uninstalled (listed for sale).` })
+          new Notification('VEXT', { body: `🗑️ ${game.game_name} uninstalled (listed for sale).` })
         } catch (err) {
           console.error('Failed to uninstall game:', err)
         }

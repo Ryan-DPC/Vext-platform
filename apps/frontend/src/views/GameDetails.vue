@@ -122,7 +122,7 @@ onMounted(async () => {
 })
 
 const checkInstallationStatus = async () => {
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath || !game.value) return
 
     // Check if folder exists
@@ -161,7 +161,7 @@ const setupInstallListeners = () => {
             isInstalled.value = true
             hasUpdate.value = false
             
-            new Notification('Ether Desktop', {
+            new Notification('VEXT', {
                 body: `✅ ${data.gameName} installé avec succès!`,
                 silent: false
             })
@@ -194,7 +194,7 @@ const installGame = async () => {
 
     try {
         // 1. Get Install Path
-        let installPath = localStorage.getItem('etherInstallPath')
+        let installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
         if (!installPath) {
             // Show path selector (we need to add the component to template)
             // For now, alert if not set
@@ -246,7 +246,7 @@ const installGame = async () => {
 const launchGame = async () => {
     if (!(window as any).__TAURI__) return
     
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) return
 
     try {
@@ -294,7 +294,7 @@ const purchaseGame = async () => {
 
 const uninstallGame = async () => {
     if (!(window as any).__TAURI__ || !game.value) return
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) return
 
     if (await alertStore.showConfirm({

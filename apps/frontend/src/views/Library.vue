@@ -10,8 +10,7 @@ import { statsService } from '../services/stats.service'
 import axios from 'axios'
 import InstallPathSelector from '../components/InstallPathSelector.vue'
 import UserAutocomplete from '../components/UserAutocomplete.vue'
-import { getApiUrl } from '../utils/url';
-const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
+import defaultGameImg from '@/assets/images/default-game.svg'
 import tauriAPI from '../tauri-adapter';
 
 const gameStore = useGameStore()
@@ -50,6 +49,24 @@ const installProgress = ref({
   eta: '',
   type: 'download'
 })
+
+function onImageError(e: Event, game: any) {
+  const target = e.target as HTMLImageElement
+  if (!target) return
+  const currentSrc = target.src || ''
+  const appId = game?.app_id
+
+  if (appId) {
+    if (currentSrc.includes('library_600x900.jpg')) {
+      target.src = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`
+      return
+    } else if (currentSrc.includes('header.jpg')) {
+      target.src = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`
+      return
+    }
+  }
+  target.src = defaultGameImg
+}
 
 onMounted(async () => {
   await Promise.allSettled([
@@ -90,7 +107,7 @@ onMounted(async () => {
           game.status = 'installed'
         }
 
-        new Notification('Ether Desktop', { body: `✅ ${data.gameName} installed successfully!` })
+        new Notification('VEXT', { body: `✅ ${data.gameName} installed successfully!` })
         installingGameId.value = null
         await gameStore.fetchMyGames()
       } catch (error) {
@@ -220,12 +237,12 @@ const installGame = async (game: any) => {
       return
     }
 
-    let installPath = localStorage.getItem('etherInstallPath')
+    let installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) {
       const selectedPath = await pathSelector.value?.show()
       installPath = selectedPath || null
       if (!installPath) return
-      localStorage.setItem('etherInstallPath', installPath)
+      localStorage.setItem('vextInstallPath', installPath)
     }
 
     const gameId = game._id || game.folder_name
@@ -286,7 +303,7 @@ const launchGame = async (gameOrFolder: any) => {
   if (!(window as any).__TAURI__) return
 
   try {
-    const installPath = localStorage.getItem('etherInstallPath')
+    const installPath = localStorage.getItem('vextInstallPath') || localStorage.getItem('etherInstallPath')
     if (!installPath) {
       alertStore.showAlert({
         title: 'Configuration Error',
@@ -428,7 +445,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                     <div v-for="game in recentlyPlayed" :key="game._id || game.app_id" class="recent-card">
                         <div class="recent-bg" :style="{ backgroundImage: `url(${game.image_url || defaultGameImg})` }"></div>
                         <div class="recent-content">
-                            <img :src="game.image_url || defaultGameImg" class="recent-logo" @error="(e: any) => e.target.src = defaultGameImg">
+                            <img :src="game.image_url || defaultGameImg" class="recent-logo" @error="(e: any) => onImageError(e, game)">
                             <div class="recent-info">
                                 <h4>{{ game.game_name }}</h4>
                                 <span class="status-text">
@@ -449,7 +466,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <h3><i class="fas fa-star"></i> Featured</h3>
                 <div class="featured-row">
                     <div v-for="game in featuredLibrary" :key="game._id || game.app_id" class="feat-card">
-                        <img :src="game.image_url || defaultGameImg" @error="(e: any) => e.target.src = defaultGameImg">
+                        <img :src="game.image_url || defaultGameImg" @error="(e: any) => onImageError(e, game)">
                         <div class="feat-overlay">
                             <h4>{{ game.game_name }}</h4>
                             <button v-if="game.installed" @click="launchGame(game)" class="btn-action">PLAY</button>
@@ -467,7 +484,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <div class="games-grid">
                     <div v-for="game in filteredGames" :key="game._id || game.app_id" class="grid-card">
                         <div class="card-poster">
-                            <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @error="(e: any) => e.target.src = defaultGameImg">
+                            <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @error="(e: any) => onImageError(e, game)">
                             <div class="poster-overlay">
                                 <div v-if="installingGameId === (game._id || game.folder_name)" class="install-status">
                                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
@@ -800,9 +817,23 @@ const handleAddFriendFromGroup = async (username: string) => {
 .grid-card:hover { background: rgba(255,255,255,0.08); transform: translateY(-4px); }
 
 .card-poster {
-    height: 200px; border-radius: 8px; overflow: hidden; position: relative; margin-bottom: 10px;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.card-poster img { width: 100%; height: 100%; object-fit: cover; }
+.card-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
 .poster-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.6);
@@ -812,11 +843,12 @@ const handleAddFriendFromGroup = async (username: string) => {
 .grid-card:hover .poster-overlay { opacity: 1; }
 
 .btn-grid-play, .btn-grid-install {
-    width: 50px; height: 50px; border-radius: 50%;
-    border: none; font-size: 1.2rem; cursor: pointer;
+    width: 48px; height: 48px; border-radius: 50%;
+    border: none; font-size: 1.15rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
 }
 .btn-grid-play { background: #ff7eb3; color: white; box-shadow: 0 0 15px rgba(255, 126, 179, 0.5); }
+.btn-grid-play i { margin-left: 2px; }
 .btn-grid-install { background: #7afcff; color: #120c18; box-shadow: 0 0 15px rgba(122, 252, 255, 0.5); }
 
 .card-details h4 { margin: 0 0 6px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

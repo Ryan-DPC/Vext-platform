@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://hoopslive.ch wss://hoopslive.ch ws://localhost:3002 data: asset: https://asset.cloudinary.com https://res.cloudinary.com; img-src 'self' https: data: blob: asset:; connect-src 'self' https://hoopslive.ch wss://hoopslive.ch http://localhost:3001 ws://localhost:3002 https://api.ipify.org;"
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://hoopslive.ch wss://hoopslive.ch ws://localhost:3002 data: asset: https://asset.cloudinary.com https://res.cloudinary.com https://shared.akamai.steamstatic.com https://cdn.akamai.steamstatic.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' https: data: blob: asset:; connect-src 'self' https://hoopslive.ch wss://hoopslive.ch http://localhost:3001 ws://localhost:3002 https://api.ipify.org https://shared.akamai.steamstatic.com;"
     }
   },
   "bundle": {

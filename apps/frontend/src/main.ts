@@ -8,6 +8,7 @@ import router from './router'
 import './utils/axiosConfig'
 
 import './assets/css/global.css'
+import '@fortawesome/fontawesome-free/css/all.min.css'
 
 // Initialize Tauri Adapter (polyfills window.electronAPI)
 // import './tauri-adapter'

@@ -27,7 +27,7 @@ pub fn launch_game(
     folder_name: String,
     user_data: Option<UserData>,
 ) -> Result<String, String> {
-    let game_dir = Path::new(&install_path).join("Ether").join(&folder_name);
+    let game_dir = Path::new(&install_path).join("VEXT").join(&folder_name);
     let manifest_path = game_dir.join("manifest.json");
 
     // 1. Read Manifest
@@ -50,10 +50,10 @@ pub fn launch_game(
         // Pass env vars
         if let Some(data) = user_data {
             if let Some(user) = data.user {
-                cmd.env("ETHER_USER", user.to_string());
+                cmd.env("VEXT_USER", user.to_string());
             }
             if let Some(token) = data.token {
-                cmd.env("ETHER_TOKEN", token);
+                cmd.env("VEXT_TOKEN", token);
             }
         }
         
