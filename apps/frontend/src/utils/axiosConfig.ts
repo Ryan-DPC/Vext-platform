@@ -3,20 +3,13 @@ import axios from 'axios'
 const isTauri = !!(window as any).__TAURI__;
 
 const getBaseURL = () => {
-    // If VITE_API_URL is explicitly set, use it
-    if (import.meta.env.VITE_API_URL) {
+    // If VITE_API_URL is explicitly set and not pointing to old render domain
+    if (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('onrender.com')) {
         return `${import.meta.env.VITE_API_URL}/api`
     }
 
-    const prodUrl = 'https://hoopslive.ch/vext/api'
-
-    // Hardcoded production fallback for Desktop App or Production Mode
-    if (import.meta.env.PROD || isTauri) {
-        return prodUrl
-    }
-
-    // In dev mode (with Vite proxy), use relative path
-    return '/api'
+    // Default to VPS 24/7 Production Backend
+    return 'https://hoopslive.ch/vext/api'
 }
 
 axios.defaults.baseURL = getBaseURL()
