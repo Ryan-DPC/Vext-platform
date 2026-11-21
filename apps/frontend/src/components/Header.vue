@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import defaultAvatar from '@/assets/images/default-avatar.svg'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -15,7 +16,7 @@ const isMenuOpen = ref(false)
 
 // Computed property for profile picture to avoid infinite reload
 const profilePicUrl = computed(() => {
-  return userStore.user?.profile_pic || '/assets/images/default-game.svg'
+  return userStore.user?.profile_pic || defaultAvatar
 })
 
 const formattedUsername = computed(() => {
@@ -93,7 +94,7 @@ onUnmounted(() => {
                        <div v-if="equippedBanner" class="header-banner" :style="{ backgroundImage: `url(${equippedBanner})` }"></div>
                        
                        <!-- Layer 2: Avatar -->
-                       <img :src="profilePicUrl" alt="Profile" class="header-avatar" :class="{ 'has-frame': equippedFrame }">
+                       <img :src="profilePicUrl" alt="Profile" class="header-avatar" :class="{ 'has-frame': equippedFrame }" @error="(e) => e.target.src = defaultAvatar">
                        
                        <!-- Layer 3: Frame (Overlay) -->
                        <img v-if="equippedFrame" :src="equippedFrame" class="header-frame-overlay">

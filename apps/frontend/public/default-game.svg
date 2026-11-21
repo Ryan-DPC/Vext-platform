@@ -1,42 +1,39 @@
 <svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e1928;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0f0c14;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#20172e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f0b17;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#ff7eb3;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#7afcff;stop-opacity:1" />
+    <linearGradient id="petalPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff9ebc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff5e91;stop-opacity:1" />
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="petalCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#81fdff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#48bbdb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="petalPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    </linearGradient>
   </defs>
   
   <!-- Background Card -->
   <rect width="400" height="600" fill="url(#cardBg)" />
   
-  <!-- Decorative Elements -->
-  <circle cx="200" cy="300" r="150" fill="none" stroke="url(#neonGrad)" stroke-width="2" opacity="0.1" />
-  <circle cx="200" cy="300" r="120" fill="none" stroke="url(#neonGrad)" stroke-width="1" opacity="0.05" />
+  <!-- Subtle Geometry -->
+  <circle cx="200" cy="270" r="140" fill="none" stroke="#ff7eb3" stroke-width="1.5" opacity="0.1" />
+  <circle cx="200" cy="270" r="110" fill="none" stroke="#7afcff" stroke-width="1" opacity="0.08" />
   
-  <!-- Gamepad Icon -->
-  <g transform="translate(100, 250) scale(2)" filter="url(#glow)">
-    <path d="M10 30 C 10 10, 30 10, 30 10 L 70 10 C 70 10, 90 10, 90 30 L 90 50 C 90 70, 70 70, 60 70 L 40 70 C 30 70, 10 70, 10 50 Z" fill="none" stroke="url(#neonGrad)" stroke-width="3" />
-    <!-- D-Pad -->
-    <path d="M25 40 L 35 40 M 30 35 L 30 45" stroke="url(#neonGrad)" stroke-width="3" stroke-linecap="round" />
-    <!-- Buttons -->
-    <circle cx="65" cy="40" r="2" fill="#7afcff" />
-    <circle cx="75" cy="40" r="2" fill="#ff7eb3" />
-    <circle cx="70" cy="35" r="2" fill="#7afcff" />
-    <circle cx="70" cy="45" r="2" fill="#ff7eb3" />
+  <!-- Origami V Icon -->
+  <g transform="translate(140, 200) scale(0.47)">
+    <polygon points="128,40 50,150 128,190" fill="url(#petalCyan)" opacity="0.9" />
+    <polygon points="128,40 206,150 128,190" fill="url(#petalPink)" opacity="0.95" />
+    <polygon points="50,150 128,190 128,230" fill="url(#petalPurple)" opacity="0.8" />
+    <polygon points="206,150 128,190 128,230" fill="url(#petalPurple)" opacity="0.8" />
   </g>
   
-  <!-- Text Placeholder -->
-  <text x="200" y="450" font-family="Arial, sans-serif" font-size="24" fill="#b0b9c3" text-anchor="middle" letter-spacing="2">NO IMAGE</text>
-  <text x="200" y="480" font-family="Arial, sans-serif" font-size="14" fill="#555" text-anchor="middle">ETHER GAMES</text>
+  <!-- Typography -->
+  <text x="200" y="380" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="4">VEXT</text>
+  <text x="200" y="410" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500" fill="#a092b5" text-anchor="middle" letter-spacing="2">GAME TITLE</text>
 </svg>

@@ -49,7 +49,9 @@ axios.interceptors.response.use(
             console.warn('⚠️ Unauthorized access, redirecting to login...')
             localStorage.removeItem('token')
             sessionStorage.removeItem('token')
-            window.location.href = '/login'
+            if (window.location.hash !== '#/login') {
+                window.location.hash = '#/login'
+            }
         }
 
         // Log detailed error information

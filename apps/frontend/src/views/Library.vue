@@ -50,6 +50,16 @@ const installProgress = ref({
   type: 'download'
 })
 
+function onImageLoad(e: Event) {
+  const target = e.target as HTMLImageElement
+  if (!target) return
+  if (target.naturalWidth > target.naturalHeight * 1.1) {
+    target.classList.add('is-landscape')
+  } else {
+    target.classList.remove('is-landscape')
+  }
+}
+
 function onImageError(e: Event, game: any) {
   const target = e.target as HTMLImageElement
   if (!target) return
@@ -65,6 +75,7 @@ function onImageError(e: Event, game: any) {
       return
     }
   }
+  target.classList.remove('is-landscape')
   target.src = defaultGameImg
 }
 
@@ -484,7 +495,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <div class="games-grid">
                     <div v-for="game in filteredGames" :key="game._id || game.app_id" class="grid-card">
                         <div class="card-poster">
-                            <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @error="(e: any) => onImageError(e, game)">
+                            <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @load="onImageLoad" @error="(e: any) => onImageError(e, game)">
                             <div class="poster-overlay">
                                 <div v-if="installingGameId === (game._id || game.folder_name)" class="install-status">
                                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
@@ -833,6 +844,12 @@ const handleAddFriendFromGroup = async (username: string) => {
     height: 100%;
     object-fit: cover;
     object-position: center;
+    transition: transform 0.25s ease;
+}
+.card-poster img.is-landscape {
+    object-fit: contain !important;
+    padding: 8px;
+    background: radial-gradient(circle at center, #26193b 0%, #100b17 100%);
 }
 .poster-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -848,6 +865,11 @@ const handleAddFriendFromGroup = async (username: string) => {
     display: flex; align-items: center; justify-content: center;
 }
 .btn-grid-play { background: #ff7eb3; color: white; box-shadow: 0 0 15px rgba(255, 126, 179, 0.5); }
+.btn-grid-play i, .btn-play-sm i {
+    font-size: 1.15rem;
+    color: #ffffff;
+    display: inline-block;
+}
 .btn-grid-play i { margin-left: 2px; }
 .btn-grid-install { background: #7afcff; color: #120c18; box-shadow: 0 0 15px rgba(122, 252, 255, 0.5); }
 

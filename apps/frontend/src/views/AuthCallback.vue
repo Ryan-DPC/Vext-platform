@@ -11,7 +11,7 @@ onMounted(() => {
         window.location.href = `https://hoopslive.ch/vext/api/auth/github/callback?code=${code}`
     } else {
         // If no code, go back to login
-        window.location.href = '/login?error=No+code+received'
+        window.location.hash = '#/login?error=No+code+received'
     }
 })
 </script>

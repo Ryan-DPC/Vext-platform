@@ -114,8 +114,9 @@ export const useUserStore = defineStore('user', {
             console.log('🔌 Disconnecting WebSocket...')
             socketService.disconnect()
 
-            // Force reload to clear any other state or redirect
-            window.location.href = '/login'
+            if (window.location.hash !== '#/login') {
+                window.location.hash = '#/login'
+            }
         },
         updateBalance(currency: string, newAmount: number) {
             if (this.user && this.user.balances) {
