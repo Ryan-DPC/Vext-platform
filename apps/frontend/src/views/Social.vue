@@ -91,7 +91,7 @@ const sendGroupMessage = () => {
   groupMessage.value = ''
 }
 
-const handleAddFriendFromGroup = async (userId: string, username: string) => {
+const handleAddFriendFromGroup = async (_userId: string, username: string) => {
   try {
     await friendsStore.sendFriendRequest(username)
     toastStore.success(`Friend request sent to ${username}`)

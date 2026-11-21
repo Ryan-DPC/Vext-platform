@@ -331,7 +331,7 @@ const addNewPlugin = () => {
                         <span class="plugin-version">v{{ plugin.version }}</span>
                     </div>
                     <div class="plugin-actions">
-                         <button class="remove-btn" @click="themeStore.removePlugin(index)">{{ t('settings.appearance.remove') }}</button>
+                         <button class="remove-btn" @click="themeStore.removePlugin(Number(index))">{{ t('settings.appearance.remove') }}</button>
                     </div>
                 </div>
                 <button class="add-plugin-btn" @click="addNewPlugin()">{{ t('settings.appearance.install_plugin') }}</button>

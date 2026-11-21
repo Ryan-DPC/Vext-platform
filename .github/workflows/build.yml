@@ -47,4 +47,5 @@ jobs:
         path: |
           apps/frontend/src-tauri/target/release/bundle/nsis/*.exe
           apps/frontend/src-tauri/target/release/bundle/msi/*.msi
+          apps/frontend/src-tauri/target/release/*.exe
         if-no-files-found: warn

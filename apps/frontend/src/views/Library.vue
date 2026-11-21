@@ -575,12 +575,12 @@ const handleAddFriendFromGroup = async (username: string) => {
                                     <i class="fas fa-gamepad"></i> Invite All
                                 </button>
                             </div>
-                            <div v-for="memberId in group.members.slice(0, 8)" :key="memberId" class="group-member-mini">
+                            <div v-for="member in group.members.slice(0, 8)" :key="member.id" class="group-member-mini">
                                 <div class="member-mini-avatar">
-                                    <div class="status-dot online"></div>
+                                    <div class="status-dot" :class="member.is_online ? 'online' : 'offline'"></div>
                                 </div>
-                                <span class="member-mini-name">User {{ memberId.slice(0, 6) }}</span>
-                                <button @click="handleAddFriendFromGroup('user' + memberId.slice(0, 6))" class="btn-add-mini" title="Add Friend">
+                                <span class="member-mini-name">{{ member.username || ('User ' + member.id.slice(0, 6)) }}</span>
+                                <button @click="handleAddFriendFromGroup(member.username || ('user' + member.id.slice(0, 6)))" class="btn-add-mini" title="Add Friend">
                                     <i class="fas fa-user-plus"></i>
                                 </button>
                             </div>
