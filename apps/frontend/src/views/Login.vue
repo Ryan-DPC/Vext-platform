@@ -22,6 +22,13 @@ const handleLogin = async () => {
         await userStore.login(email.value, password.value, rememberMe.value)
         router.push('/home')
     } catch (e: any) {
+        if (e.response?.data?.requiresVerification) {
+            router.push({
+                path: '/verify-email',
+                query: { email: e.response.data.email || email.value }
+            })
+            return
+        }
         error.value = e.response?.data?.message || 'Login failed'
     }
 }

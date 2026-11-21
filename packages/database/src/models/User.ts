@@ -23,6 +23,7 @@ export interface IUser extends Document {
     username: string;
     password?: string;
     email: string;
+    is_verified?: boolean;
     github_id?: string | null;
     github_username?: string | null;
     isAdmin: boolean;
@@ -52,6 +53,7 @@ const userSchema = new Schema<IUser>(
         username: { type: String, required: true, unique: true, index: true },
         password: { type: String, required: false },
         email: { type: String, required: true, unique: true, index: true },
+        is_verified: { type: Boolean, default: false },
         github_id: { type: String, default: null, index: true },
         github_username: { type: String, default: null },
         isAdmin: { type: Boolean, default: false },
@@ -282,5 +284,10 @@ export class Users {
     static async getWishlist(userId: string): Promise<any[]> {
         const doc = await UserModel.findById(userId).populate('wishlist').lean();
         return doc ? (doc.wishlist as any[]) : [];
+    }
+
+    static async verifyUserEmail(userId: string): Promise<boolean> {
+        const res = await UserModel.updateOne({ _id: userId }, { $set: { is_verified: true } });
+        return res.modifiedCount > 0;
     }
 }

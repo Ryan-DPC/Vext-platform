@@ -92,6 +92,36 @@ export const useUserStore = defineStore('user', {
                 this.isLoading = false
             }
         },
+        async verifyCode(email: string, code: string, remember: boolean = true) {
+            this.isLoading = true
+            try {
+                const response = await axios.post('/auth/verify-code', { email, code })
+                if (response.data && response.data.token) {
+                    const token = response.data.token
+
+                    if (remember) {
+                        localStorage.setItem('token', token)
+                        sessionStorage.removeItem('token')
+                    } else {
+                        sessionStorage.setItem('token', token)
+                        localStorage.removeItem('token')
+                    }
+
+                    this.isAuthenticated = true
+                    this.user = sanitizeUser(response.data.user)
+
+                    if (!socketService.isConnected) {
+                        socketService.connect(token)
+                    }
+                    return response.data
+                }
+            } catch (error) {
+                console.error('Code verification failed:', error)
+                throw error
+            } finally {
+                this.isLoading = false
+            }
+        },
         initializeAuth() {
             // Check both storages
             const token = localStorage.getItem('token') || sessionStorage.getItem('token')

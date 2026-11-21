@@ -57,10 +57,16 @@ const handleRegister = async () => {
         })
 
         if (response.data.success) {
-            // Auto-login after registration using full username
-            const fullUsername = `${username.value}#${userTag.value}`
-            await userStore.login(fullUsername, password.value)
-            router.push('/home')
+            if (response.data.requiresVerification) {
+                router.push({
+                    path: '/verify-email',
+                    query: { email: response.data.email || email.value }
+                })
+            } else {
+                const fullUsername = `${username.value}#${userTag.value}`
+                await userStore.login(fullUsername, password.value)
+                router.push('/home')
+            }
         }
     } catch (e: any) {
         error.value = e.response?.data?.message || e.message || 'Registration failed'

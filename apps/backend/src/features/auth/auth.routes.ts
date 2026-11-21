@@ -1,60 +1,66 @@
-
 import { t, Elysia } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
-import { Users } from '@vext/database';
+import { Users, UserModel } from '@vext/database';
+import { issueVerificationCode, verifySubmittedCode } from '../../services/mailer.service';
 
-// Helper to generate a token
-// Note: We'll access the `jwt` plugin instance from the handler context
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
     .use(jwt({
         name: 'jwt',
         secret: process.env.JWT_SECRET || 'default_secret'
     }))
-    .post('/register', async ({ body, jwt, set }) => {
+    .post('/register', async ({ body, set }) => {
         const { username, email, password, tag } = body as any;
 
         if (!tag || !/^[a-zA-Z0-9]{3,4}$/.test(tag)) {
             set.status = 400;
-            return { success: false, message: 'Tag must be 3-4 alphanumeric characters.' };
+            return { success: false, message: 'Le tag doit comporter entre 3 et 4 caractères alphanumériques.' };
         }
 
         const fullUsername = `${username}#${tag}`;
+        const cleanEmail = email.toLowerCase().trim();
 
         // Parallel checks
         const [existingUser, existingEmail] = await Promise.all([
             Users.getUserByUsername(fullUsername),
-            Users.getUserByEmail(email)
+            Users.getUserByEmail(cleanEmail)
         ]);
 
         if (existingUser) {
             set.status = 409;
-            return { success: false, message: 'Username with this tag is already taken.' };
+            return { success: false, message: 'Ce nom d\'utilisateur avec ce tag est déjà pris.' };
         }
         if (existingEmail) {
             set.status = 409;
-            return { success: false, message: 'Email is already used.' };
+            return { success: false, message: 'Cette adresse e-mail est déjà utilisée.' };
         }
 
         // Random avatar logic
         const defaultAvatars = ['avatar_blue.svg', 'avatar_green.svg', 'avatar_red.svg'];
         const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
-        // Hardcoding backend URL for now or use env
-        const backendUrl = process.env.BACKEND_URL;
-        const profile_pic = `${backendUrl}/public/avatars/${randomAvatar}`;
+        const backendUrl = process.env.BACKEND_URL || 'https://hoopslive.ch/vext/storage/avatars';
+        const profile_pic = `${backendUrl}/${randomAvatar}`;
 
         const hashedPassword = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 });
-        const newUser = await Users.createUser({ username: fullUsername, email, password: hashedPassword, profile_pic });
+        const newUser = await Users.createUser({
+            username: fullUsername,
+            email: cleanEmail,
+            password: hashedPassword,
+            profile_pic,
+            is_verified: false
+        } as any);
 
-        const token = await jwt.sign({
-            id: newUser.id,
-            username: newUser.username,
-            isAdmin: false
-        });
+        // Envoyer le code à 6 chiffres par email via Infomaniak SMTP
+        try {
+            await issueVerificationCode(newUser.id, cleanEmail, fullUsername, 'email_verify');
+        } catch (err) {
+            console.error('[VEXT Auth] Erreur lors de l\'envoi de l\'email de vérification:', err);
+        }
 
         return {
             success: true,
-            token,
-            user: newUser
+            requiresVerification: true,
+            email: cleanEmail,
+            message: 'Compte créé avec succès ! Un code de vérification à 6 chiffres a été envoyé à votre adresse e-mail.'
         };
     }, {
         body: t.Object({
@@ -69,7 +75,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
 
         let user: any;
         if (identifier.includes('@')) {
-            user = await Users.getUserByEmail(identifier);
+            user = await Users.getUserByEmail(identifier.toLowerCase().trim());
         } else {
             if (identifier.includes('#')) {
                 user = await Users.getUserByUsername(identifier);
@@ -80,18 +86,35 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
 
         if (!user) {
             set.status = 401;
-            return { success: false, message: 'User not found.' };
+            return { success: false, message: 'Utilisateur introuvable.' };
         }
 
         if (!user.password) {
             set.status = 400;
-            return { success: false, message: 'Account has no password (social login?).' };
+            return { success: false, message: 'Ce compte n\'a pas de mot de passe défini.' };
         }
 
         const isPasswordValid = await Bun.password.verify(password, user.password);
         if (!isPasswordValid) {
             set.status = 401;
-            return { success: false, message: 'Invalid password.' };
+            return { success: false, message: 'Mot de passe incorrect.' };
+        }
+
+        // Vérification de l'email : Si le compte n'a pas encore validé son e-mail
+        if (user.is_verified === false) {
+            try {
+                await issueVerificationCode(user.id, user.email, user.username, 'email_verify');
+            } catch (err) {
+                console.error('[VEXT Auth] Erreur renvoi code vérification:', err);
+            }
+
+            set.status = 403;
+            return {
+                success: false,
+                requiresVerification: true,
+                email: user.email,
+                message: 'Veuillez vérifier votre adresse e-mail. Un nouveau code à 6 chiffres vous a été envoyé.'
+            };
         }
 
         const token = await jwt.sign({
@@ -107,7 +130,79 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         };
     }, {
         body: t.Object({
-            username: t.String(), // can be email or username
+            username: t.String(),
             password: t.String()
+        })
+    })
+    .post('/verify-code', async ({ body, jwt, set }) => {
+        const { email, code, purpose } = body as any;
+
+        if (!email || !code || String(code).length !== 6) {
+            set.status = 400;
+            return { success: false, message: 'Veuillez fournir une adresse e-mail et un code valide à 6 chiffres.' };
+        }
+
+        const result = await verifySubmittedCode(email, code, purpose || 'email_verify');
+        if (!result.success) {
+            set.status = 400;
+            return { success: false, message: result.message };
+        }
+
+        // Valider l'utilisateur en base
+        await UserModel.updateOne({ _id: result.userId }, { $set: { is_verified: true } });
+        const user = await UserModel.findById(result.userId).lean();
+
+        if (!user) {
+            set.status = 404;
+            return { success: false, message: 'Utilisateur introuvable.' };
+        }
+
+        const token = await jwt.sign({
+            id: (user as any)._id.toString(),
+            username: user.username,
+            isAdmin: user.isAdmin
+        });
+
+        return {
+            success: true,
+            message: 'Votre adresse e-mail a été vérifiée avec succès !',
+            token,
+            user: { ...user, id: (user as any)._id.toString() }
+        };
+    }, {
+        body: t.Object({
+            email: t.String(),
+            code: t.String(),
+            purpose: t.Optional(t.String())
+        })
+    })
+    .post('/resend-code', async ({ body, set }) => {
+        const { email, purpose } = body as any;
+
+        if (!email) {
+            set.status = 400;
+            return { success: false, message: 'Adresse e-mail requise.' };
+        }
+
+        const user = await Users.getUserByEmail(email.toLowerCase().trim());
+        if (!user) {
+            set.status = 404;
+            return { success: false, message: 'Aucun compte associé à cette adresse e-mail.' };
+        }
+
+        try {
+            await issueVerificationCode(user.id, user.email, user.username, (purpose as any) || 'email_verify');
+            return {
+                success: true,
+                message: 'Un nouveau code de vérification à 6 chiffres vous a été envoyé par e-mail.'
+            };
+        } catch (err: any) {
+            set.status = 500;
+            return { success: false, message: 'Erreur lors de l\'envoi de l\'e-mail: ' + err.message };
+        }
+    }, {
+        body: t.Object({
+            email: t.String(),
+            purpose: t.Optional(t.String())
         })
     });
