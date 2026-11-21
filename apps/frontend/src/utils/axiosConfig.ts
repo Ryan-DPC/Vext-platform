@@ -1,7 +1,5 @@
 import axios from 'axios'
 
-const isTauri = !!(window as any).__TAURI__;
-
 const getBaseURL = () => {
     // If VITE_API_URL is explicitly set and not pointing to old render domain
     if (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('onrender.com')) {

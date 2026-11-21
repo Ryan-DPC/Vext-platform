@@ -14,9 +14,6 @@ const getSocketUrl = () => {
         return import.meta.env.VITE_WEBSOCKET_URL;
     }
 
-    const prodUrl = import.meta.env.VITE_WEBSOCKET_URL;
-    const isTauri = !!(window as any).__TAURI__;
-
     let baseUrl = import.meta.env.VITE_WEBSOCKET_URL || import.meta.env.VITE_API_URL || 'https://hoopslive.ch/vext';
     if (baseUrl.includes('onrender.com')) {
         baseUrl = 'https://hoopslive.ch/vext';
