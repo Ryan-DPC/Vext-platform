@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import ToastNotification from './components/ToastNotification.vue'
 import AlertModal from './components/AlertModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
@@ -18,6 +19,16 @@ const themeStore = useThemeStore() // Initialize theme
 const updaterStore = useUpdaterStore()
 
 onMounted(() => {
+  if (window.__TAURI_INTERNALS__) {
+    try {
+      const win = getCurrentWindow()
+      win.show().catch(() => {})
+      win.setFocus().catch(() => {})
+    } catch (e) {
+      console.warn('Failed to ensure window shown:', e)
+    }
+  }
+
   updaterStore.init()
   // Verification silencieuse des mises a jour 3s apres l'ouverture
   setTimeout(() => {
@@ -31,7 +42,6 @@ onMounted(() => {
   <div class="app-content">
     <RouterView />
   </div>
-  <SakuraBackground />
   <SakuraBackground />
   <ToastNotification />
   <AlertModal />
