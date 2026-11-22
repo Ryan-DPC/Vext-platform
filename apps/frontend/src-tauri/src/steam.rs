@@ -268,14 +268,14 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
                     let sub = &content[apps_idx..];
                     for line in sub.lines() {
                         let trimmed = line.trim();
-                        if trimmed.starts_with('"') && trimmed.ends_with('{') {
-                            let cleaned = trimmed.trim_end_matches('{').trim();
-                            let parts: Vec<&str> = cleaned.split('"').filter(|s| !s.is_empty()).collect();
-                            if let Some(first) = parts.first() {
-                                // Filtre pour s'assurer que c'est un AppID 32-bit standard
-                                if first.chars().all(|c| c.is_ascii_digit()) && first.len() >= 2 && first.len() <= 10 {
-                                    owned_app_ids.insert(first.to_string());
-                                }
+                        // Either "12345" { or "12345" alone on a line
+                        let is_header = (trimmed.starts_with('"') && trimmed.ends_with('{'))
+                            || (trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 4);
+
+                        if is_header {
+                            let clean = trimmed.trim_matches(|c| c == '"' || c == '{' || c == ' ' || c == '\t');
+                            if clean.chars().all(|c| c.is_ascii_digit()) && clean.len() >= 2 && clean.len() <= 10 {
+                                owned_app_ids.insert(clean.to_string());
                             }
                         }
                     }
@@ -308,31 +308,34 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
             None
         };
 
-        if let Some(game_name) = resolved_name {
-            let image_url = format!(
-                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg",
-                app_id
-            );
-            let hero_url = format!(
-                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
-                app_id
-            );
-            let launch_url = format!("steam://run/{}", app_id);
+        // Si non trouvé dans appinfo.vdf, on ne jette pas le jeu : nom propre par défaut et images Steam réelles
+        let game_name = resolved_name.unwrap_or_else(|| {
+            format!("Steam Game ({})", app_id)
+        });
 
-            games.push(SteamGame {
-                id: format!("steam_{}", app_id),
-                app_id,
-                name: game_name,
-                platform: "steam".to_string(),
-                folder_name: String::new(),
-                install_path: String::new(),
-                image_url,
-                hero_url,
-                launch_url,
-                installed: false,
-                genre: "Steam".to_string(),
-            });
-        }
+        let image_url = format!(
+            "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg",
+            app_id
+        );
+        let hero_url = format!(
+            "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
+            app_id
+        );
+        let launch_url = format!("steam://run/{}", app_id);
+
+        games.push(SteamGame {
+            id: format!("steam_{}", app_id),
+            app_id,
+            name: game_name,
+            platform: "steam".to_string(),
+            folder_name: String::new(),
+            install_path: String::new(),
+            image_url,
+            hero_url,
+            launch_url,
+            installed: false,
+            genre: "Steam".to_string(),
+        });
     }
 
     if cache_modified {

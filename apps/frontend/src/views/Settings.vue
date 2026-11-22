@@ -345,7 +345,7 @@ const addNewPlugin = () => {
                     <img :src="logo" alt="VEXT" class="app-logo-small" />
                     <div>
                         <h3 class="app-name">VEXT Gaming Client</h3>
-                        <div class="app-version-badge">Version v0.1.5 &bull; Canal Stable (GitHub)</div>
+                        <div class="app-version-badge">Version v0.1.6 &bull; Canal Stable (GitHub)</div>
                     </div>
                 </div>
 
