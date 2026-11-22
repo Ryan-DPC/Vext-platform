@@ -12,8 +12,7 @@ use steam::{scan_steam_games, launch_steam_game, install_steam_game, uninstall_s
 use updater::{check_for_update, download_and_install_update};
 
 fn main() {
-    // Ignore SSL certificate errors for development (self-signed certs)
-    #[cfg(debug_assertions)]
+    // Ignore SSL certificate errors for development and custom hosts
     std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--ignore-certificate-errors");
 
     use tauri::menu::{Menu, MenuItem};
@@ -24,6 +23,12 @@ fn main() {
         .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            // Afficher et focaliser la fenetre principale une fois WebView2 pret
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;

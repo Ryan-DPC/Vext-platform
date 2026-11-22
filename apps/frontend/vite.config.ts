@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
-      target: 'esnext', // Use modern JS features for smaller/faster code
+      target: 'es2021', // Chromium compatibility (matches Crimsons)
       minify: 'esbuild', // Fast minification
       cssCodeSplit: true,
       rollupOptions: {
