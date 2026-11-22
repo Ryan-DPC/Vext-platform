@@ -18,12 +18,12 @@ const chatStore = useChatStore()
 const themeStore = useThemeStore() // Initialize theme
 const updaterStore = useUpdaterStore()
 
-onMounted(() => {
+onMounted(async () => {
   if (window.__TAURI_INTERNALS__) {
     try {
       const win = getCurrentWindow()
-      win.show().catch(() => {})
-      win.setFocus().catch(() => {})
+      await win.show()
+      await win.setFocus()
     } catch (e) {
       console.warn('Failed to ensure window shown:', e)
     }
@@ -59,5 +59,9 @@ onMounted(() => {
 <style>
 .app-content {
   padding-top: 32px; /* Space for TitleBar */
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 </style>

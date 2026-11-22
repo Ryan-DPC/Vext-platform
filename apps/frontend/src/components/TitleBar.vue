@@ -18,8 +18,8 @@ const close = () => appWindow?.close();
 </script>
 
 <template>
-  <div class="titlebar">
-    <div class="titlebar-logo">
+  <div class="titlebar" data-tauri-drag-region>
+    <div class="titlebar-logo" data-tauri-drag-region>
         <span class="text-xs font-bold tracking-widest text-gray-500 uppercase select-none">VEXT</span>
     </div>
     <div class="titlebar-controls">

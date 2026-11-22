@@ -35,7 +35,7 @@ const petals = Array.from({ length: 40 }).map((_, i) => ({
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: -1; /* Behind everything */
+  z-index: 0;
   overflow: hidden;
   background: var(--bg-primary); 
   transition: background 0.3s ease;
