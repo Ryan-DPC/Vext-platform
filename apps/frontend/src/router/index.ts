@@ -3,7 +3,7 @@ import { useUserStore } from '../stores/userStore'
 import MainLayout from '../components/MainLayout.vue'
 
 const router = createRouter({
-    history: createWebHashHistory(import.meta.env.BASE_URL),
+    history: createWebHashHistory(),
     routes: [
         {
             path: '/login',

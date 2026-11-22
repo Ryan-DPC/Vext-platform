@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,6 @@ pub struct SteamGame {
 
 /// Identifie le chemin d'installation de Steam sur la machine
 fn find_steam_root() -> Option<PathBuf> {
-    // 1. Chemins standards d'installation sous Windows
     let candidates = [
         r"C:\Program Files (x86)\Steam",
         r"C:\Program Files\Steam",
@@ -35,7 +34,6 @@ fn find_steam_root() -> Option<PathBuf> {
         }
     }
 
-    // 2. Recherche alternative via dossier utilisateur AppData / local
     if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
         let p = PathBuf::from(local_app_data).join("Steam");
         if p.is_dir() && p.join("steamapps").is_dir() {
@@ -103,7 +101,7 @@ fn parse_acf_file(acf_path: &Path, library_root: &Path) -> Option<SteamGame> {
     }
 
     // Filtre les redistribuables et outils internes Steam
-    let ignored_appids = ["228980", "228990", "107410", "250820"];
+    let ignored_appids = ["228980", "228990", "107410", "250820", "480", "7", "760"];
     if ignored_appids.contains(&appid.as_str()) {
         return None;
     }
@@ -143,46 +141,81 @@ fn parse_acf_file(acf_path: &Path, library_root: &Path) -> Option<SteamGame> {
 /// Résout le titre d'un jeu dans appinfo.vdf
 fn resolve_game_name_from_appinfo(appinfo_bytes: &[u8], app_id_u32: u32) -> Option<String> {
     let needle = app_id_u32.to_le_bytes();
-    let mut search_pos = 0;
 
-    while search_pos + 4 <= appinfo_bytes.len() {
-        if let Some(rel_pos) = appinfo_bytes[search_pos..].windows(4).position(|w| w == needle) {
-            let match_pos = search_pos + rel_pos;
-            let end_limit = (match_pos + 300).min(appinfo_bytes.len());
-            let chunk = &appinfo_bytes[match_pos..end_limit];
+    // 1. Motif moderne Valve Steam Client (appinfo v28+) :
+    // [0x02, 0x01, 0x00, 0x00, 0x00, id0, id1, id2, id3, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00]
+    let full_pattern = [
+        0x02, 0x01, 0x00, 0x00, 0x00,
+        needle[0], needle[1], needle[2], needle[3],
+        0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00,
+    ];
 
-            // Recherche la séquence d'en-tête de nom dans le chunk
-            let patterns: [&[u8]; 2] = [
-                &[0x01, 0x04, 0x00, 0x00, 0x00],
-                &[0x01, 0x01, 0x00, 0x00, 0x00],
-            ];
+    if let Some(pos) = appinfo_bytes.windows(full_pattern.len()).position(|w| w == full_pattern) {
+        let str_start = pos + full_pattern.len();
+        if let Some(null_pos) = appinfo_bytes[str_start..].iter().position(|&b| b == 0) {
+            let candidate_bytes = &appinfo_bytes[str_start..str_start + null_pos];
+            if let Ok(name_str) = std::str::from_utf8(candidate_bytes) {
+                let clean = name_str.trim();
+                if !clean.is_empty() && clean.len() < 120 {
+                    return Some(clean.to_string());
+                }
+            }
+        }
+    }
 
-            for pat in patterns {
-                if let Some(pat_pos) = chunk.windows(pat.len()).position(|w| w == pat) {
-                    let str_start = pat_pos + pat.len();
-                    if let Some(null_pos) = chunk[str_start..].iter().position(|&b| b == 0) {
-                        let candidate_bytes = &chunk[str_start..str_start + null_pos];
-                        if let Ok(name_str) = std::str::from_utf8(candidate_bytes) {
-                            let clean = name_str.trim();
-                            if clean.len() >= 2
-                                && !clean.starts_with("http")
-                                && !clean.starts_with("windows")
-                                && !clean.starts_with("6f488")
-                            {
-                                return Some(clean.to_string());
-                            }
-                        }
+    // 2. Motif court :
+    let short_pattern = [
+        0x02, 0x01, 0x00, 0x00, 0x00,
+        needle[0], needle[1], needle[2], needle[3],
+    ];
+
+    if let Some(pos) = appinfo_bytes.windows(short_pattern.len()).position(|w| w == short_pattern) {
+        let end_idx = (pos + short_pattern.len() + 150).min(appinfo_bytes.len());
+        let chunk = &appinfo_bytes[pos + short_pattern.len()..end_idx];
+        let name_header = [0x01, 0x04, 0x00, 0x00, 0x00];
+        if let Some(hdr_pos) = chunk.windows(name_header.len()).position(|w| w == name_header) {
+            let str_start = hdr_pos + name_header.len();
+            if let Some(null_pos) = chunk[str_start..].iter().position(|&b| b == 0) {
+                if let Ok(name_str) = std::str::from_utf8(&chunk[str_start..str_start + null_pos]) {
+                    let clean = name_str.trim();
+                    if !clean.is_empty() && clean.len() < 120 {
+                        return Some(clean.to_string());
                     }
                 }
             }
-
-            search_pos = match_pos + 4;
-        } else {
-            break;
         }
     }
 
     None
+}
+
+/// Cache persistant local pour les noms de jeux Steam
+fn get_cache_file_path() -> Option<PathBuf> {
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let dir = PathBuf::from(local_app_data).join("com.vext.app");
+        let _ = fs::create_dir_all(&dir);
+        return Some(dir.join("steam_name_cache.json"));
+    }
+    None
+}
+
+fn load_name_cache() -> HashMap<String, String> {
+    if let Some(path) = get_cache_file_path() {
+        if let Ok(data) = fs::read_to_string(path) {
+            if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&data) {
+                return map;
+            }
+        }
+    }
+    HashMap::new()
+}
+
+fn save_name_cache(cache: &HashMap<String, String>) {
+    if let Some(path) = get_cache_file_path() {
+        if let Ok(json) = serde_json::to_string_pretty(cache) {
+            let _ = fs::write(path, json);
+        }
+    }
 }
 
 /// Commande Tauri : Scanne l'ensemble des bibliothèques Steam (jeux installés ET non installés possédés)
@@ -196,6 +229,8 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
     let libraries = get_steam_libraries(&steam_root);
     let mut games = Vec::new();
     let mut installed_app_ids = HashSet::new();
+    let mut name_cache = load_name_cache();
+    let mut cache_modified = false;
 
     // 1. Scanne les jeux installés (.acf)
     for lib in &libraries {
@@ -211,6 +246,8 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
                     if file_name.starts_with("appmanifest_") && file_name.ends_with(".acf") {
                         if let Some(game) = parse_acf_file(&path, lib) {
                             installed_app_ids.insert(game.app_id.clone());
+                            name_cache.insert(game.app_id.clone(), game.name.clone());
+                            cache_modified = true;
                             games.push(game);
                         }
                     }
@@ -231,12 +268,12 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
                     let sub = &content[apps_idx..];
                     for line in sub.lines() {
                         let trimmed = line.trim();
-                        // Cherche les blocs de clé comme "730" ou "223850"
                         if trimmed.starts_with('"') && trimmed.ends_with('{') {
                             let cleaned = trimmed.trim_end_matches('{').trim();
                             let parts: Vec<&str> = cleaned.split('"').filter(|s| !s.is_empty()).collect();
                             if let Some(first) = parts.first() {
-                                if first.chars().all(|c| c.is_ascii_digit()) && first.len() >= 2 {
+                                // Filtre pour s'assurer que c'est un AppID 32-bit standard
+                                if first.chars().all(|c| c.is_ascii_digit()) && first.len() >= 2 && first.len() <= 10 {
                                     owned_app_ids.insert(first.to_string());
                                 }
                             }
@@ -247,8 +284,8 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
         }
     }
 
-    // 3. Pour tous les jeux possédés mais non installés, résout les titres via appinfo.vdf
-    let ignored_appids = ["228980", "228990", "107410", "250820", "7"];
+    // 3. Pour tous les jeux possédés mais non installés, résout les titres via cache / appinfo.vdf
+    let ignored_appids = ["228980", "228990", "107410", "250820", "480", "7", "760", "760160", "218"];
     let appinfo_path = steam_root.join("appcache").join("appinfo.vdf");
     let appinfo_bytes = fs::read(&appinfo_path).unwrap_or_default();
 
@@ -257,40 +294,49 @@ pub fn scan_steam_games() -> Result<Vec<SteamGame>, String> {
             continue;
         }
 
-        if let Ok(app_id_u32) = app_id.parse::<u32>() {
-            let name = if !appinfo_bytes.is_empty() {
-                resolve_game_name_from_appinfo(&appinfo_bytes, app_id_u32)
-            } else {
-                None
-            };
-
-            // On n'inclut que les jeux dont on a le nom valide
-            if let Some(game_name) = name {
-                let image_url = format!(
-                    "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg",
-                    app_id
-                );
-                let hero_url = format!(
-                    "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
-                    app_id
-                );
-                let launch_url = format!("steam://run/{}", app_id);
-
-                games.push(SteamGame {
-                    id: format!("steam_{}", app_id),
-                    app_id,
-                    name: game_name,
-                    platform: "steam".to_string(),
-                    folder_name: String::new(),
-                    install_path: String::new(),
-                    image_url,
-                    hero_url,
-                    launch_url,
-                    installed: false,
-                    genre: "Steam".to_string(),
-                });
+        // Tente d'abord le cache mémoire/fichier
+        let resolved_name = if let Some(cached) = name_cache.get(&app_id) {
+            Some(cached.clone())
+        } else if let Ok(app_id_u32) = app_id.parse::<u32>() {
+            let n = resolve_game_name_from_appinfo(&appinfo_bytes, app_id_u32);
+            if let Some(ref found) = n {
+                name_cache.insert(app_id.clone(), found.clone());
+                cache_modified = true;
             }
+            n
+        } else {
+            None
+        };
+
+        if let Some(game_name) = resolved_name {
+            let image_url = format!(
+                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg",
+                app_id
+            );
+            let hero_url = format!(
+                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
+                app_id
+            );
+            let launch_url = format!("steam://run/{}", app_id);
+
+            games.push(SteamGame {
+                id: format!("steam_{}", app_id),
+                app_id,
+                name: game_name,
+                platform: "steam".to_string(),
+                folder_name: String::new(),
+                install_path: String::new(),
+                image_url,
+                hero_url,
+                launch_url,
+                installed: false,
+                genre: "Steam".to_string(),
+            });
         }
+    }
+
+    if cache_modified {
+        save_name_cache(&name_cache);
     }
 
     // Trie par ordre alphabétique

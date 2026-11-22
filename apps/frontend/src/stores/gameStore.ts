@@ -7,10 +7,12 @@ export const useGameStore = defineStore('game', {
         games: [] as any[],
         myGames: [] as any[],
         steamGames: [] as any[],
+        epicGames: [] as any[],
         newGames: [] as any[],
         featuredGames: [] as any[],
         isLoading: false,
-        isScanningSteam: false
+        isScanningSteam: false,
+        isScanningEpic: false
     }),
     getters: {
         getFilteredGames: (state) => (category: string) => {
@@ -33,7 +35,22 @@ export const useGameStore = defineStore('game', {
                 install_path: sg.install_path,
                 is_third_party: true
             }))
-            return [...state.myGames, ...mappedSteam]
+
+            const mappedEpic = state.epicGames.map(eg => ({
+                _id: eg.id,
+                game_name: eg.name,
+                image_url: eg.image_url,
+                hero_url: eg.hero_url,
+                installed: eg.installed ?? false,
+                platform: 'epic',
+                app_name: eg.app_name,
+                folder_name: eg.folder_name,
+                genre: 'Epic Game',
+                install_path: eg.install_path,
+                is_third_party: true
+            }))
+
+            return [...state.myGames, ...mappedSteam, ...mappedEpic]
         }
     },
     actions: {
@@ -47,6 +64,24 @@ export const useGameStore = defineStore('game', {
             } finally {
                 this.isScanningSteam = false
             }
+        },
+        async scanEpicGames() {
+            this.isScanningEpic = true
+            try {
+                const results = await tauriAPI.scanEpicGames()
+                this.epicGames = results || []
+            } catch (error) {
+                console.error('Failed to scan Epic games:', error)
+            } finally {
+                this.isScanningEpic = false
+            }
+        },
+        async scanAllPlatforms() {
+            await Promise.allSettled([
+                this.scanSteamGames(),
+                this.scanEpicGames(),
+                this.fetchMyGames()
+            ])
         },
         async fetchHomeData() {
             this.isLoading = true

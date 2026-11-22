@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    // Use relative paths for Electron (not absolute /assets/)
-    base: './',
+    // Base path for Tauri / Web
+    base: '/',
     // Tell Vite to look for .env files in the current directory (default)
     plugins: [vue()],
     resolve: {

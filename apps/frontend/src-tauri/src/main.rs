@@ -1,19 +1,21 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod epic;
 mod installation;
 mod launcher;
 mod steam;
 mod updater;
 
+use epic::{scan_epic_games, launch_epic_game, install_epic_game, uninstall_epic_game};
 use installation::{install_game, uninstall_game, is_game_installed, select_folder};
 use launcher::launch_game;
 use steam::{scan_steam_games, launch_steam_game, install_steam_game, uninstall_steam_game};
 use updater::{check_for_update, download_and_install_update};
 
 fn main() {
-    // Ignore SSL certificate errors and disable GPU compositing to prevent blank/uncomposited frames on Windows
-    std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--ignore-certificate-errors --disable-gpu-compositing");
+    // Ignore SSL certificate errors for local development and custom hosts
+    std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--ignore-certificate-errors");
 
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
@@ -93,6 +95,10 @@ fn main() {
             launch_steam_game,
             install_steam_game,
             uninstall_steam_game,
+            scan_epic_games,
+            launch_epic_game,
+            install_epic_game,
+            uninstall_epic_game,
             check_for_update,
             download_and_install_update
         ])

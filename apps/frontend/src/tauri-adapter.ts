@@ -15,6 +15,21 @@ export interface SteamGameItem {
     genre: string;
 }
 
+export interface EpicGameItem {
+    id: string;
+    app_name: string;
+    name: string;
+    platform: string;
+    folder_name: string;
+    install_path: string;
+    launch_executable: string;
+    image_url: string;
+    hero_url: string;
+    launch_url: string;
+    installed: boolean;
+    genre: string;
+}
+
 export interface UpdateInfo {
     version: string;
     current_version: string;
@@ -33,6 +48,10 @@ interface TauriAPI {
     launchSteamGame: (appId: string) => Promise<string>;
     installSteamGame: (appId: string) => Promise<string>;
     uninstallSteamGame: (appId: string) => Promise<string>;
+    scanEpicGames: () => Promise<EpicGameItem[]>;
+    launchEpicGame: (appName: string) => Promise<string>;
+    installEpicGame: (appName: string) => Promise<string>;
+    uninstallEpicGame: (appName: string) => Promise<string>;
     checkForUpdate: () => Promise<UpdateInfo | null>;
     downloadAndInstallUpdate: () => Promise<void>;
     onUpdateProgress: (callback: (data: { downloaded: number; total: number; percentage: number }) => void) => void;
@@ -226,6 +245,42 @@ const tauriAPI: TauriAPI = {
             return `Triggered steam://uninstall/${appId}`;
         }
         return (await invoke('uninstall_steam_game', { appId, app_id: appId })) as string;
+    },
+
+    scanEpicGames: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            return [];
+        }
+        try {
+            return (await invoke('scan_epic_games')) as EpicGameItem[];
+        } catch (e) {
+            console.warn('scan_epic_games failed:', e);
+            return [];
+        }
+    },
+
+    launchEpicGame: async (appName: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.location.href = `com.epicgames.launcher://apps/${appName}?action=launch&silent=true`;
+            return `Launched Epic ${appName}`;
+        }
+        return (await invoke('launch_epic_game', { appName, app_name: appName })) as string;
+    },
+
+    installEpicGame: async (appName: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.location.href = `com.epicgames.launcher://apps/${appName}?action=install`;
+            return `Triggered Epic install ${appName}`;
+        }
+        return (await invoke('install_epic_game', { appName, app_name: appName })) as string;
+    },
+
+    uninstallEpicGame: async (appName: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.location.href = `com.epicgames.launcher://apps/${appName}?action=uninstall`;
+            return `Triggered Epic uninstall ${appName}`;
+        }
+        return (await invoke('uninstall_epic_game', { appName, app_name: appName })) as string;
     },
 
     checkForUpdate: async () => {

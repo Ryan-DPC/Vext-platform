@@ -25,7 +25,7 @@ const newGameName = ref('')
 const pathSelector = ref<InstanceType<typeof InstallPathSelector> | null>(null)
 const searchQuery = ref('')
 const filterStatus = ref('all') // 'all', 'installed', 'favorites'
-const filterPlatform = ref<'all' | 'vext' | 'steam'>('all')
+const filterPlatform = ref<'all' | 'vext' | 'steam' | 'epic'>('all')
 
 // Social Sidebar State
 const newFriendUsername = ref('')
@@ -83,6 +83,7 @@ onMounted(async () => {
   await Promise.allSettled([
     gameStore.fetchMyGames(),
     gameStore.scanSteamGames(),
+    gameStore.scanEpicGames(),
     categoryStore.fetchCategories(),
     friendsStore.fetchFriends(),
     groupStore.fetchMyGroups()
@@ -159,9 +160,11 @@ const filteredGames = computed(() => {
   }
 
   if (filterPlatform.value === 'vext') {
-    games = games.filter((g: any) => g.platform !== 'steam')
+    games = games.filter((g: any) => g.platform === 'vext' || !g.is_third_party)
   } else if (filterPlatform.value === 'steam') {
     games = games.filter((g: any) => g.platform === 'steam')
+  } else if (filterPlatform.value === 'epic') {
+    games = games.filter((g: any) => g.platform === 'epic')
   }
 
   return games
@@ -188,6 +191,23 @@ const handleScanSteam = async () => {
     alertStore.showAlert({
       title: 'Steam Scanner',
       message: `Erreur lors de la détection Steam: ${error.message || error}`,
+      type: 'error'
+    })
+  }
+}
+
+const handleScanEpic = async () => {
+  try {
+    await gameStore.scanEpicGames()
+    alertStore.showAlert({
+      title: 'Epic Games Scanner',
+      message: `${gameStore.epicGames.length} jeux Epic Games détectés et synchronisés !`,
+      type: 'success'
+    })
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Epic Games Scanner',
+      message: `Erreur lors de la détection Epic: ${error.message || error}`,
       type: 'error'
     })
   }
@@ -339,10 +359,52 @@ const uninstallSteamGame = async (game: any) => {
   }
 }
 
+const installEpicGame = async (game: any) => {
+  if (!game?.app_name) return
+  try {
+    await tauriAPI.installEpicGame(game.app_name)
+    alertStore.showAlert({
+      title: 'Installation Epic Games',
+      message: `Téléchargement lancé dans Epic Games pour ${game.game_name || game.name} !`,
+      type: 'info'
+    })
+    setTimeout(() => {
+      gameStore.scanEpicGames()
+    }, 4000)
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Erreur Installation',
+      message: `Erreur: ${error.message || error}`,
+      type: 'error'
+    })
+  }
+}
+
+const uninstallEpicGame = async (game: any) => {
+  if (!game?.app_name) return
+  try {
+    await tauriAPI.uninstallEpicGame(game.app_name)
+    alertStore.showAlert({
+      title: 'Désinstallation Epic Games',
+      message: `Demande de désinstallation envoyée à Epic Games pour ${game.game_name || game.name}.`,
+      type: 'info'
+    })
+    setTimeout(() => {
+      gameStore.scanEpicGames()
+    }, 4000)
+  } catch (error: any) {
+    alertStore.showAlert({
+      title: 'Erreur Désinstallation',
+      message: `Erreur: ${error.message || error}`,
+      type: 'error'
+    })
+  }
+}
+
 const launchGame = async (gameOrFolder: any) => {
   const game = typeof gameOrFolder === 'object' 
     ? gameOrFolder 
-    : (gameStore.allUnifiedGames || []).find((g: any) => g.folder_name === gameOrFolder || g._id === gameOrFolder || g.app_id === gameOrFolder)
+    : (gameStore.allUnifiedGames || []).find((g: any) => g.folder_name === gameOrFolder || g._id === gameOrFolder || g.app_id === gameOrFolder || g.app_name === gameOrFolder)
 
   if (game?.platform === 'steam' || game?.app_id) {
     try {
@@ -357,6 +419,25 @@ const launchGame = async (gameOrFolder: any) => {
       alertStore.showAlert({
         title: 'Launch Error',
         message: `Erreur lors du lancement Steam: ${error.message || error}`,
+        type: 'error'
+      })
+    }
+    return
+  }
+
+  if (game?.platform === 'epic' || game?.app_name) {
+    try {
+      await tauriAPI.launchEpicGame(game.app_name)
+      runningGameId.value = game.app_name
+      alertStore.showAlert({
+        title: 'Epic Games',
+        message: `Lancement de ${game.game_name}...`,
+        type: 'info'
+      })
+    } catch (error: any) {
+      alertStore.showAlert({
+        title: 'Launch Error',
+        message: `Erreur lors du lancement Epic Games: ${error.message || error}`,
         type: 'error'
       })
     }
@@ -492,11 +573,17 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <button :class="{ active: filterPlatform === 'steam' && filterStatus === 'all' }" @click="filterPlatform = 'steam'; filterStatus = 'all'" class="btn-steam-tab">
                     <i class="fab fa-steam"></i> Steam ({{ gameStore.steamGames.length }})
                 </button>
+                <button :class="{ active: filterPlatform === 'epic' && filterStatus === 'all' }" @click="filterPlatform = 'epic'; filterStatus = 'all'" class="btn-epic-tab">
+                    <i class="fas fa-bolt"></i> Epic ({{ gameStore.epicGames.length }})
+                </button>
                 <button :class="{ active: filterPlatform === 'vext' && filterStatus === 'all' }" @click="filterPlatform = 'vext'; filterStatus = 'all'">
                     VEXT ({{ gameStore.myGames.length }})
                 </button>
                 <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningSteam }" @click="handleScanSteam" title="Rescan Steam Games">
-                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': gameStore.isScanningSteam }"></i>
+                    <i class="fab fa-steam" :class="{ 'fa-spin': gameStore.isScanningSteam }"></i>
+                </button>
+                <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningEpic }" @click="handleScanEpic" title="Rescan Epic Games">
+                    <i class="fas fa-bolt" :class="{ 'fa-spin': gameStore.isScanningEpic }"></i>
                 </button>
                 <button class="btn-icon" @click="showAddGameModal = true" title="Redeem Key"><i class="fas fa-key"></i></button>
             </div>
@@ -556,11 +643,13 @@ const handleAddFriendFromGroup = async (username: string) => {
                                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
                                 </div>
                                 <template v-else-if="game.installed">
-                                    <button @click="launchGame(game)" class="btn-grid-play" :title="game.platform === 'steam' ? 'Play on Steam' : 'Play'"><i class="fas fa-play"></i></button>
+                                    <button @click="launchGame(game)" class="btn-grid-play" :title="game.platform === 'steam' ? 'Play on Steam' : game.platform === 'epic' ? 'Play on Epic Games' : 'Play'"><i class="fas fa-play"></i></button>
                                     <button v-if="game.platform === 'steam'" @click.stop="uninstallSteamGame(game)" class="btn-grid-uninstall" title="Désinstaller de Steam"><i class="fas fa-trash-alt"></i></button>
+                                    <button v-else-if="game.platform === 'epic'" @click.stop="uninstallEpicGame(game)" class="btn-grid-uninstall" title="Désinstaller d'Epic Games"><i class="fas fa-trash-alt"></i></button>
                                 </template>
                                 <template v-else>
                                     <button v-if="game.platform === 'steam'" @click="installSteamGame(game)" class="btn-grid-install" title="Installer via Steam"><i class="fas fa-download"></i></button>
+                                    <button v-else-if="game.platform === 'epic'" @click="installEpicGame(game)" class="btn-grid-install" title="Installer via Epic Games"><i class="fas fa-download"></i></button>
                                     <button v-else @click="installGame(game)" class="btn-grid-install" title="Install"><i class="fas fa-download"></i></button>
                                 </template>
                             </div>
@@ -569,6 +658,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                             <h4 :title="game.game_name">{{ game.game_name }}</h4>
                             <div class="card-badges">
                                 <span v-if="game.platform === 'steam'" class="badge-steam"><i class="fab fa-steam"></i> STEAM</span>
+                                <span v-else-if="game.platform === 'epic'" class="badge-epic"><i class="fas fa-bolt"></i> EPIC</span>
                                 <span v-if="game.installed" class="badge-installed">INSTALLED</span>
                                 <span v-else class="badge-not-installed">NOT INSTALLED</span>
                                 <span class="badge-genre">{{ game.genre || 'Game' }}</span>
@@ -797,6 +887,12 @@ const handleAddFriendFromGroup = async (username: string) => {
     border-color: #66c0f4 !important;
     color: #66c0f4 !important;
 }
+.filters button.btn-epic-tab:hover,
+.filters button.btn-epic-tab.active {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: #f5f5f5 !important;
+    color: #ffffff !important;
+}
 
 .scroll-area {
     flex: 1;
@@ -982,6 +1078,20 @@ const handleAddFriendFromGroup = async (username: string) => {
     font-weight: 700;
     letter-spacing: 0.5px;
     box-shadow: 0 0 8px rgba(102, 192, 244, 0.15);
+}
+.badge-epic {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #ffffff;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
 }
 
 /* Sidebar */
