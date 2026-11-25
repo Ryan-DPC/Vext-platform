@@ -22,6 +22,7 @@ import { statsRoutes } from './features/stats/stats.routes';
 import { devGamesRoutes } from './features/dev-games/dev-games.routes';
 import { adminRoutes } from './features/admin/admin.routes';
 import { groupsRoutes } from './features/groups/groups.routes';
+import { steamRoutes } from './features/steam/steam.routes';
 import { setWebSocketServer } from './services/websocket.service';
 import { logger } from './utils/logger';
 
@@ -87,6 +88,7 @@ const app = new Elysia()
     .use(devGamesRoutes)
     .use(adminRoutes)
     .use(groupsRoutes)
+    .use(steamRoutes)
     .listen(process.env.PORT || 3000);
 
 // Initialize Global WebSocket Server Reference

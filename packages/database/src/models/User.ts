@@ -26,6 +26,9 @@ export interface IUser extends Document {
     is_verified?: boolean;
     github_id?: string | null;
     github_username?: string | null;
+    steam_id?: string | null;
+    steam_username?: string | null;
+    steam_avatar?: string | null;
     isAdmin: boolean;
     tokens: number;
     currency: 'CHF' | 'EUR' | 'USD' | 'GBP';
@@ -56,6 +59,9 @@ const userSchema = new Schema<IUser>(
         is_verified: { type: Boolean, default: false },
         github_id: { type: String, default: null, index: true },
         github_username: { type: String, default: null },
+        steam_id: { type: String, default: null, index: true },
+        steam_username: { type: String, default: null },
+        steam_avatar: { type: String, default: null },
         isAdmin: { type: Boolean, default: false },
         tokens: { type: Number, default: 1000 },
         currency: { type: String, enum: ['CHF', 'EUR', 'USD', 'GBP'], default: 'CHF' },
