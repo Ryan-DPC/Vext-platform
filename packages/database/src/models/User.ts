@@ -173,7 +173,9 @@ export class Users {
 
     static async getUserById(userId: string): Promise<any | null> {
         const doc = await UserModel.findById(userId, {
-            username: 1, tokens: 1, elo: 1, profile_pic: 1, profile_picture: 1,
+            username: 1, email: 1, language: 1,
+            steam_id: 1, steam_username: 1, steam_avatar: 1,
+            tokens: 1, elo: 1, profile_pic: 1, profile_picture: 1,
             currency: 1, balances: 1, isAdmin: 1, created_at: 1,
             xp: 1, level: 1, status_message: 1, favorite_games: 1,
             bio: 1, social_links: 1, notification_preferences: 1
