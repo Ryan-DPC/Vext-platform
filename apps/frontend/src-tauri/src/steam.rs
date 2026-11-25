@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::{BufRead, BufReader, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
@@ -425,10 +427,442 @@ pub fn uninstall_steam_game(app_id: String) -> Result<String, String> {
 }
 
 /// Commande Tauri : Ouvre une URL externe (ex: Steam OpenID) dans le navigateur système
+/// Utilise rundll32 url.dll,FileProtocolHandler sous Windows pour éviter que cmd.exe ne tronque l'URL au premier '&'
 #[tauri::command]
 pub fn open_external_url(url: String) -> Result<String, String> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
         return Err("URL externe invalide".to_string());
     }
-    launch_steam_protocol(&url)
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", &url])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Erreur ouverture navigateur: {}", e))?;
+        return Ok(format!("URL ouverte : {}", url));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        launch_steam_protocol(&url)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Steam Account (OpenID 2.0 + Web API)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SteamAccount {
+    pub steam_id: String,
+    pub display_name: String,
+    pub avatar_url: String,
+}
+
+fn get_account_file_path() -> Option<PathBuf> {
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let dir = PathBuf::from(local_app_data).join("com.vext.app");
+        let _ = fs::create_dir_all(&dir);
+        return Some(dir.join("steam_account.json"));
+    }
+    None
+}
+
+fn load_steam_account() -> Option<SteamAccount> {
+    let path = get_account_file_path()?;
+    let data = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<SteamAccount>(&data).ok()
+}
+
+fn save_steam_account(account: &SteamAccount) {
+    if let Some(path) = get_account_file_path() {
+        if let Ok(json) = serde_json::to_string_pretty(account) {
+            let _ = fs::write(path, json);
+        }
+    }
+}
+
+fn get_config_file_path() -> Option<PathBuf> {
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let dir = PathBuf::from(local_app_data).join("com.vext.app");
+        let _ = fs::create_dir_all(&dir);
+        return Some(dir.join("steam_config.json"));
+    }
+    None
+}
+
+fn load_steam_config() -> HashMap<String, String> {
+    if let Some(path) = get_config_file_path() {
+        if let Ok(data) = fs::read_to_string(path) {
+            if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&data) {
+                return map;
+            }
+        }
+    }
+    HashMap::new()
+}
+
+fn save_steam_config(config: &HashMap<String, String>) {
+    if let Some(path) = get_config_file_path() {
+        if let Ok(json) = serde_json::to_string_pretty(config) {
+            let _ = fs::write(path, json);
+        }
+    }
+}
+
+/// Commande Tauri : Lire la clé API Steam stockée localement
+#[tauri::command]
+pub fn get_steam_api_key() -> Option<String> {
+    let config = load_steam_config();
+    config.get("api_key").cloned()
+}
+
+/// Commande Tauri : Sauvegarder la clé API Steam
+#[tauri::command]
+pub fn set_steam_api_key(key: String) -> Result<(), String> {
+    let mut config = load_steam_config();
+    config.insert("api_key".to_string(), key);
+    save_steam_config(&config);
+    Ok(())
+}
+
+/// Commande Tauri : Lire le compte Steam connecté
+#[tauri::command]
+pub fn get_steam_account() -> Option<SteamAccount> {
+    load_steam_account()
+}
+
+/// Commande Tauri : Déconnecter le compte Steam
+#[tauri::command]
+pub fn disconnect_steam_account() -> Result<(), String> {
+    if let Some(path) = get_account_file_path() {
+        let _ = fs::remove_file(path);
+    }
+    Ok(())
+}
+
+/// Parse l'URL de callback OpenID et extrait le SteamID64
+fn extract_steam_id_from_claimed_id(claimed_id: &str) -> Option<String> {
+    // claimed_id = "https://steamcommunity.com/openid/id/76561198XXXXXXXXX"
+    let prefix = "https://steamcommunity.com/openid/id/";
+    if claimed_id.starts_with(prefix) {
+        let id = &claimed_id[prefix.len()..];
+        if id.chars().all(|c| c.is_ascii_digit()) && id.len() >= 15 {
+            return Some(id.to_string());
+        }
+    }
+    None
+}
+
+/// Parse la query string d'une requête HTTP
+fn parse_query_string(query: &str) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for pair in query.split('&') {
+        let mut kv = pair.splitn(2, '=');
+        if let (Some(k), Some(v)) = (kv.next(), kv.next()) {
+            let key = k.replace('+', " ");
+            let val = v.replace('+', " ");
+            // URL-decode basique (ne gère que %XX essentiels)
+            map.insert(url_decode(&key), url_decode(&val));
+        }
+    }
+    map
+}
+
+fn url_decode(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(hex_str) = std::str::from_utf8(&bytes[i+1..i+3]) {
+                if let Ok(byte_val) = u8::from_str_radix(hex_str, 16) {
+                    result.push(byte_val as char);
+                    i += 3;
+                    continue;
+                }
+            }
+        }
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+    result
+}
+
+/// Envoie une réponse HTTP simple à la connexion et ferme
+fn send_http_response(mut stream: TcpStream, status: u16, body: &str) {
+    let status_text = if status == 200 { "OK" } else { "Internal Server Error" };
+    let response = format!(
+        "HTTP/1.1 {} {}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        status, status_text, body.len(), body
+    );
+    let _ = stream.write_all(response.as_bytes());
+}
+
+/// Résout le nom + avatar d'un SteamID via l'API publique (GetPlayerSummaries)
+fn fetch_player_summary(steam_id: &str, api_key: &str) -> (String, String) {
+    let url = format!(
+        "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={}&steamids={}",
+        api_key, steam_id
+    );
+    if let Ok(resp) = reqwest::blocking::get(&url) {
+        if let Ok(json) = resp.json::<serde_json::Value>() {
+            if let Some(player) = json
+                .get("response")
+                .and_then(|r| r.get("players"))
+                .and_then(|p| p.as_array())
+                .and_then(|a| a.first())
+            {
+                let name = player.get("personaname")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("Steam User")
+                    .to_string();
+                let avatar = player.get("avatarfull")
+                    .and_then(|a| a.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                return (name, avatar);
+            }
+        }
+    }
+    ("Steam User".to_string(), String::new())
+}
+
+/// Commande Tauri : Lance le flux OpenID Steam (Option A : serveur TCP local temporaire)
+/// Retourne le SteamID64 après validation ou une erreur.
+#[tauri::command]
+pub fn steam_openid_login() -> Result<String, String> {
+    // 1. Trouver un port libre
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("Impossible de créer le serveur local: {}", e))?;
+    let port = listener.local_addr()
+        .map_err(|e| format!("Impossible d'obtenir le port: {}", e))?
+        .port();
+
+    let return_to = format!("http://127.0.0.1:{}/callback", port);
+    let realm = format!("http://127.0.0.1:{}", port);
+
+    // 2. Construire l'URL Steam OpenID
+    let openid_url = format!(
+        "https://steamcommunity.com/openid/login\
+        ?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0\
+        &openid.mode=checkid_setup\
+        &openid.return_to={return_to}\
+        &openid.realm={realm}\
+        &openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select\
+        &openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select",
+        return_to = url_encode(&return_to),
+        realm = url_encode(&realm)
+    );
+
+    // 3. Ouvrir le navigateur par défaut avec l'URL Steam
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        Command::new("cmd")
+            .args(["/C", "start", "", &openid_url])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Impossible d'ouvrir le navigateur: {}", e))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::process::Command;
+        Command::new("xdg-open")
+            .arg(&openid_url)
+            .spawn()
+            .map_err(|e| format!("Impossible d'ouvrir le navigateur: {}", e))?;
+    }
+
+    // 4. Attendre la requête de callback (timeout 5 minutes)
+    listener.set_nonblocking(false)
+        .map_err(|e| format!("Erreur listener: {}", e))?;
+
+    // Timeout global via thread
+    let (tx, rx) = std::sync::mpsc::channel::<Result<String, String>>();
+    let tx_clone = tx.clone();
+
+    std::thread::spawn(move || {
+        // Timeout de 5 minutes
+        std::thread::sleep(std::time::Duration::from_secs(300));
+        let _ = tx_clone.send(Err("Timeout: connexion Steam annulée".to_string()));
+    });
+
+    std::thread::spawn(move || {
+        match listener.accept() {
+            Ok((stream, _)) => {
+                let result = handle_openid_callback(stream);
+                let _ = tx.send(result);
+            }
+            Err(e) => {
+                let _ = tx.send(Err(format!("Erreur connexion: {}", e)));
+            }
+        }
+    });
+
+    // Attendre le résultat (bloquant pour Tauri command)
+    rx.recv()
+        .map_err(|e| format!("Erreur réception: {}", e))?
+}
+
+fn url_encode(s: &str) -> String {
+    let mut encoded = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'0'..=b'9' | b'a'..=b'z' | b'-' | b'_' | b'.' | b'~' => {
+                encoded.push(byte as char);
+            }
+            _ => {
+                encoded.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    encoded
+}
+
+fn handle_openid_callback(stream: TcpStream) -> Result<String, String> {
+    let mut reader = BufReader::new(stream.try_clone().map_err(|e| e.to_string())?);
+
+    // Lire la ligne de requête HTTP
+    let mut request_line = String::new();
+    reader.read_line(&mut request_line).map_err(|e| e.to_string())?;
+
+    // GET /callback?openid.claimed_id=...&openid.mode=id_res HTTP/1.1
+    let path_and_query = request_line
+        .split_whitespace()
+        .nth(1)
+        .unwrap_or("/");
+
+    let query_str = path_and_query
+        .splitn(2, '?')
+        .nth(1)
+        .unwrap_or("");
+
+    let params = parse_query_string(query_str);
+
+    let mode = params.get("openid.mode").map(|s| s.as_str()).unwrap_or("");
+    if mode == "cancel" {
+        let body = "<html><body><h2>Connexion Steam annulée. Vous pouvez fermer cet onglet.</h2></body></html>";
+        send_http_response(stream, 200, body);
+        return Err("L'utilisateur a annulé la connexion Steam".to_string());
+    }
+
+    if mode != "id_res" {
+        let body = "<html><body><h2>Réponse Steam inattendue. Vous pouvez fermer cet onglet.</h2></body></html>";
+        send_http_response(stream, 200, body);
+        return Err(format!("Mode OpenID inattendu: {}", mode));
+    }
+
+    let claimed_id = params.get("openid.claimed_id").cloned().unwrap_or_default();
+    let steam_id = extract_steam_id_from_claimed_id(&claimed_id)
+        .ok_or_else(|| format!("SteamID invalide dans claimed_id: {}", claimed_id))?;
+
+    // Répondre à Steam / au navigateur
+    let body = format!(
+        "<html><body style='font-family:sans-serif;text-align:center;padding:40px'>
+        <h2 style='color:#1b2838'>✅ Connecté à Steam !</h2>
+        <p>SteamID : <code>{}</code></p>
+        <p>Vous pouvez fermer cet onglet et revenir sur VEXT.</p>
+        </body></html>",
+        steam_id
+    );
+    send_http_response(stream, 200, &body);
+
+    // Récupérer le nom et l'avatar via l'API si une clé existe
+    let config = load_steam_config();
+    let (display_name, avatar_url) = if let Some(api_key) = config.get("api_key") {
+        fetch_player_summary(&steam_id, api_key)
+    } else {
+        (format!("SteamID {}", &steam_id[steam_id.len().saturating_sub(4)..]), String::new())
+    };
+
+    // Sauvegarder le compte
+    let account = SteamAccount { steam_id: steam_id.clone(), display_name, avatar_url };
+    save_steam_account(&account);
+
+    Ok(steam_id)
+}
+
+/// Jeu Steam retourné par l'API GetOwnedGames
+#[derive(Debug, Serialize, Deserialize)]
+struct ApiGameRaw {
+    appid: u64,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    playtime_forever: u64,
+    #[serde(default)]
+    img_icon_url: Option<String>,
+}
+
+/// Commande Tauri : Récupère tous les jeux possédés via la Steam Web API
+#[tauri::command]
+pub fn fetch_steam_owned_games(steam_id: String, api_key: String) -> Result<Vec<SteamGame>, String> {
+    let url = format!(
+        "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/\
+        ?key={}&steamid={}&include_appinfo=1&include_played_free_games=1&format=json",
+        api_key, steam_id
+    );
+
+    let resp = reqwest::blocking::get(&url)
+        .map_err(|e| format!("Erreur réseau Steam API: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Steam API error HTTP {}", resp.status()));
+    }
+
+    let json: serde_json::Value = resp.json()
+        .map_err(|e| format!("Erreur parsing réponse Steam API: {}", e))?;
+
+    let games_array = json
+        .get("response")
+        .and_then(|r| r.get("games"))
+        .and_then(|g| g.as_array())
+        .ok_or_else(|| "Bibliothèque vide ou profil privé (activez 'Détails des jeux' dans la confidentialité Steam)".to_string())?;
+
+    let mut games: Vec<SteamGame> = games_array
+        .iter()
+        .filter_map(|g| serde_json::from_value::<ApiGameRaw>(g.clone()).ok())
+        .filter(|g| {
+            // Exclure redistributables internes
+            let ignored = [228980u64, 228990, 107410, 250820, 480, 7, 760];
+            !ignored.contains(&g.appid)
+        })
+        .map(|g| {
+            let app_id = g.appid.to_string();
+            let name = g.name.unwrap_or_else(|| format!("Steam Game ({})", app_id));
+            let image_url = format!(
+                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg",
+                app_id
+            );
+            let hero_url = format!(
+                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
+                app_id
+            );
+            SteamGame {
+                id: format!("steam_{}", app_id),
+                app_id,
+                name,
+                platform: "steam".to_string(),
+                folder_name: String::new(),
+                install_path: String::new(),
+                image_url,
+                hero_url,
+                launch_url: format!("steam://run/{}", g.appid),
+                installed: false, // sera mis à jour par le scan local
+                genre: "Steam".to_string(),
+            }
+        })
+        .collect();
+
+    games.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(games)
 }

@@ -1,6 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
+export interface SteamAccount {
+    steam_id: string;
+    display_name: string;
+    avatar_url: string;
+}
+
 export interface SteamGameItem {
     id: string;
     app_id: string;
@@ -61,6 +67,13 @@ interface TauriAPI {
     onInstallError: (callback: (data: any) => void) => void;
     onGameStatus: (callback: (data: any) => void) => void;
     onGameExited: (callback: (data: any) => void) => void;
+    // Steam Account & OpenID
+    getSteamApiKey: () => Promise<string | null>;
+    setSteamApiKey: (key: string) => Promise<void>;
+    getSteamAccount: () => Promise<SteamAccount | null>;
+    disconnectSteamAccount: () => Promise<void>;
+    steamOpenIdLogin: () => Promise<string>;
+    fetchSteamOwnedGames: (steamId: string, apiKey: string) => Promise<SteamGameItem[]>;
 }
 
 const tauriAPI: TauriAPI = {
@@ -343,7 +356,55 @@ const tauriAPI: TauriAPI = {
         listen('game:exited', (event: any) => {
             callback(event.payload);
         }).catch(e => console.warn('Failed to listen to game:exited', e));
-    }
+    },
+
+    // ── Steam Account & OpenID ──────────────────────────────────────────────
+
+    getSteamApiKey: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) return null;
+        try {
+            return (await invoke('get_steam_api_key')) as string | null;
+        } catch {
+            return null;
+        }
+    },
+
+    setSteamApiKey: async (key: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) return;
+        await invoke('set_steam_api_key', { key });
+    },
+
+    getSteamAccount: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) return null;
+        try {
+            return (await invoke('get_steam_account')) as SteamAccount | null;
+        } catch {
+            return null;
+        }
+    },
+
+    disconnectSteamAccount: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) return;
+        await invoke('disconnect_steam_account');
+    },
+
+    steamOpenIdLogin: async () => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            // Simuler en mode navigateur (dev uniquement)
+            return '76561198000000000';
+        }
+        return (await invoke('steam_openid_login')) as string;
+    },
+
+    fetchSteamOwnedGames: async (steamId: string, apiKey: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) return [];
+        try {
+            return (await invoke('fetch_steam_owned_games', { steamId, apiKey })) as SteamGameItem[];
+        } catch (e) {
+            console.warn('fetch_steam_owned_games failed:', e);
+            return [];
+        }
+    },
 };
 
 export default tauriAPI;

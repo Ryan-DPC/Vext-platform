@@ -456,7 +456,7 @@ const unlinkSteamAccount = async () => {
                     <img :src="logo" alt="VEXT" class="app-logo-small" />
                     <div>
                         <h3 class="app-name">{{ t('settings.updates.client_name') }}</h3>
-                        <div class="app-version-badge">Version v0.1.8 &bull; {{ t('settings.updates.channel') }}</div>
+                        <div class="app-version-badge">Version v0.1.9 &bull; {{ t('settings.updates.channel') }}</div>
                     </div>
                 </div>
 
