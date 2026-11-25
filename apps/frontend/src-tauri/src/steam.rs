@@ -423,3 +423,12 @@ pub fn uninstall_steam_game(app_id: String) -> Result<String, String> {
     let url = format!("steam://uninstall/{}", app_id);
     launch_steam_protocol(&url)
 }
+
+/// Commande Tauri : Ouvre une URL externe (ex: Steam OpenID) dans le navigateur système
+#[tauri::command]
+pub fn open_external_url(url: String) -> Result<String, String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("URL externe invalide".to_string());
+    }
+    launch_steam_protocol(&url)
+}

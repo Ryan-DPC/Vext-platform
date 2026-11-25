@@ -10,7 +10,7 @@ mod updater;
 use epic::{scan_epic_games, launch_epic_game, install_epic_game, uninstall_epic_game};
 use installation::{install_game, uninstall_game, is_game_installed, select_folder};
 use launcher::launch_game;
-use steam::{scan_steam_games, launch_steam_game, install_steam_game, uninstall_steam_game};
+use steam::{scan_steam_games, launch_steam_game, install_steam_game, uninstall_steam_game, open_external_url};
 use updater::{check_for_update, download_and_install_update};
 
 fn main() {
@@ -95,6 +95,7 @@ fn main() {
             launch_steam_game,
             install_steam_game,
             uninstall_steam_game,
+            open_external_url,
             scan_epic_games,
             launch_epic_game,
             install_epic_game,

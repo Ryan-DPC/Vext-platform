@@ -27,6 +27,7 @@ export const useGameStore = defineStore('game', {
                 game_name: sg.name,
                 image_url: sg.image_url,
                 hero_url: sg.hero_url,
+                fallback_logo_url: sg.fallback_logo_url,
                 installed: sg.installed ?? false,
                 platform: 'steam',
                 app_id: sg.app_id,
@@ -54,11 +55,52 @@ export const useGameStore = defineStore('game', {
         }
     },
     actions: {
-        async scanSteamGames() {
+        async scanSteamGames(forceRefreshApi = false) {
             this.isScanningSteam = true
             try {
-                const results = await tauriAPI.scanSteamGames()
-                this.steamGames = results || []
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+                const [localRes, apiRes] = await Promise.allSettled([
+                    tauriAPI.scanSteamGames(),
+                    token
+                        ? axios.get(`/steam/owned-games${forceRefreshApi ? '?refresh=1' : ''}`)
+                        : Promise.resolve(null)
+                ])
+
+                const localGames: any[] = localRes.status === 'fulfilled' && Array.isArray(localRes.value)
+                    ? localRes.value
+                    : []
+                const apiGames: any[] =
+                    apiRes.status === 'fulfilled' && apiRes.value?.data?.games
+                        ? apiRes.value.data.games
+                        : []
+
+                const mergedMap = new Map<string, any>()
+
+                for (const g of localGames) {
+                    if (!g?.app_id) continue
+                    mergedMap.set(String(g.app_id), { ...g })
+                }
+
+                for (const ag of apiGames) {
+                    if (!ag?.app_id) continue
+                    const key = String(ag.app_id)
+                    const existing = mergedMap.get(key)
+                    if (existing) {
+                        const isPlaceholder = !existing.name || existing.name.startsWith('Steam Game (')
+                        mergedMap.set(key, {
+                            ...existing,
+                            name: isPlaceholder && ag.name ? ag.name : existing.name,
+                            fallback_logo_url: ag.fallback_logo_url || existing.fallback_logo_url,
+                            playtime_forever: ag.playtime_forever ?? existing.playtime_forever
+                        })
+                    } else {
+                        mergedMap.set(key, { ...ag, installed: false })
+                    }
+                }
+
+                const merged = Array.from(mergedMap.values())
+                merged.sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()))
+                this.steamGames = merged
             } catch (error) {
                 console.error('Failed to scan Steam games:', error)
             } finally {

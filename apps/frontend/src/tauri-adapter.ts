@@ -48,6 +48,7 @@ interface TauriAPI {
     launchSteamGame: (appId: string) => Promise<string>;
     installSteamGame: (appId: string) => Promise<string>;
     uninstallSteamGame: (appId: string) => Promise<string>;
+    openExternalUrl: (url: string) => Promise<string>;
     scanEpicGames: () => Promise<EpicGameItem[]>;
     launchEpicGame: (appName: string) => Promise<string>;
     installEpicGame: (appName: string) => Promise<string>;
@@ -245,6 +246,14 @@ const tauriAPI: TauriAPI = {
             return `Triggered steam://uninstall/${appId}`;
         }
         return (await invoke('uninstall_steam_game', { appId, app_id: appId })) as string;
+    },
+
+    openExternalUrl: async (url: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) {
+            window.open(url, '_blank', 'noopener');
+            return `Opened ${url}`;
+        }
+        return (await invoke('open_external_url', { url })) as string;
     },
 
     scanEpicGames: async () => {

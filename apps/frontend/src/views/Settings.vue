@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/userStore'
 import { useThemeStore } from '../stores/themeStore' // Import Theme Store
 import { useUpdaterStore } from '../stores/updaterStore'
+import axios from 'axios'
+import tauriAPI from '../tauri-adapter'
 import logoImage from '@/assets/images/Logo.svg'
 
 const logo = logoImage
@@ -174,6 +176,55 @@ const addNewPlugin = () => {
         });
     }
 }
+
+const isLinkingSteam = ref(false)
+const linkSteamAccount = async () => {
+    isLinkingSteam.value = true
+    statusMessage.value = ''
+    try {
+        const res = await axios.post('/steam/link/start')
+        if (res.data?.authUrl) {
+            await tauriAPI.openExternalUrl(res.data.authUrl)
+            statusMessage.value = 'Page Steam ouverte dans votre navigateur. Connectez-vous pour finaliser la liaison.'
+            statusType.value = 'info'
+            const started = Date.now()
+            const poll = setInterval(async () => {
+                if (Date.now() - started > 120000) {
+                    clearInterval(poll)
+                    isLinkingSteam.value = false
+                    return
+                }
+                try {
+                    await userStore.fetchProfile()
+                    if (userStore.user?.steam_id) {
+                        clearInterval(poll)
+                        isLinkingSteam.value = false
+                        statusMessage.value = `Compte Steam ${userStore.user.steam_username || userStore.user.steam_id} lié avec succès !`
+                        statusType.value = 'success'
+                    }
+                } catch {
+                    /* ignore */
+                }
+            }, 3000)
+        }
+    } catch (error: any) {
+        isLinkingSteam.value = false
+        statusMessage.value = error.response?.data?.message || 'Impossible de démarrer la connexion Steam.'
+        statusType.value = 'error'
+    }
+}
+
+const unlinkSteamAccount = async () => {
+    try {
+        await axios.delete('/steam/link')
+        await userStore.fetchProfile()
+        statusMessage.value = 'Compte Steam délié.'
+        statusType.value = 'info'
+    } catch (error: any) {
+        statusMessage.value = error.response?.data?.message || 'Impossible de délier le compte Steam.'
+        statusType.value = 'error'
+    }
+}
 </script>
 
 <template>
@@ -227,6 +278,27 @@ const addNewPlugin = () => {
                 </select>
                 <i class="fas fa-chevron-down input-icon"></i>
             </div>
+            </div>
+
+            <div class="section-label">Compte Steam (OpenID 2.0 + Scan local)</div>
+            <div class="toggle-item" style="margin-bottom: 12px;">
+                <div class="toggle-info">
+                    <span class="toggle-label">
+                        <i class="fab fa-steam" style="color:#66c0f4; margin-right:6px;"></i>
+                        {{ userStore.user?.steam_id ? (userStore.user?.steam_username || 'Compte Steam lié') : 'Aucun compte Steam lié' }}
+                    </span>
+                    <span class="toggle-desc">
+                        {{ userStore.user?.steam_id ? `SteamID64 : ${userStore.user.steam_id} (synchronisé avec le scan local)` : 'Liez votre compte Steam pour synchroniser toute votre bibliothèque (en plus du scan local).' }}
+                    </span>
+                </div>
+                <div>
+                    <button v-if="userStore.user?.steam_id" type="button" class="remove-btn" @click="unlinkSteamAccount">
+                        Délier
+                    </button>
+                    <button v-else type="button" class="btn-check-updates" @click="linkSteamAccount" :disabled="isLinkingSteam">
+                        <i class="fab fa-steam"></i> {{ isLinkingSteam ? 'Connexion...' : 'Se connecter avec Steam' }}
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -384,7 +456,7 @@ const addNewPlugin = () => {
                     <img :src="logo" alt="VEXT" class="app-logo-small" />
                     <div>
                         <h3 class="app-name">{{ t('settings.updates.client_name') }}</h3>
-                        <div class="app-version-badge">Version v0.1.7 &bull; {{ t('settings.updates.channel') }}</div>
+                        <div class="app-version-badge">Version v0.1.8 &bull; {{ t('settings.updates.channel') }}</div>
                     </div>
                 </div>
 

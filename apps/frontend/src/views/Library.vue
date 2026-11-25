@@ -16,6 +16,7 @@ import tauriAPI from '../tauri-adapter';
 const gameStore = useGameStore()
 const categoryStore = useCategoryStore()
 const friendsStore = useFriendsStore()
+const userStore = useUserStore()
 const alertStore = useAlertStore()
 const groupStore = useGroupStore()
 
@@ -72,7 +73,8 @@ function onImageError(e: Event, game: any) {
       `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`,
       `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
       `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`,
-      `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_231x87.jpg`
+      `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_231x87.jpg`,
+      ...(game?.fallback_logo_url ? [game.fallback_logo_url] : [])
     ]
     const tried = Number(target.dataset.fallbackStep || '0')
     const nextSrc = candidates[tried]
@@ -190,7 +192,7 @@ const featuredLibrary = computed(() => {
 
 const handleScanSteam = async () => {
   try {
-    await gameStore.scanSteamGames()
+    await gameStore.scanSteamGames(true)
     alertStore.showAlert({
       title: 'Steam Scanner',
       message: `${gameStore.steamGames.length} jeux Steam détectés et synchronisés !`,
@@ -200,6 +202,47 @@ const handleScanSteam = async () => {
     alertStore.showAlert({
       title: 'Steam Scanner',
       message: `Erreur lors de la détection Steam: ${error.message || error}`,
+      type: 'error'
+    })
+  }
+}
+
+const isLinkingSteam = ref(false)
+const handleLinkSteam = async () => {
+  isLinkingSteam.value = true
+  try {
+    const res = await axios.post('/steam/link/start')
+    if (res.data?.authUrl) {
+      await tauriAPI.openExternalUrl(res.data.authUrl)
+      alertStore.showAlert({
+        title: 'Connexion Steam (OpenID)',
+        message: 'Connectez-vous sur Steam dans votre navigateur, puis la bibliothèque se synchronisera automatiquement.',
+        type: 'info'
+      })
+      const started = Date.now()
+      const poll = setInterval(async () => {
+        if (Date.now() - started > 120000) {
+          clearInterval(poll)
+          isLinkingSteam.value = false
+          return
+        }
+        try {
+          await userStore.fetchProfile()
+          if (userStore.user?.steam_id) {
+            clearInterval(poll)
+            isLinkingSteam.value = false
+            await gameStore.scanSteamGames(true)
+          }
+        } catch {
+          /* ignore */
+        }
+      }, 3000)
+    }
+  } catch (error: any) {
+    isLinkingSteam.value = false
+    alertStore.showAlert({
+      title: 'Erreur Steam',
+      message: error.response?.data?.message || error.message || 'Impossible de démarrer la liaison Steam.',
       type: 'error'
     })
   }
@@ -587,6 +630,9 @@ const handleAddFriendFromGroup = async (username: string) => {
                 </button>
                 <button :class="{ active: filterPlatform === 'vext' && filterStatus === 'all' }" @click="filterPlatform = 'vext'; filterStatus = 'all'">
                     VEXT ({{ gameStore.myGames.length }})
+                </button>
+                <button v-if="!userStore.user?.steam_id" class="btn-steam-tab" @click="handleLinkSteam" :disabled="isLinkingSteam" title="Lier votre compte Steam via OpenID">
+                    <i class="fab fa-steam"></i> {{ isLinkingSteam ? 'Connexion...' : 'Lier Steam' }}
                 </button>
                 <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningSteam }" @click="handleScanSteam" title="Rescan Steam Games">
                     <i class="fab fa-steam" :class="{ 'fa-spin': gameStore.isScanningSteam }"></i>
