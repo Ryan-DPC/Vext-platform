@@ -5,7 +5,6 @@ import { useUserStore } from '../stores/userStore'
 import { useThemeStore } from '../stores/themeStore' // Import Theme Store
 import { useUpdaterStore } from '../stores/updaterStore'
 import logoImage from '@/assets/images/Logo.svg'
-import SakuraBackground from '@/components/SakuraBackground.vue'
 
 const logo = logoImage
 const userStore = useUserStore()
@@ -51,6 +50,9 @@ onMounted(async () => {
     form.username = userStore.user.username || ''
     form.email = userStore.user.email || ''
     form.language = userStore.user.language || 'English'
+    if (['English', 'French', 'Spanish'].includes(form.language)) {
+      locale.value = form.language
+    }
     form.bio = userStore.user.bio || ''
     if (userStore.user.social_links) {
       form.social_links = { ...userStore.user.social_links }
@@ -176,8 +178,6 @@ const addNewPlugin = () => {
 
 <template>
   <div class="settings-page">
-    <SakuraBackground />
-
     <div class="settings-container">
       <!-- Sidebar -->
       <div class="settings-sidebar">
@@ -221,9 +221,9 @@ const addNewPlugin = () => {
             <label>{{ t('settings.account.language') }}</label>
             <div class="input-wrapper">
                 <select v-model="form.language">
-                <option>English</option>
-                <option>French</option>
-                <option>Spanish</option>
+                <option value="English">English</option>
+                <option value="French">Français</option>
+                <option value="Spanish">Español</option>
                 </select>
                 <i class="fas fa-chevron-down input-icon"></i>
             </div>
@@ -285,6 +285,45 @@ const addNewPlugin = () => {
 
 
 
+        <!-- NOTIFICATIONS TAB -->
+        <div v-if="activeTab === 'Notifications'" class="tab-content">
+            <div class="section-label">{{ t('settings.notifications.section_title') }}</div>
+            <div class="toggle-group">
+                <div class="toggle-item">
+                    <div class="toggle-info">
+                        <span class="toggle-label">{{ t('settings.notifications.email_updates') }}</span>
+                        <span class="toggle-desc">{{ t('settings.notifications.email_updates_desc') }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" v-model="form.notification_preferences.email_updates">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-item">
+                    <div class="toggle-info">
+                        <span class="toggle-label">{{ t('settings.notifications.push_notifications') }}</span>
+                        <span class="toggle-desc">{{ t('settings.notifications.push_notifications_desc') }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" v-model="form.notification_preferences.push_notifications">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-item">
+                    <div class="toggle-info">
+                        <span class="toggle-label">{{ t('settings.notifications.marketing_emails') }}</span>
+                        <span class="toggle-desc">{{ t('settings.notifications.marketing_emails_desc') }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" v-model="form.notification_preferences.marketing_emails">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <!-- APPEARANCE TAB -->
         <div v-if="activeTab === 'Appearance'" class="tab-content">
             <div class="section-label">{{ t('settings.appearance.display_mode') }}</div>
@@ -344,8 +383,8 @@ const addNewPlugin = () => {
                 <div class="app-brand-info">
                     <img :src="logo" alt="VEXT" class="app-logo-small" />
                     <div>
-                        <h3 class="app-name">VEXT Gaming Client</h3>
-                        <div class="app-version-badge">Version v0.1.6 &bull; Canal Stable (GitHub)</div>
+                        <h3 class="app-name">{{ t('settings.updates.client_name') }}</h3>
+                        <div class="app-version-badge">Version v0.1.7 &bull; {{ t('settings.updates.channel') }}</div>
                     </div>
                 </div>
 
@@ -353,23 +392,23 @@ const addNewPlugin = () => {
                     <div class="status-indicator">
                         <template v-if="updaterStore.status === 'checking'">
                             <i class="fas fa-spinner fa-spin icon-spin"></i>
-                            <span>Recherche de mises à jour en cours...</span>
+                            <span>{{ t('settings.updates.checking') }}</span>
                         </template>
                         <template v-else-if="updaterStore.status === 'available'">
                             <i class="fas fa-arrow-alt-circle-up icon-available"></i>
-                            <span>Nouvelle version <strong>v{{ updaterStore.updateInfo?.version }}</strong> disponible !</span>
+                            <span>{{ t('settings.updates.available', { version: 'v' + (updaterStore.updateInfo?.version || '') }) }}</span>
                         </template>
                         <template v-else-if="updaterStore.status === 'downloading'">
                             <i class="fas fa-cloud-download-alt icon-downloading"></i>
-                            <span>Téléchargement en cours ({{ updaterStore.progress }}%)...</span>
+                            <span>{{ t('settings.updates.downloading', { progress: updaterStore.progress }) }}</span>
                         </template>
                         <template v-else-if="updaterStore.status === 'error'">
                             <i class="fas fa-exclamation-circle icon-error"></i>
-                            <span>{{ updaterStore.errorMessage || 'Impossible de vérifier les mises à jour.' }}</span>
+                            <span>{{ updaterStore.errorMessage || t('settings.updates.error_default') }}</span>
                         </template>
                         <template v-else>
                             <i class="fas fa-check-circle icon-success"></i>
-                            <span>Votre client VEXT est à jour.</span>
+                            <span>{{ t('settings.updates.up_to_date') }}</span>
                         </template>
                     </div>
                 </div>
@@ -379,7 +418,7 @@ const addNewPlugin = () => {
                 </div>
 
                 <div v-if="updaterStore.updateInfo?.body" class="release-preview">
-                    <h4>Notes de version :</h4>
+                    <h4>{{ t('settings.updates.release_notes') }}</h4>
                     <div class="notes-body">{{ updaterStore.updateInfo.body }}</div>
                 </div>
 
@@ -390,7 +429,7 @@ const addNewPlugin = () => {
                         @click="updaterStore.checkForUpdates(false)"
                     >
                         <i class="fas fa-sync-alt" :class="{ 'fa-spin': updaterStore.status === 'checking' }"></i>
-                        Rechercher des mises à jour
+                        {{ t('settings.updates.check_btn') }}
                     </button>
 
                     <button 
@@ -398,7 +437,7 @@ const addNewPlugin = () => {
                         class="btn-install-now" 
                         @click="updaterStore.startUpdate()"
                     >
-                        <i class="fas fa-download"></i> Installer v{{ updaterStore.updateInfo?.version }}
+                        <i class="fas fa-download"></i> {{ t('settings.updates.install_btn', { version: updaterStore.updateInfo?.version }) }}
                     </button>
                 </div>
             </div>
@@ -422,19 +461,21 @@ const addNewPlugin = () => {
 .settings-page {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   min-height: 100%;
-  padding: 40px;
+  padding: 40px 40px 80px;
   font-family: 'Inter', sans-serif;
   color: var(--text-primary);
   position: relative;
+  box-sizing: border-box;
 }
 
 .settings-container {
   display: flex;
+  align-items: flex-start;
   width: 100%;
-  max-width: 900px;
-  min-height: 600px;
+  max-width: 920px;
+  min-height: 560px;
   background: transparent;
   gap: 40px;
 }
@@ -442,6 +483,7 @@ const addNewPlugin = () => {
 /* Sidebar */
 .settings-sidebar {
   width: 250px;
+  flex-shrink: 0;
   background: var(--glass-bg);
   border-radius: 20px;
   padding: 30px 0;
@@ -661,6 +703,7 @@ const addNewPlugin = () => {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    padding-right: 16px;
 }
 
 .toggle-label {
@@ -670,10 +713,7 @@ const addNewPlugin = () => {
 
 .toggle-desc {
     font-size: 0.85rem;
-.toggle-desc {
-    font-size: 0.85rem;
     color: var(--text-secondary);
-}
 }
 
 .switch {
@@ -681,6 +721,7 @@ const addNewPlugin = () => {
   display: inline-block;
   width: 50px;
   height: 26px;
+  flex-shrink: 0;
 }
 
 .switch input { 
@@ -817,8 +858,12 @@ input:checked + .slider:before {
     background: rgba(231, 76, 60, 0.2);
     color: #e74c3c;
     border: 1px solid rgba(231, 76, 60, 0.3);
-    padding: 5px 10px;
+    padding: 6px 12px;
     font-size: 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
 }
 
 .remove-btn:hover {
@@ -828,9 +873,13 @@ input:checked + .slider:before {
 .add-plugin-btn {
     margin-top: 15px;
     background: transparent;
-    border: 2px dashed var(--border-color);
+    border: 2px dashed var(--glass-border);
     color: var(--text-secondary);
     padding: 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
 }
 
 .add-plugin-btn:hover {

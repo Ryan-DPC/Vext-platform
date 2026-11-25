@@ -67,12 +67,21 @@ function onImageError(e: Event, game: any) {
   const appId = game?.app_id
 
   if (appId) {
-    if (currentSrc.includes('library_600x900.jpg')) {
-      target.src = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`
-      return
-    } else if (currentSrc.includes('header.jpg')) {
-      target.src = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`
-      return
+    const candidates = [
+      `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`,
+      `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
+      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`,
+      `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_231x87.jpg`
+    ]
+    const tried = Number(target.dataset.fallbackStep || '0')
+    const nextSrc = candidates[tried]
+    if (nextSrc) {
+      target.dataset.fallbackStep = String(tried + 1)
+      if (currentSrc !== nextSrc) {
+        target.src = nextSrc
+        return
+      }
     }
   }
   target.classList.remove('is-landscape')
@@ -838,6 +847,8 @@ const handleAddFriendFromGroup = async (username: string) => {
 .library-header {
     padding: 20px 30px;
     display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
     justify-content: space-between;
     align-items: center;
     background: var(--glass-bg);
@@ -848,7 +859,8 @@ const handleAddFriendFromGroup = async (username: string) => {
 
 .search-bar {
     position: relative;
-    width: 300px;
+    width: 280px;
+    max-width: 100%;
 }
 .search-bar input {
     width: 100%;
@@ -863,7 +875,7 @@ const handleAddFriendFromGroup = async (username: string) => {
     color: #b0b9c3;
 }
 
-.filters { display: flex; gap: 10px; align-items: center; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .filters button {
     background: transparent;
     border: 1px solid var(--glass-border);
@@ -982,6 +994,10 @@ const handleAddFriendFromGroup = async (username: string) => {
     border-radius: 12px; padding: 10px;
     border: 1px solid var(--glass-border);
     transition: all 0.2s;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 .grid-card:hover { background: rgba(255,255,255,0.08); transform: translateY(-4px); }
 
@@ -1054,8 +1070,9 @@ const handleAddFriendFromGroup = async (username: string) => {
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
 
+.card-details { min-width: 0; }
 .card-details h4 { margin: 0 0 6px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-badges { display: flex; gap: 6px; font-size: 0.7rem; align-items: center; }
+.card-badges { display: flex; flex-wrap: wrap; gap: 5px; font-size: 0.7rem; align-items: center; }
 .badge-installed { color: #7afcff; background: rgba(122, 252, 255, 0.1); padding: 2px 6px; border-radius: 4px; }
 .badge-not-installed {
     color: #94a3b8;

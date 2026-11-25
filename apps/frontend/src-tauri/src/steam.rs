@@ -18,8 +18,36 @@ pub struct SteamGame {
     pub genre: String,
 }
 
-/// Identifie le chemin d'installation de Steam sur la machine
+/// Identifie le chemin d'installation de Steam sur la machine (Registre Windows + chemins standards)
 fn find_steam_root() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        if let Ok(output) = Command::new("reg")
+            .args(["query", r"HKCU\Software\Valve\Steam", "/v", "SteamPath"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    if line.contains("SteamPath") && line.contains("REG_SZ") {
+                        if let Some(raw) = line.split("REG_SZ").nth(1) {
+                            let normalized = raw.trim().replace('/', r"\");
+                            let p = PathBuf::from(normalized);
+                            if p.is_dir() && p.join("steamapps").is_dir() {
+                                return Some(p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let candidates = [
         r"C:\Program Files (x86)\Steam",
         r"C:\Program Files\Steam",
