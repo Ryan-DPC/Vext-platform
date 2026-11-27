@@ -16,7 +16,6 @@ import tauriAPI from '../tauri-adapter';
 const gameStore = useGameStore()
 const categoryStore = useCategoryStore()
 const friendsStore = useFriendsStore()
-const userStore = useUserStore()
 const alertStore = useAlertStore()
 const groupStore = useGroupStore()
 
@@ -25,8 +24,7 @@ const newGameKey = ref('')
 const newGameName = ref('')
 const pathSelector = ref<InstanceType<typeof InstallPathSelector> | null>(null)
 const searchQuery = ref('')
-const filterStatus = ref('all') // 'all', 'installed', 'favorites'
-const filterPlatform = ref<'all' | 'vext' | 'steam' | 'epic'>('all')
+const showAllGames = ref(false) // false = sections Installés / Non installés, true = liste unique
 
 // Social Sidebar State
 const newFriendUsername = ref('')
@@ -153,37 +151,27 @@ onMounted(async () => {
 })
 
 // Computed Properties
-const installedGamesCount = computed(() => {
-  return (gameStore.allUnifiedGames || []).filter((g: any) => g.installed).length
-})
-
-const uninstalledGamesCount = computed(() => {
-  return (gameStore.allUnifiedGames || []).filter((g: any) => !g.installed).length
-})
-
 const filteredGames = computed(() => {
   let games = gameStore.allUnifiedGames || []
-  
+
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     games = games.filter((g: any) => (g.game_name || g.name || '').toLowerCase().includes(query))
   }
 
-  if (filterStatus.value === 'installed') {
-    games = games.filter((g: any) => g.installed)
-  } else if (filterStatus.value === 'uninstalled') {
-    games = games.filter((g: any) => !g.installed)
-  }
-
-  if (filterPlatform.value === 'vext') {
-    games = games.filter((g: any) => g.platform === 'vext' || !g.is_third_party)
-  } else if (filterPlatform.value === 'steam') {
-    games = games.filter((g: any) => g.platform === 'steam')
-  } else if (filterPlatform.value === 'epic') {
-    games = games.filter((g: any) => g.platform === 'epic')
-  }
-
   return games
+})
+
+// Sections affichées dans la grille : Installés / Non installés, ou une seule liste « Tous les jeux »
+const gridSections = computed(() => {
+  const games = filteredGames.value
+  if (showAllGames.value) {
+    return [{ key: 'all', title: 'All Games', icon: 'fa-th', games }]
+  }
+  return [
+    { key: 'installed', title: 'Installed', icon: 'fa-check-circle', games: games.filter((g: any) => g.installed) },
+    { key: 'uninstalled', title: 'Not Installed', icon: 'fa-download', games: games.filter((g: any) => !g.installed) }
+  ].filter(section => section.games.length > 0)
 })
 
 const recentlyPlayed = computed(() => {
@@ -194,81 +182,6 @@ const featuredLibrary = computed(() => {
     // Only show games marked as favorite
     return (gameStore.myGames || []).filter((g: any) => g.favorite)
 })
-
-const handleScanSteam = async () => {
-  try {
-    await gameStore.scanSteamGames(true)
-    alertStore.showAlert({
-      title: 'Steam Scanner',
-      message: `${gameStore.steamGames.length} jeux Steam détectés et synchronisés !`,
-      type: 'success'
-    })
-  } catch (error: any) {
-    alertStore.showAlert({
-      title: 'Steam Scanner',
-      message: `Erreur lors de la détection Steam: ${error.message || error}`,
-      type: 'error'
-    })
-  }
-}
-
-const isLinkingSteam = ref(false)
-const handleLinkSteam = async () => {
-  isLinkingSteam.value = true
-  try {
-    const res = await axios.post('/steam/link/start')
-    if (res.data?.authUrl) {
-      await tauriAPI.openExternalUrl(res.data.authUrl)
-      alertStore.showAlert({
-        title: 'Connexion Steam (OpenID)',
-        message: 'Connectez-vous sur Steam dans votre navigateur, puis la bibliothèque se synchronisera automatiquement.',
-        type: 'info'
-      })
-      const started = Date.now()
-      const poll = setInterval(async () => {
-        if (Date.now() - started > 120000) {
-          clearInterval(poll)
-          isLinkingSteam.value = false
-          return
-        }
-        try {
-          await userStore.fetchProfile()
-          if (userStore.user?.steam_id) {
-            clearInterval(poll)
-            isLinkingSteam.value = false
-            await gameStore.scanSteamGames(true)
-          }
-        } catch {
-          /* ignore */
-        }
-      }, 3000)
-    }
-  } catch (error: any) {
-    isLinkingSteam.value = false
-    alertStore.showAlert({
-      title: 'Erreur Steam',
-      message: error.response?.data?.message || error.message || 'Impossible de démarrer la liaison Steam.',
-      type: 'error'
-    })
-  }
-}
-
-const handleScanEpic = async () => {
-  try {
-    await gameStore.scanEpicGames()
-    alertStore.showAlert({
-      title: 'Epic Games Scanner',
-      message: `${gameStore.epicGames.length} jeux Epic Games détectés et synchronisés !`,
-      type: 'success'
-    })
-  } catch (error: any) {
-    alertStore.showAlert({
-      title: 'Epic Games Scanner',
-      message: `Erreur lors de la détection Epic: ${error.message || error}`,
-      type: 'error'
-    })
-  }
-}
 
 const filteredFriends = computed(() => {
   let friends = friendsStore.friends
@@ -618,32 +531,8 @@ const handleAddFriendFromGroup = async (username: string) => {
                 <input v-model="searchQuery" placeholder="Search your games...">
             </div>
             <div class="filters">
-                <button :class="{ active: filterPlatform === 'all' && filterStatus === 'all' }" @click="filterPlatform = 'all'; filterStatus = 'all'">
-                    All Games ({{ gameStore.allUnifiedGames.length }})
-                </button>
-                <button :class="{ active: filterStatus === 'installed' }" @click="filterStatus = (filterStatus === 'installed' ? 'all' : 'installed')">
-                    Installed ({{ installedGamesCount }})
-                </button>
-                <button :class="{ active: filterStatus === 'uninstalled' }" @click="filterStatus = (filterStatus === 'uninstalled' ? 'all' : 'uninstalled')">
-                    Not Installed ({{ uninstalledGamesCount }})
-                </button>
-                <button :class="{ active: filterPlatform === 'steam' && filterStatus === 'all' }" @click="filterPlatform = 'steam'; filterStatus = 'all'" class="btn-steam-tab">
-                    <i class="fab fa-steam"></i> Steam ({{ gameStore.steamGames.length }})
-                </button>
-                <button :class="{ active: filterPlatform === 'epic' && filterStatus === 'all' }" @click="filterPlatform = 'epic'; filterStatus = 'all'" class="btn-epic-tab">
-                    <i class="fas fa-bolt"></i> Epic ({{ gameStore.epicGames.length }})
-                </button>
-                <button :class="{ active: filterPlatform === 'vext' && filterStatus === 'all' }" @click="filterPlatform = 'vext'; filterStatus = 'all'">
-                    VEXT ({{ gameStore.myGames.length }})
-                </button>
-                <button v-if="!userStore.user?.steam_id" class="btn-steam-tab" @click="handleLinkSteam" :disabled="isLinkingSteam" title="Lier votre compte Steam via OpenID">
-                    <i class="fab fa-steam"></i> {{ isLinkingSteam ? 'Connexion...' : 'Lier Steam' }}
-                </button>
-                <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningSteam }" @click="handleScanSteam" title="Rescan Steam Games">
-                    <i class="fab fa-steam" :class="{ 'fa-spin': gameStore.isScanningSteam }"></i>
-                </button>
-                <button class="btn-icon" :class="{ 'spinning': gameStore.isScanningEpic }" @click="handleScanEpic" title="Rescan Epic Games">
-                    <i class="fas fa-bolt" :class="{ 'fa-spin': gameStore.isScanningEpic }"></i>
+                <button :class="{ active: showAllGames }" @click="showAllGames = !showAllGames" title="Afficher tous les jeux dans une seule liste">
+                    <i class="fas fa-th"></i> All Games ({{ gameStore.allUnifiedGames.length }})
                 </button>
                 <button class="btn-icon" @click="showAddGameModal = true" title="Redeem Key"><i class="fas fa-key"></i></button>
             </div>
@@ -691,11 +580,11 @@ const handleAddFriendFromGroup = async (username: string) => {
                 </div>
             </section>
 
-            <!-- All Games Grid -->
-            <section class="section">
-                <h3><i class="fas fa-th"></i> All Games ({{ filteredGames.length }})</h3>
+            <!-- Games Grid : Installed / Not Installed (ou All Games) -->
+            <section v-for="section in gridSections" :key="section.key" class="section">
+                <h3><i class="fas" :class="section.icon"></i> {{ section.title }} ({{ section.games.length }})</h3>
                 <div class="games-grid">
-                    <div v-for="game in filteredGames" :key="game._id || game.app_id" class="grid-card">
+                    <div v-for="game in section.games" :key="game._id || game.app_id" class="grid-card">
                         <div class="card-poster">
                             <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @load="onImageLoad" @error="(e: any) => onImageError(e, game)">
                             <div class="poster-overlay">
