@@ -32,9 +32,6 @@ export const libraryRoutes = new Elysia({ prefix: '/api/library' })
                 return { message: 'Unauthorized' };
             }
         })
-        .get('/debug-fix', async ({ user }) => {
-            return await libraryService.debugFix((user as any).id);
-        })
         .post('/purchase', async ({ body, user, set }) => {
             const { gameId } = body as any;
             try {
