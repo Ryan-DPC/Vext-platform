@@ -127,39 +127,93 @@ export class SteamCatalogService {
         }
     }
 
-    /** Détails + prix d'un jeu (récupérés à la demande puis mis en cache 24 h). */
+    /**
+     * Récupère et enregistre la fiche complète d'un jeu (un appel appdetails).
+     * Lève une erreur « Steam HTTP 429/403 » si Steam limite le débit (le worker ralentit alors).
+     */
+    static async enrich(appid: number, cc = DEFAULT_CC): Promise<any | null> {
+        const data = await getJson(`${STORE}/api/appdetails?appids=${appid}&cc=${cleanCc(cc)}&l=french`);
+        const entry = data?.[appid];
+        const now = new Date();
+        if (!entry?.success || !entry.data) {
+            // Jeu retiré / restreint dans cette région : on le note pour ne pas le redemander en boucle
+            return SteamApp.findOneAndUpdate(
+                { appid },
+                { $set: { unavailable_at: now, details_fetched_at: now } },
+                { new: true }
+            ).lean();
+        }
+        const d = entry.data;
+        const po = d.price_overview;
+        const set: any = {
+            name: d.name, name_lower: String(d.name).toLowerCase(),
+            type: d.type,
+            is_free: !!d.is_free,
+            short_description: d.short_description || '',
+            ...(d.header_image ? { header_image: d.header_image } : {}),
+            ...(d.capsule_image ? { capsule_image: d.capsule_image } : {}),
+            genres: (d.genres || []).map((g: any) => g.description),
+            developers: d.developers || [],
+            publishers: d.publishers || [],
+            platforms: d.platforms ? { windows: !!d.platforms.windows, mac: !!d.platforms.mac, linux: !!d.platforms.linux } : undefined,
+            metacritic: d.metacritic?.score,
+            recommendations: d.recommendations?.total,
+            release_date: d.release_date?.date || '',
+            price: po ? {
+                currency: po.currency, initial: po.initial, final: po.final,
+                discount_percent: po.discount_percent,
+                initial_formatted: po.initial_formatted || po.final_formatted,
+                final_formatted: po.final_formatted
+            } : null,
+            price_fetched_at: now,
+            details_fetched_at: now,
+            unavailable_at: null
+        };
+        return SteamApp.findOneAndUpdate({ appid }, { $set: set }, { upsert: true, new: true }).lean();
+    }
+
+    /** Détails + prix d'un jeu (à la demande, mis en cache 24 h). */
     static async getApp(appid: number, cc = DEFAULT_CC) {
         let doc: any = await SteamApp.findOne({ appid }).lean();
         const fresh = doc?.details_fetched_at && Date.now() - new Date(doc.details_fetched_at).getTime() < DETAILS_TTL_MS;
         if (fresh) return doc;
-
         try {
-            const data = await getJson(`${STORE}/api/appdetails?appids=${appid}&cc=${cleanCc(cc)}&l=french`);
-            const entry = data?.[appid];
-            if (!entry?.success || !entry.data) return doc; // jeu retiré ou indisponible : on garde ce qu'on a
-            const d = entry.data;
-            const po = d.price_overview;
-            const set: any = {
-                name: d.name, name_lower: String(d.name).toLowerCase(),
-                is_free: !!d.is_free,
-                short_description: d.short_description || '',
-                ...(d.header_image ? { header_image: d.header_image } : {}),
-                genres: (d.genres || []).map((g: any) => g.description),
-                release_date: d.release_date?.date || '',
-                price: po ? {
-                    currency: po.currency, initial: po.initial, final: po.final,
-                    discount_percent: po.discount_percent,
-                    initial_formatted: po.initial_formatted || po.final_formatted,
-                    final_formatted: po.final_formatted
-                } : null,
-                price_fetched_at: new Date(),
-                details_fetched_at: new Date()
-            };
-            doc = await SteamApp.findOneAndUpdate({ appid }, { $set: set }, { upsert: true, new: true }).lean();
+            doc = (await this.enrich(appid, cc)) || doc;
         } catch (e: any) {
             console.warn(`[SteamCatalog] appdetails ${appid}: ${e.message}`);
         }
         return doc;
+    }
+
+    /**
+     * Un pas du worker d'enrichissement : choisit le prochain jeu à compléter
+     * (jamais récupéré en premier, les plus récents d'abord ; puis les fiches périmées) et le met à jour.
+     * Retourne false quand il n'y a plus rien à faire.
+     */
+    static async enrichNext(): Promise<boolean> {
+        const WEEK = 7 * 24 * 3600 * 1000;
+        const MONTH = 30 * 24 * 3600 * 1000;
+        let target: any = await SteamApp.findOne({ details_fetched_at: null }).sort({ appid: -1 }).select('appid').lean();
+        if (!target) {
+            target = await SteamApp.findOne({
+                $or: [
+                    { unavailable_at: null, details_fetched_at: { $lt: new Date(Date.now() - WEEK) } },
+                    { unavailable_at: { $ne: null }, details_fetched_at: { $lt: new Date(Date.now() - MONTH) } }
+                ]
+            }).sort({ details_fetched_at: 1 }).select('appid').lean();
+        }
+        if (!target) return false;
+        await this.enrich(target.appid);
+        return true;
+    }
+
+    static async stats() {
+        const [total, enriched, unavailable] = await Promise.all([
+            SteamApp.estimatedDocumentCount(),
+            SteamApp.countDocuments({ details_fetched_at: { $ne: null }, unavailable_at: null }),
+            SteamApp.countDocuments({ unavailable_at: { $ne: null } })
+        ]);
+        return { total, enriched, unavailable, remaining: Math.max(total - enriched - unavailable, 0) };
     }
 
     static async featured() {

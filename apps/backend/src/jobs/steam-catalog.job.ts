@@ -22,4 +22,36 @@ setTimeout(async () => {
     }
 }, 15000);
 
+// Worker d'enrichissement « SteamDB » : complète les fiches jeu par jeu, en continu et lentement.
+// Steam limite appdetails (~200 requêtes / 5 min / IP) : on reste à 1 requête toutes les 2 s (150 / 5 min),
+// et on ralentit fortement si Steam répond 429/403. Désactivable avec STEAM_ENRICH=off.
+const ENRICH_PACE_MS = 2000;
+let backoffMs = 5 * 60 * 1000;
+
+async function enrichLoop() {
+    for (;;) {
+        let delay = ENRICH_PACE_MS;
+        try {
+            const more = await SteamCatalogService.enrichNext();
+            if (!more) delay = 60 * 60 * 1000; // tout est à jour : on revérifie dans une heure
+            backoffMs = 5 * 60 * 1000;
+        } catch (e: any) {
+            if (/429|403/.test(String(e.message))) {
+                console.warn(`[SteamCatalog] limite de débit Steam, pause ${Math.round(backoffMs / 60000)} min`);
+                delay = backoffMs;
+                backoffMs = Math.min(backoffMs * 2, 30 * 60 * 1000);
+            } else {
+                console.warn(`[SteamCatalog] enrich: ${e.message}`);
+                delay = 10_000;
+            }
+        }
+        await new Promise(r => setTimeout(r, delay));
+    }
+}
+
+if (process.env.STEAM_ENRICH !== 'off') {
+    // Démarre après la synchro initiale de la liste
+    setTimeout(() => { enrichLoop(); }, 60_000);
+}
+
 console.log('✅ Steam catalog jobs scheduled');

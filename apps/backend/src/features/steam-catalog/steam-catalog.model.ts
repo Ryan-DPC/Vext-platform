@@ -21,6 +21,14 @@ const steamAppSchema = new Schema({
     price: { type: priceSchema, default: null },
     short_description: String,
     header_image: String,     // URL exacte fournie par Steam (les jeux récents ont un chemin avec hash)
+    capsule_image: String,
+    type: String,             // game | demo | dlc | ...
+    developers: [String],
+    publishers: [String],
+    platforms: { windows: Boolean, mac: Boolean, linux: Boolean },
+    metacritic: Number,
+    recommendations: Number,
+    unavailable_at: Date,     // appdetails a répondu « indisponible » (retiré / restreint) : réessai espacé
     genres: [String],
     release_date: String,
     // listes de mise en avant : 'top_sellers' | 'specials' | 'new_releases' | 'coming_soon'
@@ -29,5 +37,7 @@ const steamAppSchema = new Schema({
     price_fetched_at: Date,
     details_fetched_at: Date
 }, { timestamps: true });
+
+steamAppSchema.index({ details_fetched_at: 1, appid: -1 });
 
 export const SteamApp = mongoose.models.SteamApp || mongoose.model('SteamApp', steamAppSchema);

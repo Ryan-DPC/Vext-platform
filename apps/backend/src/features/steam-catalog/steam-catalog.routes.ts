@@ -17,6 +17,7 @@ export const steamCatalogRoutes = new Elysia({ prefix: '/api/steam-catalog' })
             return { message: 'Unauthorized' };
         }
     })
+    .get('/stats', async () => SteamCatalogService.stats())
     .get('/featured', async () => SteamCatalogService.featured())
     .get('/search', async ({ query }) => SteamCatalogService.search(query.q, Number(query.limit) || 24), {
         query: t.Object({ q: t.String({ minLength: 2, maxLength: 80 }), limit: t.Optional(t.String()) })
