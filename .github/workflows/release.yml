@@ -74,6 +74,26 @@ jobs:
         }
         $latest | ConvertTo-Json -Depth 10 | Set-Content "apps/frontend/src-tauri/target/release/latest.json" -Encoding utf8
 
+    - name: Publish update to VPS (updater endpoint)
+      shell: pwsh
+      env:
+        VEXT_UPDATE_TOKEN: ${{ secrets.VEXT_UPDATE_TOKEN }}
+      run: |
+        if (-not $env:VEXT_UPDATE_TOKEN) { Write-Error "Secret VEXT_UPDATE_TOKEN manquant"; exit 1 }
+        $v = (Get-Content apps/frontend/src-tauri/tauri.conf.json | ConvertFrom-Json).version
+        $exe = Get-ChildItem "apps/frontend/src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+        $sigFile = "$($exe.FullName).sig"
+        if (-not (Test-Path $sigFile)) { Write-Error "Signature .sig introuvable"; exit 1 }
+        $sig = (Get-Content $sigFile -Raw).Trim()
+        curl.exe --fail --show-error -sS -X POST "https://hoopslive.ch/vext/api/updates/publish" `
+          -H "x-update-token: $env:VEXT_UPDATE_TOKEN" `
+          --form-string "version=$v" `
+          --form-string "platform=windows-x86_64" `
+          --form-string "notes=Mise à jour VEXT v$v" `
+          --form-string "signature=$sig" `
+          -F "file=@$($exe.FullName)"
+        if ($LASTEXITCODE -ne 0) { Write-Error "Échec de la publication sur le VPS"; exit 1 }
+
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
