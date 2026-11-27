@@ -390,6 +390,10 @@ export class LibraryService {
 
     async listGameForSale(gameKey: string, askingPrice: number, sellerId: string) {
         try {
+            const price = Number(askingPrice);
+            if (!Number.isFinite(price) || price <= 0 || price > 100_000) {
+                throw new Error('Prix de vente invalide');
+            }
             const sellerIdObj = new mongoose.Types.ObjectId(sellerId);
             const ownership = await GameOwnership.findOne({ game_key: gameKey, user_id: sellerIdObj, status: 'owned' }).lean();
 
@@ -398,14 +402,14 @@ export class LibraryService {
             }
 
             await GameOwnership.updateOne(
-                { game_key: gameKey },
+                { game_key: gameKey, user_id: sellerIdObj },
                 {
                     $set: {
                         for_sale: true,
-                        asking_price: Number(askingPrice),
+                        asking_price: price,
                         listed_at: new Date(),
                         status: 'listed_for_sale',
-                        current_price: Number(askingPrice),
+                        current_price: price,
                         installed: false
                     }
                 }
@@ -433,6 +437,9 @@ export class LibraryService {
             }
 
             const askingPrice = listing.asking_price || 0;
+            if (!Number.isFinite(askingPrice) || askingPrice <= 0) {
+                throw new Error('Prix de vente invalide');
+            }
 
             const buyer = await Users.getUserById(buyerId);
             const buyerCHF = buyer?.balances?.chf || 0;

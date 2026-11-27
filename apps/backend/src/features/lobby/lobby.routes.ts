@@ -19,6 +19,13 @@ export const lobbyRoutes = new Elysia({ prefix: '/api/lobby' })
         return { user: payload };
     })
     // Lobby Management (Socket ID based usually, but here exposing via REST for initial actions or fallbacks)
+    .onBeforeHandle(({ user, set, request }) => {
+        // Les actions d'écriture sur les lobbies exigent un utilisateur connecté (lecture des joueurs restée publique)
+        if (request.method === 'POST' && !user) {
+            set.status = 401;
+            return { message: 'Unauthorized' };
+        }
+    })
     .post('/create', ({ body }) => {
         const { socketId } = body as any;
         return { lobbyId: lobbyService.createLobby(socketId) };

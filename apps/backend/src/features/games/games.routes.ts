@@ -65,6 +65,10 @@ export const gamesRoutes = new Elysia({ prefix: '/api/games' })
             set.status = 401;
             return { message: 'Unauthorized' };
         }
+        if (!(user as any).isAdmin) {
+            set.status = 403;
+            return { message: 'Admin access required' };
+        }
         try {
             const gameId = await GamesService.addGame(body);
             set.status = 201;
@@ -90,6 +94,11 @@ export const gamesRoutes = new Elysia({ prefix: '/api/games' })
         if (!user) {
             set.status = 401;
             return { message: 'Unauthorized' };
+        }
+        // Modifier l'URL de téléchargement d'un jeu = faire exécuter du code aux joueurs : admin uniquement
+        if (!(user as any).isAdmin) {
+            set.status = 403;
+            return { message: 'Admin access required' };
         }
         const { gameId, version, manifestUrl, zipUrl, downloadUrl, latestVersion } = body;
         const finalVersion = version || latestVersion;

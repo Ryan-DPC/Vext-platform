@@ -155,7 +155,8 @@ export class GameOwnershipService {
      * List a game for sale
      */
     static async listForSale(userId: string, gameKey: string, askingPrice: number): Promise<IGameOwnership> {
-        if (askingPrice <= 0) {
+        askingPrice = Number(askingPrice);
+        if (!Number.isFinite(askingPrice) || askingPrice <= 0 || askingPrice > 100_000) {
             throw new Error('Asking price must be greater than 0');
         }
 

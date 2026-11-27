@@ -68,7 +68,10 @@ export const itemsRoutes = new Elysia({ prefix: '/api/items' })
             return await itemsService.getUserItems((user as any).id);
         })
         .delete('/:itemId', async ({ params: { itemId }, user, set }) => {
-            // Admin check missing here, assuming protected is enough or future admin check
+            if (!(user as any)?.isAdmin) {
+                set.status = 403;
+                return { message: 'Admin access required' };
+            }
             try {
                 return await itemsService.archiveItem(itemId);
             } catch (err: any) {

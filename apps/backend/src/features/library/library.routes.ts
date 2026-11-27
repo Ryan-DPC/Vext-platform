@@ -136,10 +136,18 @@ export const libraryRoutes = new Elysia({ prefix: '/api/library' })
             }
         })
         .post('/keys/generate', async ({ body, user, set }) => {
-            // Need admin check ideally
+            if (!(user as any)?.isAdmin) {
+                set.status = 403;
+                return { message: 'Admin access required' };
+            }
             const { gameId, quantity, purpose } = body as any;
+            const qty = Number(quantity);
+            if (!Number.isInteger(qty) || qty < 1 || qty > 1000) {
+                set.status = 400;
+                return { message: 'quantity doit être un entier entre 1 et 1000' };
+            }
             try {
-                return await libraryService.generateKeys(gameId, quantity, (user as any).id, purpose);
+                return await libraryService.generateKeys(gameId, qty, (user as any).id, purpose);
             } catch (err: any) {
                 set.status = 400;
                 return { message: err.message };
