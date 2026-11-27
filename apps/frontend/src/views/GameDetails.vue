@@ -326,11 +326,11 @@ const uninstallGame = async () => {
 const checkWishlistStatus = async () => {
     try {
         const response = await axios.get('/users/wishlist')
-        const wishlist = response.data.wishlist || []
+        const wishlist = Array.isArray(response.data) ? response.data : (response.data.wishlist || [])
         // Check if current game ID or folder name is in wishlist
         // Wishlist usually returns array of Game Objects if populated, or IDs.
         // My backend populate('wishlist'), so it returns objects.
-        isInWishlist.value = wishlist.some((g: any) => g._id === game.value._id || g.id === game.value._id)
+        isInWishlist.value = wishlist.some((g: any) => g.folder_name === game.value.folder_name || g.id === game.value.id || g._id === game.value._id)
     } catch (e) {
         console.error('Error checking wishlist:', e)
     }
@@ -338,7 +338,7 @@ const checkWishlistStatus = async () => {
 
 const toggleWishlist = async () => {
     try {
-        const id = game.value._id || game.value.slug
+        const id = game.value.folder_name || game.value.id || game.value._id
         if (isInWishlist.value) {
             await axios.delete(`/users/wishlist/${id}`)
             isInWishlist.value = false
@@ -361,7 +361,7 @@ const fetchReviews = async () => {
         // We updated games routes to be strict? No, usually ID or slug if handled.
         // Controller uses :gameId directly.
         // Let's safe bet use _id if available, else slug.
-        const id = game.value._id || game.value.slug
+        const id = game.value.folder_name || game.value.id || game.value._id
         const response = await axios.get(`/games/${id}/reviews`)
         reviews.value = response.data
     } catch (e) {
@@ -374,7 +374,7 @@ const submitReview = async () => {
     isSubmittingReview.value = true
     reviewError.value = ''
     try {
-        const id = game.value._id || game.value.slug
+        const id = game.value.folder_name || game.value.id || game.value._id
         await axios.post(`/games/${id}/reviews`, {
             rating: reviewForm.value.rating,
             content: reviewForm.value.content

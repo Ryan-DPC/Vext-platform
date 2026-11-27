@@ -1,12 +1,13 @@
 
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
+import { JWT_SECRET } from '../../config/jwt';
 import { GameCategoriesService } from './game-categories.service';
 
 export const gameCategoriesRoutes = new Elysia({ prefix: '/api/game-categories' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .derive(async ({ headers, jwt }) => {
         const auth = headers['authorization'];

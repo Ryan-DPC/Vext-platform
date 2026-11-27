@@ -27,7 +27,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https:; media-src 'self' blob: https:; connect-src 'self' ipc: http://ipc.localhost https: wss: http://localhost:* ws://localhost:*; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     }
   },
   "bundle": {
@@ -51,6 +51,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENGOEJCODUxNzlGQzUzM0UKUldRK1UveDVVYmlMeitSTFd4Vjg0dEoxd3FnaGVkbW1SRHpCNS9ZanA0S3NvRkpJRW1FV0tLb28K",
       "endpoints": [
+        "https://hoopslive.ch/vext/api/updates/latest.json",
         "https://github.com/Ryan-DPC/Vext-platform/releases/latest/download/latest.json"
       ],
       "windows": {

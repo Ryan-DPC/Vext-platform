@@ -54,10 +54,16 @@ const installProgress = ref({
 function onImageLoad(e: Event) {
   const target = e.target as HTMLImageElement
   if (!target) return
-  if (target.naturalWidth > target.naturalHeight * 1.1) {
-    target.classList.add('is-landscape')
-  } else {
-    target.classList.remove('is-landscape')
+  const w = target.naturalWidth
+  const h = target.naturalHeight
+  // Image non-poster (paysage) ou basse résolution : affichée entière (contain) sur un fond flouté
+  // de la même image, au lieu d'être étirée en "cover" (ce qui la rendait très floue).
+  const isLandscape = w > h * 1.1
+  const isLowRes = w < 300
+  target.classList.toggle('is-landscape', isLandscape || isLowRes)
+  const poster = target.parentElement
+  if (poster) {
+    poster.style.setProperty('--poster-bg', isLandscape || isLowRes ? `url("${target.currentSrc || target.src}")` : 'none')
   }
 }
 
@@ -73,7 +79,6 @@ function onImageError(e: Event, game: any) {
       `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`,
       `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
       `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`,
-      `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_231x87.jpg`,
       ...(game?.fallback_logo_url ? [game.fallback_logo_url] : [])
     ]
     const tried = Number(target.dataset.fallbackStep || '0')
@@ -1066,12 +1071,22 @@ const handleAddFriendFromGroup = async (username: string) => {
     object-position: center;
     transition: transform 0.25s ease;
 }
+.card-poster { overflow: hidden; }
+.card-poster::before {
+    content: '';
+    position: absolute; inset: -20px;
+    background-image: var(--poster-bg, none);
+    background-size: cover; background-position: center;
+    filter: blur(18px) brightness(0.55);
+    z-index: 0;
+}
+.card-poster img { position: relative; z-index: 1; }
 .card-poster img.is-landscape {
     object-fit: contain !important;
-    padding: 8px;
-    background: radial-gradient(circle at center, #26193b 0%, #100b17 100%);
+    image-rendering: auto;
 }
 .poster-overlay {
+    z-index: 2;
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.65);
     display: flex; align-items: center; justify-content: center;

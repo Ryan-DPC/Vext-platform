@@ -8,10 +8,10 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://admin:33cfc90fdc61d136e7806ccaab279fee@mongodb:27017/vext_db?authSource=admin
-      - REDIS_URL=redis://:4b3126019668be9eb1acfd1f1d4ad3fa@redis:6379
-      - JWT_SECRET=vext_jwt_secret_token_secure_2026
-      - CLOUDINARY_URL=cloudinary://446121212916352:NS2HcivqI_tHllCfMMrHxHxJPH8@dzglyaqmf
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_URL=${CLOUDINARY_URL}
       - WS_URL=http://vext-backend:3001
       - BACKEND_URL=https://hoopslive.ch/vext
       - STORAGE_PATH=/app/storage
@@ -20,7 +20,10 @@ services:
       - SMTP_PORT=587
       - SMTP_SECURE=false
       - SMTP_USER=noreply@hoopslive.ch
-      - SMTP_PASS=R6Q%s*krq242JY&0
+      - SMTP_PASS=${SMTP_PASS}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      - UPDATE_PUBLISH_TOKEN=${UPDATE_PUBLISH_TOKEN}
+      - STEAM_API_KEY=${STEAM_API_KEY:-}
       - SMTP_FROM=VEXT <noreply@hoopslive.ch>
     volumes:
       - /opt/vext/storage:/app/storage

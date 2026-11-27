@@ -122,7 +122,10 @@ export class UsersService {
     }
 
     static async getWishlist(userId: string) {
-        return await Users.getWishlist(userId);
+        const slugs = await Users.getWishlist(userId);
+        const { GamesService } = await import('../games/games.service');
+        const all: any[] = await GamesService.getAllGames();
+        return slugs.map((s) => all.find((g: any) => g.folder_name === s || g.id === s)).filter(Boolean);
     }
 
     static async getRecentGames(userId: string) {

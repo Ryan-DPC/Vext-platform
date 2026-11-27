@@ -23,6 +23,7 @@ import { devGamesRoutes } from './features/dev-games/dev-games.routes';
 import { adminRoutes } from './features/admin/admin.routes';
 import { groupsRoutes } from './features/groups/groups.routes';
 import { steamRoutes } from './features/steam/steam.routes';
+import { updatesRoutes } from './features/updates/updates.routes';
 import { setWebSocketServer } from './services/websocket.service';
 import { logger } from './utils/logger';
 
@@ -34,12 +35,24 @@ import './jobs/redis-cleanup.job';
 
 import { staticPlugin } from '@elysiajs/static';
 
+// Origines autorisées : app Tauri, dev local, plus CORS_ORIGINS (liste séparée par des virgules)
+const ALLOWED_ORIGINS: (string | RegExp)[] = [
+    'tauri://localhost',
+    'http://tauri.localhost',
+    'https://tauri.localhost',
+    'http://localhost:5173',
+    ...(process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
+];
+
 const app = new Elysia()
     .use(staticPlugin({
         assets: 'public',
         prefix: '/public'
     }))
-    .use(cors())
+    .use(cors({
+        origin: ALLOWED_ORIGINS,
+        credentials: true
+    }))
     .use(swagger())
     .onRequest(({ request, store }) => {
         (store as any).startTime = performance.now();
@@ -89,6 +102,7 @@ const app = new Elysia()
     .use(adminRoutes)
     .use(groupsRoutes)
     .use(steamRoutes)
+    .use(updatesRoutes)
     .listen(process.env.PORT || 3000);
 
 // Initialize Global WebSocket Server Reference

@@ -1,12 +1,13 @@
 import { t, Elysia } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
+import { JWT_SECRET } from '../../config/jwt';
 import { Users, UserModel } from '@vext/database';
 import { issueVerificationCode, verifySubmittedCode } from '../../services/mailer.service';
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .post('/register', async ({ body, set }) => {
         const { username, email, password, tag } = body as any;

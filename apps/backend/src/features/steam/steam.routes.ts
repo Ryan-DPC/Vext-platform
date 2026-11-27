@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
+import { JWT_SECRET } from '../../config/jwt';
 import { Users } from '@vext/database';
 import { SteamService } from './steam.service';
 
@@ -34,7 +35,7 @@ function renderCallbackHtml(success: boolean, title: string, message: string) {
 export const steamRoutes = new Elysia({ prefix: '/api/steam' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .derive(async ({ headers, jwt }) => {
         const auth = headers['authorization'];

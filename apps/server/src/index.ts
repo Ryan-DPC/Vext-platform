@@ -15,6 +15,11 @@ versionChecker.start();
 
 const PORT = process.env.PORT || 3002;
 
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32 || JWT_SECRET === 'default_secret') {
+    throw new Error("JWT_SECRET est absent ou trop faible (32 caractères minimum).");
+}
+
 // Connect Database
 await connectDB();
 
@@ -30,7 +35,7 @@ const app = new Elysia()
     }))
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .ws('/', {
         async open(ws) {

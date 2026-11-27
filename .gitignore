@@ -40,3 +40,8 @@ yarn-error.log*
 games/
 
 # Note: Pour forcer le tracking sur develop, utiliser: git add -f games/
+
+# TLS (ne jamais commiter de clé privée)
+ssl/
+*.pem
+*.key

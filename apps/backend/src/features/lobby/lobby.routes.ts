@@ -1,12 +1,13 @@
 
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
+import { JWT_SECRET } from '../../config/jwt';
 import { lobbyService } from './lobby.service';
 
 export const lobbyRoutes = new Elysia({ prefix: '/api/lobby' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'default_secret'
+        secret: JWT_SECRET
     }))
     .derive(async ({ headers, jwt }) => {
         const auth = headers['authorization'];

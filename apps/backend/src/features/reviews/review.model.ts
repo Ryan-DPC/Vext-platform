@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IReview extends Document {
     user_id: mongoose.Types.ObjectId;
-    game_id: mongoose.Types.ObjectId;
+    game_id: string;
     rating: number;
     content: string;
     created_at: Date;
@@ -11,7 +11,7 @@ export interface IReview extends Document {
 
 const reviewSchema = new Schema({
     user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    game_id: { type: Schema.Types.ObjectId, ref: 'Game', required: true },
+    game_id: { type: String, required: true, index: true },
     rating: { type: Number, required: true, min: 1, max: 5 },
     content: { type: String, required: true, maxlength: 1000 },
 }, {

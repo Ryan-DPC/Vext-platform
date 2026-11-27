@@ -41,7 +41,7 @@ export interface IUser extends Document {
     level: number;
     status_message: string;
     favorite_games: mongoose.Types.ObjectId[];
-    wishlist: mongoose.Types.ObjectId[];
+    wishlist: string[]; // slugs/folder_name des jeux (les jeux ne sont pas des documents DB)
     resetPasswordToken?: string | null;
     resetPasswordExpires?: Date | null;
     bio: string;
@@ -79,7 +79,7 @@ const userSchema = new Schema<IUser>(
         level: { type: Number, default: 1 },
         status_message: { type: String, default: 'Online' },
         favorite_games: [{ type: Schema.Types.ObjectId }],
-        wishlist: [{ type: Schema.Types.ObjectId }],
+        wishlist: [{ type: String }],
         resetPasswordToken: { type: String, default: null },
         resetPasswordExpires: { type: Date, default: null },
         bio: { type: String, default: '' },
@@ -290,8 +290,8 @@ export class Users {
     }
 
     static async getWishlist(userId: string): Promise<any[]> {
-        const doc = await UserModel.findById(userId).populate('wishlist').lean();
-        return doc ? (doc.wishlist as any[]) : [];
+        const doc = await UserModel.findById(userId).select('wishlist').lean();
+        return doc ? ((doc.wishlist as any[]) || []).map(String) : [];
     }
 
     static async verifyUserEmail(userId: string): Promise<boolean> {

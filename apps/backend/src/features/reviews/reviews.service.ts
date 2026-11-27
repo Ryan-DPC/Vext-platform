@@ -9,7 +9,7 @@ export class ReviewsService {
         if (!game) throw new Error('Game not found');
 
         // Allow passing either _id or id from the game object
-        const resolvedGameId = game._id || game.id;
+        const resolvedGameId = String(game.folder_name || game.id || game._id);
 
         // Check if already reviewed
         const existing = await Review.findOne({ user_id: userId, game_id: resolvedGameId });
@@ -25,7 +25,7 @@ export class ReviewsService {
             return [];
         }
 
-        const resolvedGameId = game._id || game.id;
+        const resolvedGameId = String(game.folder_name || game.id || game._id);
 
         const reviews = await Review.find({ game_id: resolvedGameId })
             .populate('user_id', 'username profile_pic')
