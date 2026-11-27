@@ -20,6 +20,7 @@ const steamAppSchema = new Schema({
     is_free: { type: Boolean, default: false },
     price: { type: priceSchema, default: null },
     short_description: String,
+    header_image: String,     // URL exacte fournie par Steam (les jeux récents ont un chemin avec hash)
     genres: [String],
     release_date: String,
     // listes de mise en avant : 'top_sellers' | 'specials' | 'new_releases' | 'coming_soon'

@@ -64,8 +64,30 @@ watch(query, (q) => {
 const priceLabel = (app: CatalogApp) =>
   app.is_free ? 'Gratuit' : app.price ? (app.price.final_formatted || `${(app.price.final / 100).toFixed(2)}`) : 'Voir sur Steam'
 
-// Une image absente ou en 404 (jeu sans header) est masquée plutôt que cassée
-const hideImage = (e: Event) => ((e.target as HTMLImageElement).style.visibility = 'hidden')
+// Image en 404 : on essaie d'autres visuels Steam, puis l'URL exacte donnée par Steam (appdetails), sinon on masque
+async function onImgError(e: Event, app: CatalogApp) {
+  const img = e.target as HTMLImageElement
+  const step = Number(img.dataset.step || '0')
+  img.dataset.step = String(step + 1)
+  const candidates = [
+    `https://cdn.akamai.steamstatic.com/steam/apps/${app.appid}/header.jpg`,
+    `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${app.appid}/capsule_616x353.jpg`
+  ]
+  if (step < candidates.length) {
+    img.src = candidates[step] as string
+    return
+  }
+  if (step === candidates.length) {
+    try {
+      const res = await axios.get(`/steam-catalog/app/${app.appid}`)
+      if (res.data?.image_url && res.data.image_url !== img.src) {
+        img.src = res.data.image_url
+        return
+      }
+    } catch { /* ignore */ }
+  }
+  img.style.visibility = 'hidden'
+}
 </script>
 
 <template>
@@ -91,7 +113,7 @@ const hideImage = (e: Event) => ((e.target as HTMLImageElement).style.visibility
     <div class="sc-grid">
       <div v-for="app in shown" :key="app.appid" class="sc-card">
         <div class="sc-img">
-          <img :src="app.image_url" :alt="app.name" loading="lazy" @error="hideImage" />
+          <img :src="app.image_url" :alt="app.name" loading="lazy" @error="(e: Event) => onImgError(e, app)" />
           <span v-if="app.price && app.price.discount_percent > 0" class="sc-discount">-{{ app.price.discount_percent }}%</span>
         </div>
         <div class="sc-info">

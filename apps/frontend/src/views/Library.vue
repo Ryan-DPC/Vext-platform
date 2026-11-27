@@ -89,6 +89,18 @@ function onImageError(e: Event, game: any) {
       }
     }
   }
+  // Dernier recours : l'URL d'image exacte donnée par Steam (jeux récents avec chemin à hash)
+  if (appId && !target.dataset.catalogTried) {
+    target.dataset.catalogTried = '1'
+    axios.get(`/steam-catalog/app/${appId}`)
+      .then((res) => {
+        const url = res.data?.image_url
+        if (url && url !== target.src) target.src = url
+        else target.src = defaultGameImg
+      })
+      .catch(() => { target.src = defaultGameImg })
+    return
+  }
   target.classList.remove('is-landscape')
   target.src = defaultGameImg
 }

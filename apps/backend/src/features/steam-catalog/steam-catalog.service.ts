@@ -28,7 +28,7 @@ export const toPublic = (d: any) => ({
     short_description: d.short_description || '',
     genres: d.genres || [],
     release_date: d.release_date || '',
-    image_url: `${assetBase(d.appid)}/header.jpg`,
+    image_url: d.header_image || `${assetBase(d.appid)}/header.jpg`,
     poster_url: `${assetBase(d.appid)}/library_600x900.jpg`,
     store_url: `${STORE}/app/${d.appid}`
 });
@@ -103,6 +103,7 @@ export class SteamCatalogService {
                             $set: {
                                 name: String(item.name), name_lower: String(item.name).toLowerCase(),
                                 featured: [...lists], featured_rank: rank,
+                                ...(item.header_image ? { header_image: item.header_image } : {}),
                                 is_free: free,
                                 price: free ? null : {
                                     currency,
@@ -142,6 +143,7 @@ export class SteamCatalogService {
                 name: d.name, name_lower: String(d.name).toLowerCase(),
                 is_free: !!d.is_free,
                 short_description: d.short_description || '',
+                ...(d.header_image ? { header_image: d.header_image } : {}),
                 genres: (d.genres || []).map((g: any) => g.description),
                 release_date: d.release_date?.date || '',
                 price: po ? {
