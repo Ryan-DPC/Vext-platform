@@ -1,0 +1,100 @@
+name: Smoke / API tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-api:
+    name: API smoke (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ./apps/e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install monorepo dependencies
+        working-directory: .
+        run: bun install
+
+      - name: Install Playwright Chromium (request + optional UI)
+        run: bunx playwright install chromium --with-deps
+
+      - name: Run API smoke
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          REQUIRE_API: ${{ secrets.REQUIRE_API }}
+          E2E_USER: ${{ secrets.E2E_USER }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          export API_URL="${API_URL:-https://vext-backend.onrender.com}"
+          export REQUIRE_API="${REQUIRE_API:-0}"
+          echo "API_URL=$API_URL REQUIRE_API=$REQUIRE_API"
+          bunx playwright test --project=api --grep @smoke
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-api
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Optional UI smoke — only when a BASE_URL secret is provided (avoids flakiness).
+  smoke-ui:
+    name: UI smoke (optional)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ vars.E2E_BASE_URL != '' }}
+    defaults:
+      run:
+        working-directory: ./apps/e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install monorepo dependencies
+        working-directory: .
+        run: bun install
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install chromium --with-deps
+
+      - name: Run UI smoke
+        env:
+          BASE_URL: ${{ vars.E2E_BASE_URL }}
+          API_URL: ${{ secrets.API_URL }}
+          REQUIRE_UI: '1'
+        run: |
+          export API_URL="${API_URL:-https://vext-backend.onrender.com}"
+          bunx playwright test --project=ui-chromium --grep @smoke
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-ui
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results
+          retention-days: 7
+          if-no-files-found: ignore
