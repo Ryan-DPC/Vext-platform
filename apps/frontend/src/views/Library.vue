@@ -76,8 +76,7 @@ function onImageError(e: Event, game: any) {
       `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
       `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`,
       `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
-      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`,
-      ...(game?.fallback_logo_url ? [game.fallback_logo_url] : [])
+      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`
     ]
     const tried = Number(target.dataset.fallbackStep || '0')
     const nextSrc = candidates[tried]
@@ -89,6 +88,17 @@ function onImageError(e: Event, game: any) {
       }
     }
   }
+  // Petite icône 32x32 de la communauté Steam, puis image par défaut (jamais avant l'URL exacte de Steam)
+  const useIconOrDefault = () => {
+    if (game?.fallback_logo_url && !target.dataset.iconTried) {
+      target.dataset.iconTried = '1'
+      target.src = game.fallback_logo_url
+    } else {
+      target.classList.remove('is-landscape')
+      target.src = defaultGameImg
+    }
+  }
+
   // Dernier recours : l'URL d'image exacte donnée par Steam (jeux récents avec chemin à hash)
   if (appId && !target.dataset.catalogTried) {
     target.dataset.catalogTried = '1'
@@ -96,9 +106,9 @@ function onImageError(e: Event, game: any) {
       .then((res) => {
         const url = res.data?.image_url
         if (url && url !== target.src) target.src = url
-        else target.src = defaultGameImg
+        else useIconOrDefault()
       })
-      .catch(() => { target.src = defaultGameImg })
+      .catch(() => useIconOrDefault())
     return
   }
   target.classList.remove('is-landscape')
