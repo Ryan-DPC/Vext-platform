@@ -1,3 +1,4 @@
+import { allow, clientIp } from '../../utils/rateLimit';
 import { t, Elysia } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { JWT_SECRET } from '../../config/jwt';
@@ -9,7 +10,11 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         name: 'jwt',
         secret: JWT_SECRET
     }))
-    .post('/register', async ({ body, set }) => {
+    .post('/register', async ({ body, set, headers }) => {
+        if (!allow(`register:${clientIp(headers)}`, 10, 60 * 60_000)) {
+            set.status = 429;
+            return { success: false, message: 'Trop de tentatives. Réessayez plus tard.' };
+        }
         const { username, email, password, tag } = body as any;
 
         if (!tag || !/^[a-zA-Z0-9]{3,4}$/.test(tag)) {
@@ -71,8 +76,12 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
             tag: t.String()
         })
     })
-    .post('/login', async ({ body, jwt, set }) => {
+    .post('/login', async ({ body, jwt, set, headers }) => {
         const { username: identifier, password } = body as any;
+        if (!allow(`login:${clientIp(headers)}:${String(identifier).toLowerCase()}`, 10, 15 * 60_000)) {
+            set.status = 429;
+            return { success: false, message: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.' };
+        }
 
         let user: any;
         if (identifier.includes('@')) {
@@ -135,8 +144,12 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
             password: t.String()
         })
     })
-    .post('/verify-code', async ({ body, jwt, set }) => {
+    .post('/verify-code', async ({ body, jwt, set, headers }) => {
         const { email, code, purpose } = body as any;
+        if (!allow(`verify:${clientIp(headers)}:${String(email).toLowerCase()}`, 10, 15 * 60_000)) {
+            set.status = 429;
+            return { success: false, message: 'Trop de tentatives. Réessayez dans quelques minutes.' };
+        }
 
         if (!email || !code || String(code).length !== 6) {
             set.status = 400;
@@ -177,7 +190,11 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
             purpose: t.Optional(t.String())
         })
     })
-    .post('/resend-code', async ({ body, set }) => {
+    .post('/resend-code', async ({ body, set, headers }) => {
+        if (!allow(`resend:${clientIp(headers)}`, 5, 15 * 60_000)) {
+            set.status = 429;
+            return { success: false, message: 'Trop de demandes. Réessayez plus tard.' };
+        }
         const { email, purpose } = body as any;
 
         if (!email) {

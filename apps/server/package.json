@@ -10,10 +10,10 @@
     "dependencies": {
         "ajv": "^8.17.1",
         "dotenv": "^16.3.1",
-        "elysia": "latest",
-        "@elysiajs/jwt": "latest",
-        "@elysiajs/cors": "latest",
-        "@elysiajs/swagger": "latest",
+        "elysia": "^1.4.21",
+        "@elysiajs/jwt": "^1.4.0",
+        "@elysiajs/cors": "^1.4.1",
+        "@elysiajs/swagger": "^1.3.1",
         "jsonwebtoken": "^9.0.3",
         "mongoose": "^8.9.5",
         "node-cron": "^4.2.1",
@@ -22,6 +22,6 @@
         "@vext/database": "workspace:*"
     },
     "devDependencies": {
-        "bun-types": "latest"
+        "bun-types": "^1.3.5"
     }
 }

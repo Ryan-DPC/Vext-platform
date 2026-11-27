@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.5
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Backend tests
+        working-directory: apps/backend
+        run: bun test
+
+      - name: Backend bundle (compilation)
+        working-directory: apps/backend
+        run: bun build src/index.ts --outdir /tmp/backend-dist --target bun --external @aws-sdk/client-s3
+
+      - name: Frontend typecheck
+        working-directory: apps/frontend
+        run: bunx vue-tsc --noEmit -p tsconfig.app.json
+
+      - name: Frontend tests
+        working-directory: apps/frontend
+        run: bunx vitest run

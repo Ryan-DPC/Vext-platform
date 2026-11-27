@@ -14,10 +14,10 @@
       "name": "vext-backend",
       "version": "1.0.50",
       "dependencies": {
-        "@elysiajs/cors": "latest",
-        "@elysiajs/jwt": "latest",
+        "@elysiajs/cors": "^1.4.1",
+        "@elysiajs/jwt": "^1.4.0",
         "@elysiajs/static": "^1.4.7",
-        "@elysiajs/swagger": "latest",
+        "@elysiajs/swagger": "^1.3.1",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/unzipper": "^0.10.11",
         "@types/uuid": "^11.0.0",
@@ -37,12 +37,12 @@
       "devDependencies": {
         "@types/bun": "^1.3.5",
         "@types/nodemailer": "^8.0.2",
-        "bun-types": "latest",
+        "bun-types": "^1.3.5",
       },
     },
     "apps/frontend": {
       "name": "vext-frontend",
-      "version": "0.0.0",
+      "version": "0.2.3",
       "dependencies": {
         "@fortawesome/fontawesome-free": "^7.3.1",
         "@tauri-apps/api": "^2.2.0",
@@ -71,13 +71,13 @@
       "name": "vext-ws-server",
       "version": "1.0.0",
       "dependencies": {
-        "@elysiajs/cors": "latest",
-        "@elysiajs/jwt": "latest",
-        "@elysiajs/swagger": "latest",
+        "@elysiajs/cors": "^1.4.1",
+        "@elysiajs/jwt": "^1.4.0",
+        "@elysiajs/swagger": "^1.3.1",
         "@vext/database": "workspace:*",
         "ajv": "^8.17.1",
         "dotenv": "^16.3.1",
-        "elysia": "latest",
+        "elysia": "^1.4.21",
         "jsonwebtoken": "^9.0.3",
         "mongoose": "^8.9.5",
         "node-cron": "^4.2.1",
@@ -85,7 +85,7 @@
         "winston": "^3.19.0",
       },
       "devDependencies": {
-        "bun-types": "latest",
+        "bun-types": "^1.3.5",
       },
     },
     "packages/database": {
@@ -95,7 +95,7 @@
         "mongoose": "^8.9.5",
       },
       "devDependencies": {
-        "bun-types": "latest",
+        "bun-types": "^1.3.5",
       },
     },
   },
