@@ -12,11 +12,13 @@ import { useUserStore } from '@/stores/userStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useUpdaterStore } from '@/stores/updaterStore'
+import { useSteamPurchaseStore } from '@/stores/steamPurchaseStore'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
 const themeStore = useThemeStore() // Initialize theme
 const updaterStore = useUpdaterStore()
+const steamPurchaseStore = useSteamPurchaseStore()
 
 onMounted(async () => {
   if (window.__TAURI_INTERNALS__) {
@@ -30,6 +32,7 @@ onMounted(async () => {
   }
 
   updaterStore.init()
+  steamPurchaseStore.init()
   // Verification silencieuse des mises a jour 3s apres l'ouverture
   setTimeout(() => {
     updaterStore.checkForUpdates(true)

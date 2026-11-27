@@ -24,6 +24,7 @@ import { adminRoutes } from './features/admin/admin.routes';
 import { groupsRoutes } from './features/groups/groups.routes';
 import { steamRoutes } from './features/steam/steam.routes';
 import { updatesRoutes } from './features/updates/updates.routes';
+import { steamCatalogRoutes } from './features/steam-catalog/steam-catalog.routes';
 import { setWebSocketServer } from './services/websocket.service';
 import { logger } from './utils/logger';
 
@@ -32,6 +33,7 @@ await connectDB();
 
 // Start Redis Cleanup Job (runs daily at 3AM)
 import './jobs/redis-cleanup.job';
+import './jobs/steam-catalog.job';
 
 import { staticPlugin } from '@elysiajs/static';
 
@@ -103,6 +105,7 @@ const app = new Elysia()
     .use(groupsRoutes)
     .use(steamRoutes)
     .use(updatesRoutes)
+    .use(steamCatalogRoutes)
     .listen(process.env.PORT || 3000);
 
 // Initialize Global WebSocket Server Reference

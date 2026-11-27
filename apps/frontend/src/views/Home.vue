@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '../utils/url'
+import SteamCatalog from '../components/SteamCatalog.vue'
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`
 import heroBg from '@/assets/images/hero-bg.png'
 import heroBg2 from '@/assets/images/hero-bg-2.png'
@@ -250,6 +251,9 @@ const categories = [
           </template>
         </div>
       </section>
+
+      <!-- Steam catalogue (prix Steam, achat sur Steam) -->
+      <SteamCatalog />
 
     </div>
   </div>
