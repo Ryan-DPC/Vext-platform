@@ -11,7 +11,7 @@ use epic::{scan_epic_games, launch_epic_game, install_epic_game, uninstall_epic_
 use installation::{install_game, uninstall_game, is_game_installed, select_folder};
 use launcher::launch_game;
 use steam::{
-    scan_steam_games, launch_steam_game, install_steam_game, uninstall_steam_game,
+    scan_steam_games, launch_steam_game, install_steam_game, steam_install_progress, uninstall_steam_game,
     open_external_url, get_steam_api_key, set_steam_api_key, get_steam_account,
     disconnect_steam_account, steam_openid_login, fetch_steam_owned_games,
 };
@@ -98,6 +98,7 @@ fn main() {
             scan_steam_games,
             launch_steam_game,
             install_steam_game,
+            steam_install_progress,
             uninstall_steam_game,
             open_external_url,
             get_steam_api_key,

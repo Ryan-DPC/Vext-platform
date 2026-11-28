@@ -54,6 +54,7 @@ interface TauriAPI {
     launchSteamGame: (appId: string) => Promise<string>;
     installSteamGame: (appId: string, name?: string) => Promise<string>;
     uninstallSteamGame: (appId: string) => Promise<string>;
+    steamInstallProgress: (appId: string) => Promise<{ state: string; progress: number; downloaded: number; total: number }>;
     openExternalUrl: (url: string) => Promise<string>;
     scanEpicGames: () => Promise<EpicGameItem[]>;
     launchEpicGame: (appName: string) => Promise<string>;
@@ -251,6 +252,11 @@ const tauriAPI: TauriAPI = {
             return `Triggered steam://install/${appId}`;
         }
         return (await invoke('install_steam_game', { appId, app_id: appId, name })) as string;
+    },
+
+    steamInstallProgress: async (appId: string) => {
+        if (!(window as any).__TAURI_INTERNALS__) return { state: 'missing', progress: 0, downloaded: 0, total: 0 };
+        return (await invoke('steam_install_progress', { appId, app_id: appId })) as any;
     },
 
     uninstallSteamGame: async (appId: string) => {

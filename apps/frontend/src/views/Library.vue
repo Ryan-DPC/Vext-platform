@@ -310,24 +310,46 @@ const installGame = async (game: any) => {
   }
 }
 
+const installStatusText = ref('')
+const fmtMb = (n: number) => (n / 1048576 >= 1024 ? (n / 1073741824).toFixed(1) + ' Go' : Math.round(n / 1048576) + ' Mo')
+
 const installSteamGame = async (game: any) => {
-  if (!game?.app_id) return
+  if (!game?.app_id || installingGameId.value) return
+  const key = String(game._id || game.folder_name)
+  const name = game.game_name || game.name
+  installingGameId.value = key
+  installProgress.value = { progress: 0, speed: '', downloaded: '', total: '', eta: '', type: 'download' }
+  installStatusText.value = 'Préparation de Steam…'
   try {
-    await tauriAPI.installSteamGame(game.app_id, game.game_name || game.name)
-    alertStore.showAlert({
-      title: 'Installation Steam',
-      message: `Steam redémarre un instant, puis télécharge ${game.game_name || game.name} automatiquement.`,
-      type: 'info'
-    })
-    setTimeout(() => {
-      gameStore.scanSteamGames()
-    }, 30000)
+    await tauriAPI.installSteamGame(game.app_id, name)
+    installStatusText.value = 'Téléchargement…'
+    // Suivi de la progression dans Vext (Steam reste en arrière-plan) : lecture du manifest Steam toutes les 2 s
+    let missing = 0
+    for (let i = 0; i < 3600; i++) {
+      await new Promise(r => setTimeout(r, 2000))
+      const p = await tauriAPI.steamInstallProgress(String(game.app_id))
+      if (p.state === 'installed') break
+      missing = p.state === 'missing' ? missing + 1 : 0
+      if (missing > 45) throw new Error('Steam n'a pas démarré le téléchargement')
+      installProgress.value = {
+        progress: p.progress,
+        speed: '',
+        downloaded: p.total ? fmtMb(p.downloaded) : '',
+        total: p.total ? fmtMb(p.total) : '',
+        eta: '',
+        type: 'download'
+      }
+    }
+    await gameStore.scanSteamGames(true)
+    new Notification('VEXT', { body: `✅ ${name} installé` })
   } catch (error: any) {
     alertStore.showAlert({
       title: 'Erreur Installation',
       message: `Erreur: ${error.message || error}`,
       type: 'error'
     })
+  } finally {
+    installingGameId.value = null
   }
 }
 
@@ -611,8 +633,10 @@ const handleAddFriendFromGroup = async (username: string) => {
                         <div class="card-poster">
                             <img :src="game.image_url || defaultGameImg" :alt="game.game_name" loading="lazy" @load="onImageLoad" @error="(e: any) => onImageError(e, game)">
                             <div class="poster-overlay">
-                                <div v-if="installingGameId === (game._id || game.folder_name)" class="install-status">
-                                    <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
+                                <div v-if="installingGameId === String(game._id || game.folder_name)" class="install-status">
+                                    <div class="install-bar"><div class="install-bar-fill" :style="{ width: installProgress.progress + '%' }"></div></div>
+                                    <span>{{ installProgress.progress }}% <template v-if="installProgress.total">· {{ installProgress.downloaded }} / {{ installProgress.total }}</template></span>
+                                    <small v-if="game.platform === 'steam'">{{ installStatusText }}</small>
                                 </div>
                                 <template v-else-if="game.installed">
                                     <button @click="launchGame(game)" class="btn-grid-play" :title="game.platform === 'steam' ? 'Play on Steam' : game.platform === 'epic' ? 'Play on Epic Games' : 'Play'"><i class="fas fa-play"></i></button>
@@ -1445,4 +1469,7 @@ const handleAddFriendFromGroup = async (username: string) => {
   animation: slideDown 0.25s ease-in reverse; 
 }
 
+.install-status { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 80%; color: #fff; font-weight: 600; text-align: center; }
+.install-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+.install-bar-fill { height: 100%; background: linear-gradient(90deg, #ff7eb3, #b44cff); transition: width 0.6s; }
 </style>

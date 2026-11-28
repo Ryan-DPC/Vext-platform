@@ -478,7 +478,7 @@ fn silent_install(app_id: &str, name: Option<String>) -> Result<String, String> 
     fs::write(apps_dir.join(format!("appmanifest_{}.acf", app_id)), acf).map_err(|e| e.to_string())?;
 
     // 3. Redémarrage de Steam : il reprend le téléchargement en attente
-    Command::new(&steam_exe).current_dir(&root).creation_flags(CREATE_NO_WINDOW).spawn()
+    Command::new(&steam_exe).arg("-silent").current_dir(&root).creation_flags(CREATE_NO_WINDOW).spawn()
         .map_err(|e| format!("Impossible de relancer Steam : {}", e))?;
     Ok("Installation lancée dans Steam".to_string())
 }
@@ -486,6 +486,45 @@ fn silent_install(app_id: &str, name: Option<String>) -> Result<String, String> 
 #[cfg(not(target_os = "windows"))]
 fn silent_install(app_id: &str, _name: Option<String>) -> Result<String, String> {
     launch_steam_protocol(&format!("steam://install/{}", app_id))
+}
+
+/// Progression d'un téléchargement Steam, lue dans appmanifest_<appid>.acf (écrit par Steam pendant le téléchargement)
+#[derive(Serialize)]
+pub struct SteamInstallProgress {
+    pub state: String, // "missing" | "downloading" | "installed"
+    pub progress: u64,
+    pub downloaded: u64,
+    pub total: u64,
+}
+
+#[tauri::command]
+pub fn steam_install_progress(app_id: String) -> Result<SteamInstallProgress, String> {
+    if app_id.is_empty() || !app_id.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Identifiant Steam invalide".to_string());
+    }
+    let root = find_steam_root().ok_or("Steam est introuvable")?;
+    let file = format!("appmanifest_{}.acf", app_id);
+    let acf = get_steam_libraries(&root).into_iter()
+        .map(|l| l.join("steamapps").join(&file))
+        .find(|p| p.exists());
+    let Some(acf) = acf else {
+        return Ok(SteamInstallProgress { state: "missing".into(), progress: 0, downloaded: 0, total: 0 });
+    };
+    let content = fs::read_to_string(&acf).unwrap_or_default();
+    let read = |key: &str| -> u64 {
+        content.lines().find_map(|l| {
+            let parts: Vec<&str> = l.trim().split('"').collect();
+            if parts.len() >= 4 && parts[1] == key { parts[3].parse::<u64>().ok() } else { None }
+        }).unwrap_or(0)
+    };
+    let flags = read("StateFlags");
+    if flags == 4 {
+        return Ok(SteamInstallProgress { state: "installed".into(), progress: 100, downloaded: 0, total: 0 });
+    }
+    let total = read("BytesToDownload") + read("BytesToStage");
+    let done = read("BytesDownloaded") + read("BytesStaged");
+    let progress = if total > 0 { (done * 100 / total).min(99) } else { 0 };
+    Ok(SteamInstallProgress { state: "downloading".into(), progress, downloaded: done, total })
 }
 
 /// Commande Tauri : Déclenche la désinstallation d'un jeu Steam
