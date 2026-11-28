@@ -46,3 +46,13 @@ iptables -I DOCKER-USER 1 -i eth0 -s <IP_AUTORISÉE> -p tcp -m multiport --dport
 ```
 
 (les règles `iptables` ne survivent pas à un redémarrage sans persistance).
+
+Sur le VPS, ces règles sont réappliquées au démarrage par l'unité systemd `vext-db-firewall.service`
+(script `/usr/local/sbin/vext-db-firewall.sh`, IP autorisées dans `/etc/vext-db-allowed-ips`).
+Si ton IP change, mets-la à jour dans ce fichier puis `systemctl restart vext-db-firewall` (ou passe par un tunnel SSH).
+
+## Rotation de JWT_SECRET
+
+Changer `JWT_SECRET` (identique pour `vext-backend` et `vext-ws`) déconnecte tous les utilisateurs, qui doivent se
+reconnecter. Un secret qui a été commité doit être considéré comme compromis : quiconque le connaît peut fabriquer un
+jeton administrateur valide.
