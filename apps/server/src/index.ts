@@ -79,6 +79,7 @@ const app = new Elysia()
                 // Store in ws.data
                 (ws as any).data.userId = userId;
                 (ws as any).data.username = username;
+                (ws as any).data.isAdmin = !!payload.isAdmin;
 
                 console.log(`🔌 Client connected: ${userId} (${username})`);
 

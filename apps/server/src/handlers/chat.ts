@@ -5,8 +5,14 @@ export const handleChatMessage = async (ws: any, type: string, payload: any) => 
     switch (type) {
         case 'chat:send-message':
         case 'chat:send':
-            const { toUserId, content } = payload;
+            const { toUserId, content } = payload || {};
             const fromUserId = ws.data.userId;
+            // Validation : destinataire = ObjectId, contenu = texte non vide de 2000 caractères max
+            if (typeof toUserId !== 'string' || !/^[a-f0-9]{24}$/i.test(toUserId) ||
+                typeof content !== 'string' || !content.trim() || content.length > 2000) {
+                ws.send(JSON.stringify({ type: 'error', data: { message: 'Message invalide' } }));
+                break;
+            }
             const username = ws.data.username;
 
             console.log(`[chat.handler] Message from ${fromUserId} to ${toUserId}:`, content);
@@ -48,6 +54,11 @@ export const handleChatMessage = async (ws: any, type: string, payload: any) => 
 
         case 'chat:broadcast':
         case 'chat:global':
+            // Un message à tous les utilisateurs connectés : réservé aux admins (sinon spam global)
+            if (!ws.data.isAdmin) {
+                ws.send(JSON.stringify({ type: 'error', data: { message: 'Action réservée aux administrateurs' } }));
+                break;
+            }
             const fromUser = ws.data.userId;
             const sender = ws.data.username;
             const globalContent = payload.content || payload;
