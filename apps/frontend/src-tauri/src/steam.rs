@@ -412,11 +412,80 @@ pub fn launch_steam_game(app_id: String) -> Result<String, String> {
     launch_steam_protocol(&url)
 }
 
-/// Commande Tauri : Déclenche l'installation d'un jeu Steam sans ouvrir la boutique
+/// Commande Tauri : installe un jeu Steam SANS la fenêtre de confirmation de Steam.
+/// Méthode : on écrit appmanifest_<appid>.acf (état « mise à jour requise ») puis on redémarre Steam,
+/// qui trouve le jeu en attente et le télécharge tout seul. Si le jeu est déjà connu de Steam, on garde steam://install.
 #[tauri::command]
-pub fn install_steam_game(app_id: String) -> Result<String, String> {
-    let url = format!("steam://install/{}", app_id);
-    launch_steam_protocol(&url)
+pub async fn install_steam_game(app_id: String, name: Option<String>) -> Result<String, String> {
+    if app_id.is_empty() || !app_id.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Identifiant Steam invalide".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || silent_install(&app_id, name))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[cfg(target_os = "windows")]
+fn silent_install(app_id: &str, name: Option<String>) -> Result<String, String> {
+    use std::process::Command;
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let root = find_steam_root().ok_or("Steam est introuvable sur cet ordinateur")?;
+    let libraries = get_steam_libraries(&root);
+    // Déjà présent (installé ou en attente) : Steam sait le gérer lui-même
+    if libraries.iter().any(|l| l.join("steamapps").join(format!("appmanifest_{}.acf", app_id)).exists()) {
+        return launch_steam_protocol(&format!("steam://install/{}", app_id));
+    }
+
+    let installdir: String = name.unwrap_or_default().chars()
+        .filter(|c| !r#"<>:"/\|?*"#.contains(*c))
+        .collect::<String>().trim().to_string();
+    let installdir = if installdir.is_empty() { app_id.to_string() } else { installdir };
+    let acf = format!(
+        "\"AppState\"
+{{
+	\"appid\"		\"{}\"
+	\"Universe\"		\"1\"
+	\"installdir\"		\"{}\"
+	\"StateFlags\"		\"1026\"
+}}
+",
+        app_id, installdir
+    );
+
+    let steam_exe = root.join("steam.exe");
+    let is_running = || {
+        Command::new("tasklist").args(["/FI", "IMAGENAME eq steam.exe", "/NH"])
+            .creation_flags(CREATE_NO_WINDOW).output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_lowercase().contains("steam.exe"))
+            .unwrap_or(false)
+    };
+
+    // 1. Arrêt propre de Steam (s'il tourne)
+    if is_running() {
+        let _ = Command::new(&steam_exe).arg("-shutdown").creation_flags(CREATE_NO_WINDOW).spawn();
+        for _ in 0..40 {
+            if !is_running() { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+        }
+        if is_running() { return Err("Steam ne s'est pas fermé à temps".to_string()); }
+    }
+
+    // 2. Écriture du manifest dans la bibliothèque principale
+    let apps_dir = root.join("steamapps");
+    fs::create_dir_all(&apps_dir).map_err(|e| e.to_string())?;
+    fs::write(apps_dir.join(format!("appmanifest_{}.acf", app_id)), acf).map_err(|e| e.to_string())?;
+
+    // 3. Redémarrage de Steam : il reprend le téléchargement en attente
+    Command::new(&steam_exe).current_dir(&root).creation_flags(CREATE_NO_WINDOW).spawn()
+        .map_err(|e| format!("Impossible de relancer Steam : {}", e))?;
+    Ok("Installation lancée dans Steam".to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn silent_install(app_id: &str, _name: Option<String>) -> Result<String, String> {
+    launch_steam_protocol(&format!("steam://install/{}", app_id))
 }
 
 /// Commande Tauri : Déclenche la désinstallation d'un jeu Steam

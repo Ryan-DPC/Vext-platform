@@ -313,15 +313,15 @@ const installGame = async (game: any) => {
 const installSteamGame = async (game: any) => {
   if (!game?.app_id) return
   try {
-    await tauriAPI.installSteamGame(game.app_id)
+    await tauriAPI.installSteamGame(game.app_id, game.game_name || game.name)
     alertStore.showAlert({
       title: 'Installation Steam',
-      message: `Téléchargement lancé dans Steam pour ${game.game_name || game.name} !`,
+      message: `Steam redémarre un instant, puis télécharge ${game.game_name || game.name} automatiquement.`,
       type: 'info'
     })
     setTimeout(() => {
       gameStore.scanSteamGames()
-    }, 4000)
+    }, 30000)
   } catch (error: any) {
     alertStore.showAlert({
       title: 'Erreur Installation',
