@@ -31,6 +31,24 @@ services:
       - db-network
       - hoopslive-slim_hoopslive-slim
 
+  # Serveur WebSocket temps réel (chat, présence des amis, groupes, lobbies).
+  # Caddy lui route les connexions Upgrade sur /vext (voir docs/DEPLOY.md).
+  vext-ws:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: vext-ws
+    restart: unless-stopped
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - db-network
+      - hoopslive-slim_hoopslive-slim
+
 networks:
   db-network:
     external: true
