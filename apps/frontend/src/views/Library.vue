@@ -330,7 +330,7 @@ const installSteamGame = async (game: any) => {
       const p = await tauriAPI.steamInstallProgress(String(game.app_id))
       if (p.state === 'installed') break
       missing = p.state === 'missing' ? missing + 1 : 0
-      if (missing > 45) throw new Error('Steam n'a pas démarré le téléchargement')
+      if (missing > 45) throw new Error("Steam n'a pas démarré le téléchargement")
       installProgress.value = {
         progress: p.progress,
         speed: '',
