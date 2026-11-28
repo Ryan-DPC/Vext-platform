@@ -20,12 +20,44 @@ const fmt = (cents: number | undefined, currency: string) =>
 
 const assetBase = (appid: number) => `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}`;
 
+
+function decodeEntities(s: string): string {
+    return s
+        .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(Number(n)))
+        .replace(/&#x([0-9a-f]+);/gi, (_m, n) => String.fromCodePoint(parseInt(n, 16)))
+        .replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'");
+}
+
+/** Extrait appid, titre, date, avis et gratuité des lignes HTML de /search/results (langue anglaise). */
+function parseSearchRows(html: string) {
+    const rows = html.split(/(?=<a href="https:\/\/store\.steampowered\.com\/app\/)/).slice(1);
+    const out: { appid: number; name: string; reviewPercent: number | null; reviewCount: number | null; releasedAt: Date | null; isFree: boolean }[] = [];
+    for (const row of rows) {
+        const appid = Number(/data-ds-appid="(\d+)"/.exec(row)?.[1]);
+        const name = decodeEntities(/<span class="title">([\s\S]*?)<\/span>/.exec(row)?.[1] || '').trim();
+        if (!appid || !name) continue;
+        const rev = /([\d.]+)% of the ([\d,]+) user reviews/.exec(decodeEntities(/data-tooltip-html="([^"]*)"/.exec(row)?.[1] || ''));
+        const dateText = /<div class="search_released[^>]*>\s*([^<]*?)\s*<\/div>/.exec(row)?.[1]?.trim() || '';
+        const date = dateText ? new Date(`${dateText} UTC`) : null;
+        out.push({
+            appid, name,
+            reviewPercent: rev ? Number(rev[1]) : null,
+            reviewCount: rev ? Number(rev[2].replace(/,/g, '')) : null,
+            releasedAt: date && !isNaN(date.getTime()) ? date : null,
+            isFree: /discount_final_price free/.test(row)
+        });
+    }
+    return out;
+}
+
 export const toPublic = (d: any) => ({
     appid: d.appid,
     name: d.name,
     is_free: !!d.is_free,
     price: d.price || null,
     short_description: d.short_description || '',
+    review_percent: d.review_percent ?? null,
+    review_count: d.review_count ?? null,
     genres: d.genres || [],
     release_date: d.release_date || '',
     image_url: d.header_image || `${assetBase(d.appid)}/header.jpg`,
@@ -34,7 +66,7 @@ export const toPublic = (d: any) => ({
 });
 
 export class SteamCatalogService {
-    private static syncing = { appList: false, featured: false };
+    private static syncing = { appList: false, featured: false, lists: false };
 
     /** Liste complète des jeux Steam (noms uniquement) — nécessite STEAM_API_KEY. */
     static async syncAppList(): Promise<{ total: number }> {
@@ -325,6 +357,56 @@ export class SteamCatalogService {
         return { total: ranks.length };
     }
 
+    /**
+     * Classements issus de la recherche de la boutique Steam (même source que le site officiel) :
+     * meilleures ventes (2000), nouveautés populaires, promotions. Une page = 50 jeux, 1 requête / 2 s.
+     * On y lit aussi le % d'avis positifs et le nombre d'avis, ce qui donne le « Top Rated ».
+     */
+    static async syncSearchLists(): Promise<{ total: number }> {
+        if (this.syncing.lists) throw new Error('Synchronisation déjà en cours');
+        this.syncing.lists = true;
+        let total = 0;
+        const lists: { field: 'trend_rank' | 'new_rank' | 'special_rank'; query: string; pages: number }[] = [
+            { field: 'trend_rank', query: 'filter=topsellers', pages: 40 },
+            { field: 'new_rank', query: 'filter=popularnew', pages: 8 },
+            { field: 'special_rank', query: 'specials=1', pages: 20 }
+        ];
+        try {
+            for (const list of lists) {
+                const rows: any[] = [];
+                for (let page = 0; page < list.pages; page++) {
+                    const url = `${STORE}/search/results/?${list.query}&start=${page * 50}&count=50&json=0&infinite=1&category1=998&cc=ch&l=english`;
+                    const data = await getJson(url, 30000);
+                    const parsed = parseSearchRows(String(data?.results_html || ''));
+                    if (parsed.length === 0) break;
+                    rows.push(...parsed);
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+                if (rows.length === 0) continue; // réponse vide : on garde les anciens classements
+
+                await SteamApp.updateMany({ [list.field]: { $ne: null } }, { $set: { [list.field]: null } });
+                const ops = rows.map((r, i) => {
+                    const set: any = { [list.field]: i + 1 };
+                    if (r.reviewPercent != null) { set.review_percent = r.reviewPercent; set.review_count = r.reviewCount; }
+                    if (r.releasedAt) set.released_at = r.releasedAt;
+                    if (r.isFree) set.is_free = true;
+                    return {
+                        updateOne: {
+                            filter: { appid: r.appid },
+                            update: { $set: set, $setOnInsert: { appid: r.appid, name: r.name, name_lower: r.name.toLowerCase() } },
+                            upsert: true
+                        }
+                    };
+                });
+                await SteamApp.bulkWrite(ops, { ordered: false });
+                total += rows.length;
+            }
+            return { total };
+        } finally {
+            this.syncing.lists = false;
+        }
+    }
+
     /** Parcours du catalogue (onglet « Tous les jeux ») avec tri et pagination. */
     static async browse(sort: string, page: number, limit: number) {
         const size = Math.min(Math.max(limit, 1), 60);
@@ -332,6 +414,11 @@ export class SteamCatalogService {
         let filter: any = {};
         let order: any = { appid: -1 };
         switch (sort) {
+            case 'trending': filter = { trend_rank: { $gt: 0 } }; order = { trend_rank: 1 }; break;
+            case 'new_releases': filter = { new_rank: { $gt: 0 }, released_at: { $gte: new Date(Date.now() - 150 * 86400000), $lte: new Date(Date.now() + 86400000) } }; order = { released_at: -1 }; break;
+            case 'promotions': filter = { special_rank: { $gt: 0 } }; order = { special_rank: 1 }; break;
+            case 'top_rated': filter = { review_count: { $gte: 20000 }, review_percent: { $gte: 90 } }; order = { review_percent: -1, review_count: -1 }; break;
+            case 'free': filter = { is_free: true, trend_rank: { $gt: 0 } }; order = { trend_rank: 1 }; break;
             case 'popular': filter = { popularity_score: { $gt: 0 } }; order = { popularity_score: -1 }; break;
             case 'discount': filter = { 'price.discount_percent': { $gt: 0 } }; order = { 'price.discount_percent': -1 }; break;
             case 'price_low': filter = { 'price.final': { $gt: 0 } }; order = { 'price.final': 1 }; break;
@@ -402,14 +489,20 @@ export class SteamCatalogService {
         if (term.length < 2) return [];
         const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const max = Math.min(Math.max(limit, 1), 50);
-        const docs: any[] = await SteamApp.find({ name_lower: { $regex: escaped }, name: { $not: /^App \d+$/ } })
-            .sort({ featured_rank: 1, name_lower: 1 })
-            .limit(400)
-            .lean();
-        // Pertinence : correspondance exacte, puis nom commençant par le terme, puis mises en avant, puis nom court
+        const match = { name_lower: { $regex: escaped }, name: { $not: /^App \d+$/ } };
+        // Les jeux connus (classement de ventes / popularité) d'abord : sinon une recherche courte ne remonte que des inconnus
+        const [known, others] = await Promise.all([
+            SteamApp.find({ ...match, $or: [{ trend_rank: { $gt: 0 } }, { popularity_score: { $gt: 0 } }] }).limit(100).lean(),
+            SteamApp.find(match).sort({ name_lower: 1 }).limit(300).lean()
+        ]);
+        const byId = new Map<number, any>();
+        for (const d of [...known, ...others] as any[]) byId.set(d.appid, d);
+        const docs: any[] = [...byId.values()];
+        // Pertinence : correspondance exacte, puis préfixe, puis popularité (classement de ventes, nombre d'avis), puis nom court
+        const popularity = (d: any) => (d.trend_rank > 0 ? d.trend_rank : d.popularity_score > 0 ? 5000 - Math.min(d.popularity_score / 1000, 4999) : 99999);
         const score = (d: any) =>
-            (d.name_lower === term ? 0 : d.name_lower.startsWith(term) ? 1 : 2) * 1e6 +
-            (d.featured_rank ?? 9999) * 100 + Math.min(d.name_lower.length, 99);
+            (d.name_lower === term ? 0 : d.name_lower.startsWith(term) ? 1 : 2) * 1e9 +
+            Math.min(popularity(d), 99999) * 100 + Math.min(d.name_lower.length, 99);
         const top = docs.sort((a, b) => score(a) - score(b)).slice(0, max);
         await this.fillPrices(top);
         return top.map(toPublic);

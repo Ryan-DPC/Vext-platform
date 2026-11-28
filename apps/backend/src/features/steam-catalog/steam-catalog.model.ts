@@ -30,6 +30,13 @@ const steamAppSchema = new Schema({
     platforms: { windows: Boolean, mac: Boolean, linux: Boolean },
     metacritic: Number,
     recommendations: Number,
+    // Classements issus de la recherche Steam (1 = premier) : meilleures ventes, nouveautés populaires, promotions
+    trend_rank: Number,
+    new_rank: Number,
+    special_rank: Number,
+    review_percent: Number,   // % d'avis positifs
+    review_count: Number,
+    released_at: Date,
     popularity_score: { type: Number, default: 0 }, // 1e9 - rang (top 100 joueurs en ligne) ou nombre d'avis
     unavailable_at: Date,     // appdetails a répondu « indisponible » (retiré / restreint) : réessai espacé
     genres: [String],
@@ -44,6 +51,10 @@ const steamAppSchema = new Schema({
 steamAppSchema.index({ details_fetched_at: 1, appid: -1 });
 steamAppSchema.index({ assets_fetched_at: 1, appid: -1 });
 steamAppSchema.index({ recommendations: -1 });
+steamAppSchema.index({ trend_rank: 1 });
+steamAppSchema.index({ new_rank: 1 });
+steamAppSchema.index({ special_rank: 1 });
+steamAppSchema.index({ review_count: -1, review_percent: -1 });
 steamAppSchema.index({ popularity_score: -1 });
 steamAppSchema.index({ 'price.discount_percent': -1 });
 

@@ -2,9 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { useRouter } from 'vue-router'
-import { getApiUrl } from '../utils/url'
-import SteamCatalog from '../components/SteamCatalog.vue'
-const defaultGameImg = `${getApiUrl()}/public/default-game.svg`
+import DiscoverGrid from '../components/DiscoverGrid.vue'
 import heroBg from '@/assets/images/hero-bg.png'
 import heroBg2 from '@/assets/images/hero-bg-2.png'
 import heroBg3 from '@/assets/images/hero-bg-3.png'
@@ -12,56 +10,60 @@ import heroBg3 from '@/assets/images/hero-bg-3.png'
 const router = useRouter()
 const gameStore = useGameStore()
 const searchQuery = ref('')
-const activeCategory = ref(localStorage.getItem('home_active_category') || 'trending')
+const CATEGORY_IDS = ['trending', 'new_releases', 'top_rated', 'promotions', 'free']
+const storedCategory = localStorage.getItem('home_active_category') || ''
+const activeCategory = ref(CATEGORY_IDS.includes(storedCategory) ? storedCategory : 'trending')
 
 watch(activeCategory, (newVal) => {
   localStorage.setItem('home_active_category', newVal)
 })
 
-// Filtered Search Results
-const searchResults = computed(() => {
-  if (!searchQuery.value || searchQuery.value.length < 2) return []
-  const query = searchQuery.value.toLowerCase()
-  return gameStore.games.filter((g: any) => 
-    g.game_name.toLowerCase().includes(query)
-  ).slice(0, 5) // Limit to 5 results
-})
-
-const selectGame = (gameId: string) => {
-  goToGameDetails(gameId)
-  searchQuery.value = '' // Clear search after selection
-}
-
 // Carousel State
 const currentSlide = ref(0)
-const slides = [
+const fallbackSlides = [
   {
     id: 1,
     title: 'VEXT CHESS:\nSTRATEGY EVOLVED',
     desc: 'Master the board in this futuristic take on the classic game. Ranked matches available now.',
     image: heroBg,
-    badge: 'FEATURED'
+    badge: 'FEATURED',
+    gameId: ''
   },
   {
     id: 2,
     title: 'CYBER LEGENDS:\nARENA',
     desc: 'Join the ultimate battle for supremacy in the neon-soaked arena.',
     image: heroBg2,
-    badge: 'NEW SEASON'
+    badge: 'NEW SEASON',
+    gameId: ''
   },
   {
     id: 3,
     title: 'NEON RACER:\nOVERDRIVE',
     desc: 'High-speed racing through the digital cityscape. Customize your ride.',
     image: heroBg3,
-    badge: 'EARLY ACCESS'
+    badge: 'EARLY ACCESS',
+    gameId: ''
   }
 ]
+
+// Promotion des jeux Vext : chaque jeu Vext devient une bannière du carrousel ; sans jeu Vext, bannières par défaut
+const slides = computed(() => {
+  const vext = (gameStore.games || []).slice(0, 5).map((g: any, i: number) => ({
+    id: g._id || g.id || i,
+    title: g.game_name,
+    desc: g.description || 'Disponible maintenant sur Vext.',
+    image: g.image_url || [heroBg, heroBg2, heroBg3][i % 3],
+    badge: 'VEXT',
+    gameId: g._id || g.id || ''
+  }))
+  return vext.length > 0 ? vext : fallbackSlides
+})
 
 let slideInterval: any = null
 
 const nextSlide = () => {
-  currentSlide.value = (currentSlide.value + 1) % slides.length
+  currentSlide.value = (currentSlide.value + 1) % slides.value.length
 }
 
 const goToGameDetails = (gameId: string) => {
@@ -69,6 +71,10 @@ const goToGameDetails = (gameId: string) => {
 }
 
 const handlePlayNow = (slide: any) => {
+  if (slide.gameId) {
+    goToGameDetails(slide.gameId)
+    return
+  }
   // Extract main title part (before colon or newline)
   const title = slide.title.split(':')[0].split('\n')[0].trim().toLowerCase()
   
@@ -87,7 +93,7 @@ const handlePlayNow = (slide: any) => {
 }
 
 const prevSlide = () => {
-  currentSlide.value = (currentSlide.value - 1 + slides.length) % slides.length
+  currentSlide.value = (currentSlide.value - 1 + slides.value.length) % slides.value.length
 }
 
 const setSlide = (index: number) => {
@@ -106,12 +112,13 @@ onUnmounted(() => {
   if (slideInterval) clearInterval(slideInterval)
 })
 
+// Filtres unifiés (Vext + Steam + Epic) : même liste pour toutes les sources
 const categories = [
   { id: 'trending', name: 'Trending', icon: 'fas fa-fire' },
-  { id: 'new', name: 'New Releases', icon: 'fas fa-rocket' },
-  { id: 'top', name: 'Top Rated', icon: 'fas fa-star' },
-  { id: 'rpg', name: 'RPG', icon: 'fas fa-dungeon' },
-  { id: 'strategy', name: 'Strategy', icon: 'fas fa-chess' }
+  { id: 'new_releases', name: 'New Releases', icon: 'fas fa-rocket' },
+  { id: 'top_rated', name: 'Top Rated', icon: 'fas fa-star' },
+  { id: 'promotions', name: 'Promotions', icon: 'fas fa-tags' },
+  { id: 'free', name: 'Gratuits', icon: 'fas fa-gift' }
 ]
 </script>
 
@@ -176,31 +183,13 @@ const categories = [
           <div class="filter-bar">
             <div class="search-input">
               <i class="fas fa-search search-icon"></i>
-              <input 
-                v-model="searchQuery" 
-                type="text" 
-                placeholder="Search games..."
-                @keyup.enter="searchResults.length > 0 && selectGame(searchResults[0]._id || searchResults[0].id)"
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search games (Vext, Steam...)"
               >
-              
-               <!-- Search Dropdown -->
-              <div v-if="searchResults.length > 0" class="search-dropdown">
-                <ul>
-                  <li 
-                    v-for="game in searchResults" 
-                    :key="game._id || game.id"
-                    @click="selectGame(game._id || game.id)"
-                  >
-                    <img :src="game.image_url || defaultGameImg" class="thumb">
-                    <div class="info">
-                        <span class="title">{{ game.game_name }}</span>
-                        <span class="price">{{ game.price > 0 ? game.price + ' CHF' : 'FREE' }}</span>
-                    </div>
-                  </li>
-                </ul>
-              </div>
             </div>
-            
+
             <div class="categories-row">
               <button 
                 v-for="cat in categories" 
@@ -218,42 +207,10 @@ const categories = [
       </div>
       <!-- End Centered Wrapper -->
 
-      <!-- Featured Games Grid (Full Width / Separate) -->
+      <!-- Grille unifiée : jeux Vext + Steam (+ Epic) dans le même flux, une seule recherche -->
       <section class="games-grid-section">
-        <div class="section-title">
-          <i class="fas fa-gamepad"></i> FEATURED GAMES
-        </div>
-        
-        <div class="games-grid">
-          <div v-for="game in gameStore.getFilteredGames(activeCategory)" :key="game._id" class="game-card-neon">
-            <div class="card-image">
-              <img :src="game.image_url || defaultGameImg" alt="Game">
-              <div class="card-overlay">
-                <button class="btn-view" @click="goToGameDetails(game.id)">VIEW DETAILS</button>
-              </div>
-            </div>
-            <div class="card-info">
-              <h3>{{ game.game_name }}</h3>
-              <div class="card-meta">
-                <span class="genre">{{ game.genre || 'Action' }}</span>
-                <span class="price" v-if="game.price > 0">{{ game.price }} CHF</span>
-                <span class="price free" v-else>FREE</span>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Fallback if no games -->
-          <!-- Fallback if no games -->
-          <template v-if="gameStore.getFilteredGames(activeCategory).length === 0">
-             <div class="no-games-placeholder">
-                <p>No featured games available at the moment.</p>
-             </div>
-          </template>
-        </div>
+        <DiscoverGrid :query="searchQuery" :category="activeCategory" />
       </section>
-
-      <!-- Steam catalogue (prix Steam, achat sur Steam) -->
-      <SteamCatalog />
 
     </div>
   </div>

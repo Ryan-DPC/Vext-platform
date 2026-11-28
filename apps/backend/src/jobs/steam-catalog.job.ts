@@ -10,6 +10,7 @@ const safe = (label: string, fn: () => Promise<any>) =>
 cron.schedule('0 */6 * * *', () => {
     safe('featured', () => SteamCatalogService.syncFeatured());
     safe('charts', () => SteamCatalogService.syncCharts());
+    safe('search lists', () => SteamCatalogService.syncSearchLists());
 }, { timezone: 'Europe/Paris' });
 // Liste complète des jeux : chaque dimanche à 4 h
 cron.schedule('0 4 * * 0', () => { safe('app list', () => SteamCatalogService.syncAppList()); }, { timezone: 'Europe/Paris' });
@@ -20,6 +21,7 @@ setTimeout(async () => {
         const n = await SteamCatalogService.count();
         await safe('featured', () => SteamCatalogService.syncFeatured());
         await safe('charts', () => SteamCatalogService.syncCharts());
+        safe('search lists', () => SteamCatalogService.syncSearchLists()); // ~3 min : sans bloquer la suite
         if (n < 1000 && process.env.STEAM_API_KEY) await safe('app list', () => SteamCatalogService.syncAppList());
     } catch (e: any) {
         console.error('[SteamCatalog] init:', e.message);
