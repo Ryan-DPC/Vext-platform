@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { JWT_SECRET } from '../../config/jwt';
-import { SteamCatalogService, toPublic } from './steam-catalog.service';
+import { SteamCatalogService, toPublic, GENRES } from './steam-catalog.service';
 
 export const steamCatalogRoutes = new Elysia({ prefix: '/api/steam-catalog' })
     .use(jwt({ name: 'jwt', secret: JWT_SECRET }))
@@ -18,12 +18,13 @@ export const steamCatalogRoutes = new Elysia({ prefix: '/api/steam-catalog' })
         }
     })
     .get('/stats', async () => SteamCatalogService.stats())
-    .get('/browse', async ({ query }) => SteamCatalogService.browse(query.sort || 'new', Number(query.page) || 1, Number(query.limit) || 48), {
-        query: t.Object({ sort: t.Optional(t.String()), page: t.Optional(t.String()), limit: t.Optional(t.String()) })
+    .get('/browse', async ({ query }) => SteamCatalogService.browse(query.sort || 'new', Number(query.page) || 1, Number(query.limit) || 48, Number(query.genre) || undefined), {
+        query: t.Object({ genre: t.Optional(t.String()), sort: t.Optional(t.String()), page: t.Optional(t.String()), limit: t.Optional(t.String()) })
     })
     .post('/images', async ({ body }) => SteamCatalogService.imagesFor((body.appids || []).map(Number)), {
         body: t.Object({ appids: t.Array(t.Union([t.Number(), t.String()]), { maxItems: 100 }) })
     })
+    .get('/genres', () => GENRES)
     .get('/featured', async () => SteamCatalogService.featured())
     .get('/search', async ({ query }) => SteamCatalogService.search(query.q, Number(query.limit) || 24), {
         query: t.Object({ q: t.String({ minLength: 2, maxLength: 80 }), limit: t.Optional(t.String()) })

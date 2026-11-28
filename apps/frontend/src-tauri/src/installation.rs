@@ -16,6 +16,14 @@ struct ProgressPayload {
     status: String,
 }
 
+/// Refuse les noms de dossier qui sortent du dossier VEXT (.., séparateurs, chemins absolus).
+fn safe_folder_name(name: &str) -> Result<(), String> {
+    if name.is_empty() || name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.contains(':') {
+        return Err(format!("Nom de dossier invalide : {}", name));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn install_game(
     window: Window,
@@ -25,6 +33,7 @@ pub async fn install_game(
     game_id: String,
     game_name: String,
 ) -> Result<String, String> {
+    safe_folder_name(&folder_name)?;
     let client = Client::new();
     let game_dir = Path::new(&install_path).join("VEXT").join(&folder_name);
     
@@ -117,19 +126,28 @@ pub async fn install_game(
     // 3. Verify or Create Manifest
     let manifest_path = game_dir.join("manifest.json");
     if !manifest_path.exists() {
-        // Create a basic manifest if missing (common for single exe games)
-        let manifest_content = format!(
-            r#"{{
-                "id": "{}",
-                "name": "{}",
-                "version": "1.0.0",
-                "executable": "Game.exe",
-                "entryPoint": "Game.exe"
-            }}"#,
-            game_id, game_name
-        );
+        // Pas de manifest dans l'archive : on repère l'exécutable (Game.exe, sinon celui qui porte le nom du jeu, sinon le premier .exe)
+        let mut exes: Vec<String> = fs::read_dir(&game_dir)
+            .map_err(|e| e.to_string())?
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.to_lowercase().ends_with(".exe"))
+            .collect();
+        exes.sort();
+        let wanted = game_name.to_lowercase().replace(' ', "");
+        let entry = exes.iter().find(|n| n.eq_ignore_ascii_case("Game.exe")).cloned()
+            .or_else(|| exes.iter().find(|n| n.to_lowercase().replace(' ', "").starts_with(&wanted)).cloned())
+            .or_else(|| exes.first().cloned())
+            .unwrap_or_else(|| "Game.exe".to_string());
+        let manifest_content = serde_json::json!({
+            "id": game_id,
+            "name": game_name,
+            "version": "1.0.0",
+            "executable": entry,
+            "entryPoint": entry
+        });
         let mut m_file = fs::File::create(&manifest_path).map_err(|e| e.to_string())?;
-        m_file.write_all(manifest_content.as_bytes()).map_err(|e| e.to_string())?;
+        m_file.write_all(manifest_content.to_string().as_bytes()).map_err(|e| e.to_string())?;
     }
 
     let _ = window.emit("install:complete", ProgressPayload {
@@ -150,6 +168,7 @@ pub async fn select_folder() -> Option<String> {
 
 #[tauri::command]
 pub fn uninstall_game(install_path: String, folder_name: String) -> Result<bool, String> {
+    safe_folder_name(&folder_name)?;
     let game_dir = Path::new(&install_path).join("VEXT").join(folder_name);
     if game_dir.exists() {
         fs::remove_dir_all(game_dir).map_err(|e| e.to_string())?;

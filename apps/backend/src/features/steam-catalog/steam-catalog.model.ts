@@ -32,6 +32,7 @@ const steamAppSchema = new Schema({
     recommendations: Number,
     // Classements issus de la recherche Steam (1 = premier) : meilleures ventes, nouveautés populaires, promotions
     trend_rank: Number,
+    genre_ranks: { type: Object, default: undefined }, // { [tagId]: rang } : meilleures ventes par genre
     new_rank: Number,
     special_rank: Number,
     review_percent: Number,   // % d'avis positifs

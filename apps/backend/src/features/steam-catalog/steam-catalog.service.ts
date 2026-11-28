@@ -50,6 +50,12 @@ function parseSearchRows(html: string) {
     return out;
 }
 
+export const GENRES = [
+    { id: 19, name: 'Action' }, { id: 21, name: 'Aventure' }, { id: 122, name: 'RPG' }, { id: 9, name: 'Stratégie' },
+    { id: 599, name: 'Simulation' }, { id: 492, name: 'Indépendant' }, { id: 597, name: 'Casual' }, { id: 699, name: 'Course' },
+    { id: 701, name: 'Sport' }, { id: 1667, name: 'Horreur' }, { id: 1663, name: 'FPS' }, { id: 3859, name: 'Multijoueur' }
+];
+
 export const toPublic = (d: any) => ({
     appid: d.appid,
     name: d.name,
@@ -66,7 +72,7 @@ export const toPublic = (d: any) => ({
 });
 
 export class SteamCatalogService {
-    private static syncing = { appList: false, featured: false, lists: false };
+    private static syncing = { appList: false, featured: false, lists: false, genres: false };
 
     /** Liste complète des jeux Steam (noms uniquement) — nécessite STEAM_API_KEY. */
     static async syncAppList(): Promise<{ total: number }> {
@@ -407,8 +413,42 @@ export class SteamCatalogService {
         }
     }
 
+    /** Meilleures ventes par genre (tags Steam) : alimente le menu de genres de la Home. */
+    static async syncGenres(): Promise<{ total: number }> {
+        if (this.syncing.genres) throw new Error('Synchronisation déjà en cours');
+        this.syncing.genres = true;
+        let total = 0;
+        try {
+            for (const g of GENRES) {
+                const rows: any[] = [];
+                for (let page = 0; page < 6; page++) {
+                    const url = `${STORE}/search/results/?filter=topsellers&tags=${g.id}&start=${page * 50}&count=50&json=0&infinite=1&category1=998&cc=ch&l=english`;
+                    const data = await getJson(url, 30000);
+                    const parsed = parseSearchRows(String(data?.results_html || ''));
+                    if (parsed.length === 0) break;
+                    rows.push(...parsed);
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+                if (rows.length === 0) continue;
+                const key = `genre_ranks.${g.id}`;
+                await SteamApp.updateMany({ [key]: { $exists: true } }, { $unset: { [key]: '' } });
+                await SteamApp.bulkWrite(rows.map((r, i) => ({
+                    updateOne: {
+                        filter: { appid: r.appid },
+                        update: { $set: { [key]: i + 1 }, $setOnInsert: { appid: r.appid, name: r.name, name_lower: r.name.toLowerCase() } },
+                        upsert: true
+                    }
+                })), { ordered: false });
+                total += rows.length;
+            }
+            return { total };
+        } finally {
+            this.syncing.genres = false;
+        }
+    }
+
     /** Parcours du catalogue (onglet « Tous les jeux ») avec tri et pagination. */
-    static async browse(sort: string, page: number, limit: number) {
+    static async browse(sort: string, page: number, limit: number, genre?: number) {
         const size = Math.min(Math.max(limit, 1), 60);
         const skip = Math.max(page - 1, 0) * size;
         let filter: any = {};
@@ -425,6 +465,7 @@ export class SteamCatalogService {
             case 'az': filter = { name_lower: { $regex: '^[a-z]' } }; order = { name_lower: 1 }; break;
             default: filter = { type: 'game' }; order = { appid: -1 };
         }
+        if (genre && GENRES.some(g => g.id === genre)) { filter = { [`genre_ranks.${genre}`]: { $gt: 0 } }; order = { [`genre_ranks.${genre}`]: 1 }; }
         const docs = await SteamApp.find({ ...filter, name: { $not: /^App \d+$/ } }).sort(order).skip(skip).limit(size + 1).lean();
         const pageDocs = docs.slice(0, size);
         await this.fillPrices(pageDocs); // prix manquants de la page, en une seule requête groupée

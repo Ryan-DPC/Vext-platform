@@ -10,7 +10,7 @@ import { useGameStore } from '../stores/gameStore'
 import { useSteamPurchaseStore } from '../stores/steamPurchaseStore'
 import { getApiUrl } from '../utils/url'
 
-const props = defineProps<{ query: string; category: string }>()
+const props = defineProps<{ query: string; category: string; genre?: number }>()
 
 interface Card {
   key: string
@@ -77,6 +77,7 @@ function fromVext(g: any): Card {
 // Jeux Vext mis dans le même flux que les autres (jamais dans une section à part) :
 // ils apparaissent là où leurs critères correspondent à la catégorie active.
 const vextForCategory = computed<Card[]>(() => {
+  if (props.genre) return [] // pas de genre connu pour les jeux Vext
   const games: any[] = gameStore.games || []
   switch (props.category) {
     case 'trending':
@@ -116,7 +117,7 @@ async function load(reset = false) {
       page.value = 1
       steamItems.value = []
     }
-    const res = await axios.get('/steam-catalog/browse', { params: { sort: props.category, page: page.value, limit: 48 } })
+    const res = await axios.get('/steam-catalog/browse', { params: { sort: props.category, genre: props.genre || undefined, page: page.value, limit: 48 } })
     steamItems.value = [...steamItems.value, ...(res.data.items || []).map(fromSteam)]
     hasMore.value = !!res.data.hasMore
     page.value += 1
@@ -145,7 +146,7 @@ watch(() => props.query, (q) => {
   }, 300)
 })
 
-watch(() => props.category, () => load(true))
+watch(() => [props.category, props.genre], () => load(true))
 onMounted(() => load(true))
 
 // --- Actions ---------------------------------------------------------------------------------------

@@ -12,6 +12,12 @@ const gameStore = useGameStore()
 const searchQuery = ref('')
 const CATEGORY_IDS = ['trending', 'new_releases', 'top_rated', 'promotions', 'free']
 const storedCategory = localStorage.getItem('home_active_category') || ''
+const GENRES = [
+  { id: 19, name: 'Action' }, { id: 21, name: 'Aventure' }, { id: 122, name: 'RPG' }, { id: 9, name: 'Stratégie' },
+  { id: 599, name: 'Simulation' }, { id: 492, name: 'Indépendant' }, { id: 597, name: 'Casual' }, { id: 699, name: 'Course' },
+  { id: 701, name: 'Sport' }, { id: 1667, name: 'Horreur' }, { id: 1663, name: 'FPS' }, { id: 3859, name: 'Multijoueur' }
+]
+const genre = ref(0)
 const activeCategory = ref(CATEGORY_IDS.includes(storedCategory) ? storedCategory : 'trending')
 
 watch(activeCategory, (newVal) => {
@@ -201,6 +207,10 @@ const categories = [
               >
                 <i :class="cat.icon"></i> {{ cat.name }}
               </button>
+              <select v-model.number="genre" class="cat-pill genre-select" :class="{ active: genre > 0 }" title="Genre">
+                <option :value="0">Tous les genres</option>
+                <option v-for="g in GENRES" :key="g.id" :value="g.id">{{ g.name }}</option>
+              </select>
             </div>
           </div>
         </section>
@@ -209,7 +219,7 @@ const categories = [
 
       <!-- Grille unifiée : jeux Vext + Steam (+ Epic) dans le même flux, une seule recherche -->
       <section class="games-grid-section">
-        <DiscoverGrid :query="searchQuery" :category="activeCategory" />
+        <DiscoverGrid :query="searchQuery" :category="activeCategory" :genre="genre" />
       </section>
 
     </div>
@@ -639,4 +649,6 @@ const categories = [
 .price { color: #ff7eb3; font-weight: 700; }
 .price.free { color: #ff7eb3; }
 
+.genre-select { appearance: auto; cursor: pointer; }
+.genre-select option { background: #1a1325; color: #fff; }
 </style>
