@@ -29,7 +29,7 @@ export const toPublic = (d: any) => ({
     genres: d.genres || [],
     release_date: d.release_date || '',
     image_url: d.header_image || `${assetBase(d.appid)}/header.jpg`,
-    poster_url: `${assetBase(d.appid)}/library_600x900.jpg`,
+    poster_url: d.poster_image || `${assetBase(d.appid)}/library_600x900.jpg`,
     store_url: `${STORE}/app/${d.appid}`
 });
 
@@ -169,7 +169,9 @@ export class SteamCatalogService {
             details_fetched_at: now,
             unavailable_at: null
         };
-        return SteamApp.findOneAndUpdate({ appid }, { $set: set }, { upsert: true, new: true }).lean();
+        const update: any = { $set: set };
+        if (typeof d.recommendations?.total === 'number') update.$max = { popularity_score: d.recommendations.total };
+        return SteamApp.findOneAndUpdate({ appid }, update, { upsert: true, new: true }).lean();
     }
 
     /** Détails + prix d'un jeu (à la demande, mis en cache 24 h). */
@@ -205,6 +207,141 @@ export class SteamCatalogService {
         if (!target) return false;
         await this.enrich(target.appid);
         return true;
+    }
+
+    /**
+     * Récupère les vrais visuels (poster portrait 600x900, bannière) de plusieurs jeux en une requête
+     * (IStoreBrowseService/GetItems, sans clé). Indispensable pour les jeux récents dont les images
+     * ont un chemin à hash que l'on ne peut pas deviner.
+     */
+    static async fetchAssets(appids: number[]): Promise<number> {
+        const ids = [...new Set(appids)].filter(n => Number.isInteger(n) && n > 0).slice(0, 100);
+        if (ids.length === 0) return 0;
+        const input = {
+            ids: ids.map(appid => ({ appid })),
+            context: { language: 'english', country_code: 'CH', steam_realm: 1 },
+            data_request: { include_assets: true }
+        };
+        const data = await getJson(`${API}/IStoreBrowseService/GetItems/v1?input_json=${encodeURIComponent(JSON.stringify(input))}`, 30000);
+        const now = new Date();
+        const byId = new Map<number, any>();
+        for (const it of data?.response?.store_items || []) byId.set(it.appid ?? it.id, it);
+
+        const ops = ids.map(appid => {
+            const a = byId.get(appid)?.assets;
+            const base = a?.asset_url_format
+                ? `https://shared.akamai.steamstatic.com/store_item_assets/${String(a.asset_url_format)}`
+                : null;
+            const url = (file?: string) => (base && file ? base.replace('${FILENAME}', file) : undefined);
+            const poster = url(a?.library_capsule_2x) || url(a?.library_capsule);
+            const header = url(a?.header);
+            const set: any = { assets_fetched_at: now };
+            if (poster) set.poster_image = poster;
+            if (header) set.header_image = header;
+            return { updateOne: { filter: { appid }, update: { $set: set }, upsert: false } };
+        });
+        await SteamApp.bulkWrite(ops, { ordered: false });
+        return ids.length;
+    }
+
+    /** Images demandées par l'application (Bibliothèque) : renvoie poster + bannière, en les récupérant si besoin. */
+    static async imagesFor(appids: number[]) {
+        const ids = [...new Set(appids)].filter(n => Number.isInteger(n) && n > 0).slice(0, 100);
+        const WEEK = 7 * 24 * 3600 * 1000;
+        let docs: any[] = await SteamApp.find({ appid: { $in: ids } }).select('appid poster_image header_image assets_fetched_at').lean();
+        const known = new Set(docs.map(d => d.appid));
+        // jeux absents de la base (ex. hors liste) : on crée une fiche minimale pour pouvoir y rattacher leurs visuels
+        const missing = ids.filter(id => !known.has(id));
+        const stale = docs
+            .filter(d => !d.assets_fetched_at || Date.now() - new Date(d.assets_fetched_at).getTime() > WEEK)
+            .map(d => d.appid);
+        const toFetch = [...stale, ...missing];
+        if (toFetch.length) {
+            try {
+                if (missing.length) {
+                    await SteamApp.bulkWrite(missing.map(appid => ({
+                        updateOne: { filter: { appid }, update: { $setOnInsert: { appid, name: `App ${appid}`, name_lower: `app ${appid}` } }, upsert: true }
+                    })), { ordered: false });
+                }
+                await this.fetchAssets(toFetch);
+                this.fillPlaceholders(missing);
+                docs = await SteamApp.find({ appid: { $in: ids } }).select('appid poster_image header_image').lean();
+            } catch (e: any) {
+                console.warn(`[SteamCatalog] imagesFor: ${e.message}`);
+            }
+        }
+        const out: Record<string, { poster: string; header: string }> = {};
+        for (const id of ids) {
+            const d = docs.find(x => x.appid === id);
+            out[id] = {
+                poster: d?.poster_image || `${assetBase(id)}/library_600x900.jpg`,
+                header: d?.header_image || `${assetBase(id)}/header.jpg`
+            };
+        }
+        return out;
+    }
+
+    /** Passe de fond : complète les visuels de tout le catalogue, 100 jeux par requête. */
+    static async assetBatch(size = 100): Promise<boolean> {
+        const docs: any[] = await SteamApp.find({ assets_fetched_at: null }).sort({ appid: -1 }).limit(size).select('appid').lean();
+        if (docs.length === 0) return false;
+        await this.fetchAssets(docs.map(d => d.appid));
+        return true;
+    }
+
+    /** Complète en arrière-plan (1 requête / 2 s) le nom des jeux créés avec un nom provisoire « App N ». */
+    static fillPlaceholders(appids: number[]) {
+        const ids = [...new Set(appids)].slice(0, 120);
+        if (ids.length === 0) return;
+        (async () => {
+            for (const id of ids) {
+                try {
+                    await this.enrich(id);
+                } catch (e: any) {
+                    if (/429|403/.test(String(e.message))) break;
+                }
+                await new Promise(r => setTimeout(r, 2000));
+            }
+        })();
+    }
+
+    /** Top 100 des jeux les plus joués en ce moment (ISteamChartsService, sans clé) => classement de popularité. */
+    static async syncCharts(): Promise<{ total: number }> {
+        const data = await getJson(`${API}/ISteamChartsService/GetMostPlayedGames/v1/`);
+        const ranks: any[] = data?.response?.ranks || [];
+        if (ranks.length === 0) return { total: 0 };
+        // On retire d'abord les anciens scores de classement (>= 1e8) pour ne garder que ceux de la semaine
+        await SteamApp.updateMany({ popularity_score: { $gte: 1e8 } }, [{ $set: { popularity_score: { $ifNull: ['$recommendations', 0] } } }]);
+        await SteamApp.bulkWrite(ranks.filter(r => r?.appid).map(r => ({
+            updateOne: {
+                filter: { appid: r.appid },
+                update: { $set: { popularity_score: 1e9 - Number(r.rank || 0) }, $setOnInsert: { name: `App ${r.appid}`, name_lower: `app ${r.appid}` } },
+                upsert: true
+            }
+        })), { ordered: false });
+        // Les jeux hors de la liste (ex. logiciels) ont un nom provisoire : on récupère leur vraie fiche
+        const placeholders = await SteamApp.find({ appid: { $in: ranks.map(r => r.appid) }, name: /^App \d+$/ }).select('appid').lean();
+        this.fillPlaceholders(placeholders.map((p: any) => p.appid));
+        return { total: ranks.length };
+    }
+
+    /** Parcours du catalogue (onglet « Tous les jeux ») avec tri et pagination. */
+    static async browse(sort: string, page: number, limit: number) {
+        const size = Math.min(Math.max(limit, 1), 60);
+        const skip = Math.max(page - 1, 0) * size;
+        let filter: any = {};
+        let order: any = { appid: -1 };
+        switch (sort) {
+            case 'popular': filter = { popularity_score: { $gt: 0 } }; order = { popularity_score: -1 }; break;
+            case 'discount': filter = { 'price.discount_percent': { $gt: 0 } }; order = { 'price.discount_percent': -1 }; break;
+            case 'price_low': filter = { 'price.final': { $gt: 0 } }; order = { 'price.final': 1 }; break;
+            case 'az': filter = { name_lower: { $regex: '^[a-z]' } }; order = { name_lower: 1 }; break;
+            default: filter = { type: 'game' }; order = { appid: -1 };
+        }
+        const docs = await SteamApp.find({ ...filter, name: { $not: /^App \d+$/ } }).sort(order).skip(skip).limit(size + 1).lean();
+        const pageDocs = docs.slice(0, size);
+        await this.fillPrices(pageDocs); // prix manquants de la page, en une seule requête groupée
+        return { items: pageDocs.map(toPublic), hasMore: docs.length > size, page };
     }
 
     /**
@@ -265,7 +402,7 @@ export class SteamCatalogService {
         if (term.length < 2) return [];
         const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const max = Math.min(Math.max(limit, 1), 50);
-        const docs: any[] = await SteamApp.find({ name_lower: { $regex: escaped } })
+        const docs: any[] = await SteamApp.find({ name_lower: { $regex: escaped }, name: { $not: /^App \d+$/ } })
             .sort({ featured_rank: 1, name_lower: 1 })
             .limit(400)
             .lean();
@@ -280,7 +417,7 @@ export class SteamCatalogService {
 
     /** Récupère en un seul appel les prix des jeux dont on n'a pas encore le prix (max 20, échec silencieux). */
     private static async fillPrices(docs: any[], cc = DEFAULT_CC) {
-        const missing = docs.filter(d => !d.price_fetched_at).slice(0, 20);
+        const missing = docs.filter(d => !d.price_fetched_at).slice(0, 50);
         if (missing.length === 0) return;
         try {
             const ids = missing.map(d => d.appid).join(',');

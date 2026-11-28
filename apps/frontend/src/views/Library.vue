@@ -73,6 +73,7 @@ function onImageError(e: Event, game: any) {
 
   if (appId) {
     const candidates = [
+      ...(game?.fallback_header_url ? [game.fallback_header_url] : []),
       `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
       `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`,
       `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,

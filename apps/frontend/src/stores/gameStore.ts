@@ -101,10 +101,27 @@ export const useGameStore = defineStore('game', {
                 const merged = Array.from(mergedMap.values())
                 merged.sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()))
                 this.steamGames = merged
+                // Les vrais posters portrait viennent du catalogue (les jeux récents ont des images à chemin à hash)
+                if (token) void this.applySteamPosters()
             } catch (error) {
                 console.error('Failed to scan Steam games:', error)
             } finally {
                 this.isScanningSteam = false
+            }
+        },
+        async applySteamPosters() {
+            const ids = this.steamGames.map((g: any) => Number(g.app_id)).filter((n: number) => Number.isInteger(n) && n > 0)
+            for (let i = 0; i < ids.length; i += 100) {
+                try {
+                    const res = await axios.post('/steam-catalog/images', { appids: ids.slice(i, i + 100) })
+                    const map = res.data || {}
+                    this.steamGames = this.steamGames.map((g: any) => {
+                        const img = map[String(g.app_id)]
+                        return img ? { ...g, image_url: img.poster, fallback_header_url: img.header } : g
+                    })
+                } catch {
+                    /* catalogue indisponible : on garde les images par défaut */
+                }
             }
         },
         async scanEpicGames() {

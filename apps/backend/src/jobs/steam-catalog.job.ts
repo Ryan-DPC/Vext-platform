@@ -7,7 +7,10 @@ const safe = (label: string, fn: () => Promise<any>) =>
         .catch(e => console.error(`[SteamCatalog] ${label}:`, e.message));
 
 // Promos / meilleures ventes : toutes les 6 h
-cron.schedule('0 */6 * * *', () => { safe('featured', () => SteamCatalogService.syncFeatured()); }, { timezone: 'Europe/Paris' });
+cron.schedule('0 */6 * * *', () => {
+    safe('featured', () => SteamCatalogService.syncFeatured());
+    safe('charts', () => SteamCatalogService.syncCharts());
+}, { timezone: 'Europe/Paris' });
 // Liste complète des jeux : chaque dimanche à 4 h
 cron.schedule('0 4 * * 0', () => { safe('app list', () => SteamCatalogService.syncAppList()); }, { timezone: 'Europe/Paris' });
 
@@ -16,6 +19,7 @@ setTimeout(async () => {
     try {
         const n = await SteamCatalogService.count();
         await safe('featured', () => SteamCatalogService.syncFeatured());
+        await safe('charts', () => SteamCatalogService.syncCharts());
         if (n < 1000 && process.env.STEAM_API_KEY) await safe('app list', () => SteamCatalogService.syncAppList());
     } catch (e: any) {
         console.error('[SteamCatalog] init:', e.message);
@@ -50,7 +54,22 @@ async function enrichLoop() {
     }
 }
 
+// Passe de fond des visuels (posters portrait, bannières) : 100 jeux par requête, indépendante du worker prix/fiches
+async function assetsLoop() {
+    for (;;) {
+        let delay = ENRICH_PACE_MS;
+        try {
+            if (!(await SteamCatalogService.assetBatch())) delay = 60 * 60 * 1000;
+        } catch (e: any) {
+            console.warn(`[SteamCatalog] assets: ${e.message}`);
+            delay = /429|403/.test(String(e.message)) ? 10 * 60 * 1000 : 15_000;
+        }
+        await new Promise(r => setTimeout(r, delay));
+    }
+}
+
 if (process.env.STEAM_ENRICH !== 'off') {
+    setTimeout(() => { assetsLoop(); }, 90_000);
     // Démarre après la synchro initiale de la liste
     setTimeout(() => { enrichLoop(); }, 60_000);
 }

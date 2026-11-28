@@ -19,7 +19,12 @@ const purchase = useSteamPurchaseStore()
 const lists = ref<Record<string, CatalogApp[]>>({})
 const results = ref<CatalogApp[]>([])
 const query = ref('')
-const activeList = ref<'top_sellers' | 'specials' | 'new_releases' | 'coming_soon'>('top_sellers')
+const activeList = ref<'top_sellers' | 'specials' | 'new_releases' | 'coming_soon' | 'all'>('top_sellers')
+const sort = ref('popular')
+const browseItems = ref<CatalogApp[]>([])
+const page = ref(1)
+const hasMore = ref(false)
+const loadingMore = ref(false)
 const loading = ref(false)
 const error = ref('')
 
@@ -27,12 +32,45 @@ const tabs = [
   { key: 'top_sellers', label: 'Top ventes' },
   { key: 'specials', label: 'Promotions' },
   { key: 'new_releases', label: 'Nouveautés' },
-  { key: 'coming_soon', label: 'Bientôt' }
+  { key: 'coming_soon', label: 'Bientôt' },
+  { key: 'all', label: 'Tous les jeux' }
 ] as const
+
+const sorts = [
+  { key: 'popular', label: 'Populaires' },
+  { key: 'discount', label: 'Meilleures réductions' },
+  { key: 'new', label: 'Plus récents' },
+  { key: 'price_low', label: 'Prix croissant' },
+  { key: 'az', label: 'A → Z' }
+]
 
 const ownedIds = computed(() => new Set(gameStore.steamGames.map((g: any) => String(g.app_id))))
 const isSearching = computed(() => query.value.trim().length >= 2)
-const shown = computed(() => (isSearching.value ? results.value : lists.value[activeList.value] || []))
+const shown = computed(() =>
+  isSearching.value ? results.value : activeList.value === 'all' ? browseItems.value : lists.value[activeList.value] || []
+)
+
+async function loadBrowse(reset = false) {
+  if (loadingMore.value) return
+  loadingMore.value = true
+  try {
+    if (reset) {
+      page.value = 1
+      browseItems.value = []
+    }
+    const res = await axios.get('/steam-catalog/browse', { params: { sort: sort.value, page: page.value, limit: 48 } })
+    browseItems.value = [...browseItems.value, ...(res.data.items || [])]
+    hasMore.value = !!res.data.hasMore
+    page.value += 1
+  } catch {
+    hasMore.value = false
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+watch(activeList, (l) => { if (l === 'all' && browseItems.value.length === 0) loadBrowse(true) })
+watch(sort, () => loadBrowse(true))
 
 onMounted(async () => {
   loading.value = true
@@ -104,6 +142,9 @@ async function onImgError(e: Event, app: CatalogApp) {
       <button v-for="t in tabs" :key="t.key" :class="{ active: activeList === t.key }" @click="activeList = t.key">
         {{ t.label }}
       </button>
+      <select v-if="activeList === 'all'" v-model="sort" class="sc-sort">
+        <option v-for="s in sorts" :key="s.key" :value="s.key">{{ s.label }}</option>
+      </select>
     </div>
 
     <p v-if="error" class="sc-msg">{{ error }}</p>
@@ -130,6 +171,9 @@ async function onImgError(e: Event, app: CatalogApp) {
         </div>
       </div>
     </div>
+    <div v-if="activeList === 'all' && !isSearching && hasMore" class="sc-more">
+      <button class="sc-btn" :disabled="loadingMore" @click="loadBrowse()">{{ loadingMore ? 'Chargement...' : 'Charger plus' }}</button>
+    </div>
   </section>
 </template>
 
@@ -143,6 +187,8 @@ async function onImgError(e: Event, app: CatalogApp) {
 .sc-tabs button { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
 .sc-tabs button.active { border-color: #66c0f4; color: #66c0f4; }
 .sc-msg { color: #aaa; padding: 12px 0; }
+.sc-sort { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 6px 10px; border-radius: 8px; margin-left: auto; }
+.sc-more { display: flex; justify-content: center; margin-top: 18px; }
 .sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
 .sc-card { background: rgba(20,14,30,0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
 .sc-img { position: relative; aspect-ratio: 460 / 215; background: #100b17; }
