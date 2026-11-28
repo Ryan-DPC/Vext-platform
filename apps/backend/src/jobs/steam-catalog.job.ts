@@ -32,7 +32,8 @@ async function enrichLoop() {
     for (;;) {
         let delay = ENRICH_PACE_MS;
         try {
-            const more = await SteamCatalogService.enrichNext();
+            // 1) prix en masse (50 jeux / requête), 2) fiches détaillées jeu par jeu
+            const more = (await SteamCatalogService.priceBatch()) || (await SteamCatalogService.enrichNext());
             if (!more) delay = 60 * 60 * 1000; // tout est à jour : on revérifie dans une heure
             backoffMs = 5 * 60 * 1000;
         } catch (e: any) {

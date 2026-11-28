@@ -207,13 +207,48 @@ export class SteamCatalogService {
         return true;
     }
 
+    /**
+     * Passe rapide des prix : 50 jeux par requête (appdetails + filters=price_overview).
+     * Complète les prix de tout le catalogue en ~1 h, avant l'enrichissement détaillé jeu par jeu.
+     * Retourne false quand il ne reste plus de jeu sans prix.
+     */
+    static async priceBatch(size = 50, cc = DEFAULT_CC): Promise<boolean> {
+        const docs: any[] = await SteamApp.find({ price_fetched_at: null }).sort({ appid: -1 }).limit(size).select('appid').lean();
+        if (docs.length === 0) return false;
+        const data = await getJson(`${STORE}/api/appdetails?appids=${docs.map(d => d.appid).join(',')}&cc=${cleanCc(cc)}&filters=price_overview`, 30000);
+        const now = new Date();
+        const ops = docs.map(d => {
+            const entry = data?.[d.appid];
+            const po = entry?.success ? entry.data?.price_overview : null;
+            return {
+                updateOne: {
+                    filter: { appid: d.appid },
+                    update: {
+                        $set: {
+                            price: po ? {
+                                currency: po.currency, initial: po.initial, final: po.final,
+                                discount_percent: po.discount_percent,
+                                initial_formatted: po.initial_formatted || po.final_formatted,
+                                final_formatted: po.final_formatted
+                            } : null,
+                            price_fetched_at: now
+                        }
+                    }
+                }
+            };
+        });
+        await SteamApp.bulkWrite(ops, { ordered: false });
+        return true;
+    }
+
     static async stats() {
         const [total, enriched, unavailable] = await Promise.all([
             SteamApp.estimatedDocumentCount(),
             SteamApp.countDocuments({ details_fetched_at: { $ne: null }, unavailable_at: null }),
             SteamApp.countDocuments({ unavailable_at: { $ne: null } })
         ]);
-        return { total, enriched, unavailable, remaining: Math.max(total - enriched - unavailable, 0) };
+        const priced = await SteamApp.countDocuments({ price_fetched_at: { $ne: null } });
+        return { total, priced, enriched, unavailable, remaining: Math.max(total - enriched - unavailable, 0) };
     }
 
     static async featured() {
