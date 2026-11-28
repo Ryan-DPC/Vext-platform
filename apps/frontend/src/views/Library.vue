@@ -354,23 +354,31 @@ const installSteamGame = async (game: any) => {
 }
 
 const uninstallSteamGame = async (game: any) => {
-  if (!game?.app_id) return
+  if (!game?.app_id || installingGameId.value) return
+  const name = game.game_name || game.name
+  if (!await alertStore.showConfirm({
+    title: 'Désinstaller',
+    message: `Désinstaller ${name} ? Steam sera relancé un instant en arrière-plan.`,
+    type: 'warning',
+    confirmText: 'Désinstaller',
+    cancelText: 'Annuler'
+  })) return
+  const key = String(game._id || game.folder_name)
+  installingGameId.value = key
+  installProgress.value = { progress: 100, speed: '', downloaded: '', total: '', eta: '', type: 'download' }
+  installStatusText.value = 'Désinstallation…'
   try {
     await tauriAPI.uninstallSteamGame(game.app_id)
-    alertStore.showAlert({
-      title: 'Désinstallation Steam',
-      message: `Demande de désinstallation envoyée à Steam pour ${game.game_name || game.name}.`,
-      type: 'info'
-    })
-    setTimeout(() => {
-      gameStore.scanSteamGames()
-    }, 4000)
+    await gameStore.scanSteamGames(true)
+    new Notification('VEXT', { body: `🗑️ ${name} désinstallé` })
   } catch (error: any) {
     alertStore.showAlert({
       title: 'Erreur Désinstallation',
       message: `Erreur: ${error.message || error}`,
       type: 'error'
     })
+  } finally {
+    installingGameId.value = null
   }
 }
 

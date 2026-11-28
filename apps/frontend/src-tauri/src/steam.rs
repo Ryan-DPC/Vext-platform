@@ -527,11 +527,76 @@ pub fn steam_install_progress(app_id: String) -> Result<SteamInstallProgress, St
     Ok(SteamInstallProgress { state: "downloading".into(), progress, downloaded: done, total })
 }
 
-/// Commande Tauri : Déclenche la désinstallation d'un jeu Steam
+/// Commande Tauri : désinstalle un jeu Steam SANS la fenêtre de confirmation de Steam.
+/// Steam est fermé, le dossier du jeu et son manifest sont supprimés, puis Steam est relancé en arrière-plan.
 #[tauri::command]
-pub fn uninstall_steam_game(app_id: String) -> Result<String, String> {
-    let url = format!("steam://uninstall/{}", app_id);
-    launch_steam_protocol(&url)
+pub async fn uninstall_steam_game(app_id: String) -> Result<String, String> {
+    if app_id.is_empty() || !app_id.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Identifiant Steam invalide".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || silent_uninstall(&app_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[cfg(target_os = "windows")]
+fn silent_uninstall(app_id: &str) -> Result<String, String> {
+    use std::process::Command;
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let root = find_steam_root().ok_or("Steam est introuvable sur cet ordinateur")?;
+    let file = format!("appmanifest_{}.acf", app_id);
+    let (library, acf) = get_steam_libraries(&root).into_iter()
+        .map(|l| { let p = l.join("steamapps").join(&file); (l, p) })
+        .find(|(_, p)| p.exists())
+        .ok_or("Jeu introuvable dans les bibliothèques Steam")?;
+
+    let content = fs::read_to_string(&acf).map_err(|e| e.to_string())?;
+    let installdir = content.lines().find_map(|l| {
+        let parts: Vec<&str> = l.trim().split('"').collect();
+        if parts.len() >= 4 && parts[1] == "installdir" { Some(parts[3].to_string()) } else { None }
+    }).unwrap_or_default();
+    // Le dossier à supprimer doit rester dans steamapps/common
+    if installdir.is_empty() || installdir == "." || installdir == ".." || installdir.contains('/') || installdir.contains('\\') || installdir.contains(':') {
+        return Err("Dossier d'installation invalide dans le manifest Steam".to_string());
+    }
+
+    let steam_exe = root.join("steam.exe");
+    let is_running = || {
+        Command::new("tasklist").args(["/FI", "IMAGENAME eq steam.exe", "/NH"])
+            .creation_flags(CREATE_NO_WINDOW).output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_lowercase().contains("steam.exe"))
+            .unwrap_or(false)
+    };
+    let was_running = is_running();
+    if was_running {
+        let _ = Command::new(&steam_exe).arg("-shutdown").creation_flags(CREATE_NO_WINDOW).spawn();
+        for _ in 0..40 {
+            if !is_running() { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+        }
+        if is_running() { return Err("Steam ne s'est pas fermé à temps".to_string()); }
+    }
+
+    let game_dir = library.join("steamapps").join("common").join(&installdir);
+    let result: Result<(), String> = (|| {
+        if game_dir.exists() {
+            fs::remove_dir_all(&game_dir).map_err(|e| format!("Suppression impossible (jeu en cours ?) : {}", e))?;
+        }
+        fs::remove_file(&acf).map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+
+    if was_running {
+        let _ = Command::new(&steam_exe).arg("-silent").current_dir(&root).creation_flags(CREATE_NO_WINDOW).spawn();
+    }
+    result.map(|_| "Jeu désinstallé".to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn silent_uninstall(app_id: &str) -> Result<String, String> {
+    launch_steam_protocol(&format!("steam://uninstall/{}", app_id))
 }
 
 /// Commande Tauri : Ouvre une URL externe (ex: Steam OpenID) dans le navigateur système
