@@ -129,7 +129,8 @@ export class ItemsService {
             logger.warn('[Items] Text search fallback:', err.message);
         }
 
-        const regex = new RegExp(query, 'i');
+        // Échappement : sinon une regex fournie par l'utilisateur peut bloquer le serveur (ReDoS)
+        const regex = new RegExp(String(query).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         const docs = await ItemModel.find({ $or: [{ name: regex }, { description: regex }] }).lean();
         return docs.map((d: any) => ({ id: d._id.toString(), ...d }));
     }

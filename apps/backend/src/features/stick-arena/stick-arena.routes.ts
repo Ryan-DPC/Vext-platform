@@ -34,6 +34,17 @@ export const stickArenaRoutes = new Elysia({ prefix: '/api/stick-arena' })
             set.status = 401;
             return { message: 'Unauthorized' };
         }
+        // Seul un participant (ou un admin) peut enregistrer un match, pour ne pas fausser les stats des autres
+        const m = body as any;
+        const uid = String((user as any).id);
+        if (!(user as any).isAdmin && ![String(m?.winnerId), String(m?.loserId)].includes(uid)) {
+            set.status = 403;
+            return { message: 'Seuls les participants peuvent enregistrer ce match.' };
+        }
+        if (m?.winnerId === m?.loserId) {
+            set.status = 400;
+            return { message: 'Match invalide.' };
+        }
         try {
             return await stickArenaStatsService.recordMatch(body);
         } catch (err: any) {

@@ -153,7 +153,8 @@ export class Users {
     }
 
     static async findUsersByUsername(username: string, excludeUserId: string | null = null): Promise<any[]> {
-        const filter: any = { username: { $regex: username, $options: 'i' } };
+        const safe = String(username).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const filter: any = { username: { $regex: safe, $options: 'i' } };
         if (excludeUserId) filter._id = { $ne: new mongoose.Types.ObjectId(excludeUserId) };
         const docs = await UserModel.find(filter, { username: 1, profile_pic: 1, profile_picture: 1, elo: 1 }).lean();
         return docs.map((d: any) => {
