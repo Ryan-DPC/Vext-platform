@@ -47,17 +47,17 @@ const fallbackSlides = [
   }
 ]
 
-// Promotion des jeux Vext : chaque jeu Vext devient une bannière du carrousel ; sans jeu Vext, bannières par défaut
+// Bannières d'origine conservées + promotion des jeux Vext : chaque jeu Vext s'ajoute au carrousel
 const slides = computed(() => {
   const vext = (gameStore.games || []).slice(0, 5).map((g: any, i: number) => ({
-    id: g._id || g.id || i,
+    id: `vext-${g._id || g.id || i}`,
     title: g.game_name,
     desc: g.description || 'Disponible maintenant sur Vext.',
     image: g.image_url || [heroBg, heroBg2, heroBg3][i % 3],
     badge: 'VEXT',
     gameId: g._id || g.id || ''
   }))
-  return vext.length > 0 ? vext : fallbackSlides
+  return [...fallbackSlides, ...vext]
 })
 
 let slideInterval: any = null
